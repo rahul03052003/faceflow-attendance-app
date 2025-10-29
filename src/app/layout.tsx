@@ -6,8 +6,10 @@ import { AppHeader } from '@/components/layout/app-header';
 import { Toaster } from '@/components/ui/toaster';
 
 export const metadata: Metadata = {
-  title: 'SentientAttend',
-  description: 'AI-Powered Smart Attendance System',
+  title:
+    'AI-Based Smart Attendance System Using Face Recognition with Emotion Detection, Cloud Synchronization, and Voice Interaction',
+  description:
+    'An AI-powered smart attendance system featuring face recognition, emotion detection, cloud synchronization, and voice interaction.',
 };
 
 export default function RootLayout({
