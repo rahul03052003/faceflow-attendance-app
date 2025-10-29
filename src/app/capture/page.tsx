@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import {
@@ -16,6 +16,7 @@ import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { USERS } from '@/lib/data';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { textToSpeech } from '@/ai/flows/text-to-speech';
 
 const emotions = ['Happy', 'Sad', 'Neutral'];
 
@@ -27,18 +28,34 @@ type ScanResult = {
 export default function CapturePage() {
   const [isScanning, setIsScanning] = useState(false);
   const [result, setResult] = useState<ScanResult | null>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
 
   const faceScanImage = PlaceHolderImages.find((img) => img.id === 'face-scan');
 
-  const handleScan = () => {
+  const handleScan = async () => {
     setIsScanning(true);
     setResult(null);
-    setTimeout(() => {
-      const randomUser = USERS[Math.floor(Math.random() * USERS.length)];
-      const randomEmotion = emotions[Math.floor(Math.random() * emotions.length)];
-      setResult({ user: randomUser, emotion: randomEmotion });
-      setIsScanning(false);
-    }, 2000);
+
+    // Simulate scanning delay
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+
+    const randomUser = USERS[Math.floor(Math.random() * USERS.length)];
+    const randomEmotion = emotions[Math.floor(Math.random() * emotions.length)];
+    const newResult = { user: randomUser, emotion: randomEmotion };
+    
+    setResult(newResult);
+    setIsScanning(false);
+    
+    try {
+        const greeting = `Hello, ${newResult.user.name}. You have been marked present.`;
+        const ttsResponse = await textToSpeech({ text: greeting });
+        if (audioRef.current) {
+            audioRef.current.src = ttsResponse.audio;
+            audioRef.current.play();
+        }
+    } catch (error) {
+        console.error("Failed to generate or play audio.", error);
+    }
   };
 
   const getEmotionIcon = (emotion: string) => {
@@ -132,6 +149,7 @@ export default function CapturePage() {
           </Button>
         </CardFooter>
       </Card>
+      <audio ref={audioRef} className="hidden" />
     </div>
   );
 }
