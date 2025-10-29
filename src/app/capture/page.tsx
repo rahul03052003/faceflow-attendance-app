@@ -42,9 +42,11 @@ export default function CapturePage() {
   const { toast } = useToast();
 
   useEffect(() => {
+    let stream: MediaStream | null = null;
+
     const getCameraPermission = async () => {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
         setHasCameraPermission(true);
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
@@ -63,8 +65,7 @@ export default function CapturePage() {
     getCameraPermission();
 
     return () => {
-      if (videoRef.current && videoRef.current.srcObject) {
-        const stream = videoRef.current.srcObject as MediaStream;
+      if (stream) {
         stream.getTracks().forEach((track) => track.stop());
       }
     }
