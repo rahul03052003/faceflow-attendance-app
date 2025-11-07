@@ -11,6 +11,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import {
+  Camera,
   CameraOff,
   Frown,
   Loader2,
@@ -60,36 +61,39 @@ export default function CapturePage() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
       streamRef.current = stream;
-      setHasCameraPermission(true);
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
       }
+      setHasCameraPermission(true);
     } catch (error) {
       console.error('Error accessing camera:', error);
       setHasCameraPermission(false);
-      if ((error as Error).name === 'NotAllowedError') {
-        toast({
-          variant: 'destructive',
-          title: 'Camera Access Denied',
-          description:
-            'Please enable camera permissions in your browser settings to use this feature.',
-        });
+      if ((error as Error).name === 'NotAllowedError' || (error as Error).name === 'PermissionDeniedError') {
+         // No need to toast here, the UI will show the alert
       }
     }
   };
 
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    streamRef.current = null;
+  };
+  
   useEffect(() => {
+    // Automatically request camera permission on mount
     getCameraPermission();
 
+    // Cleanup function to stop camera when component unmounts
     return () => {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => track.stop());
-      }
-      if (videoRef.current) {
-        videoRef.current.srcObject = null;
-      }
+      stopCamera();
     };
   }, []);
+
 
   const handleScan = async () => {
      if (!hasCameraPermission) {
@@ -120,20 +124,19 @@ export default function CapturePage() {
       }
     } catch (error) {
       console.error('Failed to generate or play audio.', error);
+       toast({
+        variant: "destructive",
+        title: "Audio Generation Failed",
+        description: "Could not generate voice greeting. You may have hit an API rate limit.",
+      });
     }
   };
 
   const handleCloseCamera = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-    }
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
-    streamRef.current = null;
+    stopCamera();
     setHasCameraPermission(false);
   };
-
+  
   const getEmotionIcon = (emotion: string) => {
     switch (emotion) {
       case 'Happy':
@@ -210,6 +213,23 @@ export default function CapturePage() {
     );
   };
 
+  const renderCameraButton = () => {
+    if (hasCameraPermission) {
+      return (
+        <Button
+          variant="destructive"
+          size="icon"
+          className="absolute top-2 right-2 rounded-full h-8 w-8 z-10"
+          onClick={handleCloseCamera}
+        >
+          <CameraOff className="h-4 w-4" />
+          <span className="sr-only">Close Camera</span>
+        </Button>
+      );
+    }
+    return null;
+  }
+
   return (
     <div className="flex justify-center items-start pt-10">
       <Card className="w-full max-w-md">
@@ -221,25 +241,15 @@ export default function CapturePage() {
         </CardHeader>
         <CardContent className="flex flex-col items-center justify-center gap-6 p-6">
           <div className="w-full aspect-video rounded-md bg-muted overflow-hidden flex items-center justify-center relative">
+            {renderCameraButton()}
             {hasCameraPermission ? (
-              <>
-                <video
-                  ref={videoRef}
-                  className="w-full h-full object-cover"
-                  autoPlay
-                  muted
-                  playsInline
-                />
-                <Button
-                  variant="destructive"
-                  size="icon"
-                  className="absolute top-2 right-2 rounded-full h-8 w-8"
-                  onClick={handleCloseCamera}
-                >
-                  <CameraOff className="h-4 w-4" />
-                  <span className="sr-only">Close Camera</span>
-                </Button>
-              </>
+              <video
+                ref={videoRef}
+                className="w-full h-full object-cover"
+                autoPlay
+                muted
+                playsInline
+              />
             ) : (
               <div className="flex flex-col items-center gap-2 text-muted-foreground">
                 <VideoOff className="h-10 w-10" />
@@ -252,7 +262,7 @@ export default function CapturePage() {
         <CardFooter>
           <Button
             onClick={handleScan}
-            disabled={isScanning}
+            disabled={isScanning && hasCameraPermission}
             className="w-full"
             size="lg"
           >
@@ -273,7 +283,7 @@ export default function CapturePage() {
               </>
             ) : (
                <>
-                <CameraOff className="mr-2 h-4 w-4" />
+                <Camera className="mr-2 h-4 w-4" />
                 Enable Camera
               </>
             )}
