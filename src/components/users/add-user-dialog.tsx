@@ -16,16 +16,25 @@ import { Label } from '@/components/ui/label';
 import { UserPlus, Upload } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import type { User } from '@/lib/types';
 
-export function AddUserDialog() {
+type AddUserDialogProps = {
+  onAddUser: (user: Omit<User, 'id' | 'avatar' | 'role'> & { photo?: File }) => void;
+};
+
+
+export function AddUserDialog({ onAddUser }: AddUserDialogProps) {
   const [open, setOpen] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
   const { toast } = useToast();
 
   const handlePhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      setPhotoFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
         setPhotoPreview(reader.result as string);
@@ -36,19 +45,31 @@ export function AddUserDialog() {
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    // Here you would typically handle form submission,
-    // including uploading the photo to a storage service.
-    toast({
-      title: 'Success!',
-      description: 'New user has been added.',
-    });
-    setOpen(false);
-    setPhotoPreview(null);
+    const formData = new FormData(event.currentTarget);
+    const name = formData.get('name') as string;
+    const email = formData.get('email') as string;
+
+    if (name && email) {
+      onAddUser({ name, email, photo: photoFile || undefined });
+      toast({
+        title: 'Success!',
+        description: `${name} has been added.`,
+      });
+      handleOpenChange(false);
+    } else {
+       toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Please fill out all fields.',
+      });
+    }
   };
   
   const handleOpenChange = (isOpen: boolean) => {
     if (!isOpen) {
       setPhotoPreview(null);
+      setPhotoFile(null);
+      formRef.current?.reset();
     }
     setOpen(isOpen);
   };
@@ -62,7 +83,7 @@ export function AddUserDialog() {
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} ref={formRef}>
           <DialogHeader>
             <DialogTitle>Add New User</DialogTitle>
             <DialogDescription>
@@ -83,6 +104,7 @@ export function AddUserDialog() {
                   onChange={handlePhotoChange}
                   className="hidden"
                   accept="image/png, image/jpeg, image/jpg"
+                  name="photo"
                 />
                 <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>
                     <Upload className="mr-2 h-4 w-4" />
@@ -93,13 +115,13 @@ export function AddUserDialog() {
               <Label htmlFor="name" className="text-right">
                 Name
               </Label>
-              <Input id="name" defaultValue="John Doe" className="col-span-3" required />
+              <Input id="name" name="name" placeholder="John Doe" className="col-span-3" required />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="email" className="text-right">
                 Email
               </Label>
-              <Input id="email" type="email" defaultValue="john.doe@example.com" className="col-span-3" required />
+              <Input id="email" name="email" type="email" placeholder="john.doe@example.com" className="col-span-3" required />
             </div>
           </div>
           <DialogFooter>

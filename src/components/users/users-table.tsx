@@ -1,5 +1,5 @@
 'use client';
-import { USERS } from '@/lib/data';
+import type { User } from '@/lib/types';
 import {
   Table,
   TableBody,
@@ -21,7 +21,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 
-export function UsersTable() {
+type UsersTableProps = {
+  users: User[];
+};
+
+export function UsersTable({ users }: UsersTableProps) {
   return (
     <Table>
       <TableHeader>
@@ -34,12 +38,12 @@ export function UsersTable() {
         </TableRow>
       </TableHeader>
       <TableBody>
-        {USERS.map((user) => (
+        {users.map((user) => (
           <TableRow key={user.id}>
             <TableCell>
               <div className="flex items-center gap-3">
                 <Avatar>
-                   <AvatarImage src={`https://i.pravatar.cc/150?u=${user.email}`} alt={user.name} />
+                   <AvatarImage src={user.avatar} alt={user.name} />
                   <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <div>

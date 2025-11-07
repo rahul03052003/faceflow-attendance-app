@@ -1,3 +1,6 @@
+'use client';
+
+import { useState } from 'react';
 import {
   Card,
   CardContent,
@@ -7,18 +10,33 @@ import {
 } from '@/components/ui/card';
 import { UsersTable } from '@/components/users/users-table';
 import { AddUserDialog } from '@/components/users/add-user-dialog';
+import { USERS } from '@/lib/data';
+import type { User } from '@/lib/types';
 
 export default function UsersPage() {
+  const [users, setUsers] = useState<User[]>(USERS);
+
+  const handleAddUser = (newUser: Omit<User, 'id' | 'avatar' | 'role'> & { photo?: File }) => {
+    const userToAdd: User = {
+      id: (users.length + 1).toString(),
+      name: newUser.name,
+      email: newUser.email,
+      avatar: newUser.photo ? URL.createObjectURL(newUser.photo) : `https://i.pravatar.cc/150?u=${newUser.email}`,
+      role: 'User', // Default role
+    };
+    setUsers((prevUsers) => [userToAdd, ...prevUsers]);
+  };
+
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div>
-            <h1 className="text-3xl font-bold tracking-tight">User Management</h1>
-            <p className="text-muted-foreground">
+          <h1 className="text-3xl font-bold tracking-tight">User Management</h1>
+          <p className="text-muted-foreground">
             View, add, and manage user profiles.
-            </p>
+          </p>
         </div>
-        <AddUserDialog />
+        <AddUserDialog onAddUser={handleAddUser} />
       </div>
 
       <Card>
@@ -29,7 +47,7 @@ export default function UsersPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <UsersTable />
+          <UsersTable users={users} />
         </CardContent>
       </Card>
     </div>
