@@ -68,6 +68,8 @@ export default function CapturePage() {
           if (videoRef.current) {
             videoRef.current.srcObject = stream;
           }
+        } else {
+            stream.getTracks().forEach(track => track.stop());
         }
       } catch (error) {
         console.error('Error accessing camera:', error);
