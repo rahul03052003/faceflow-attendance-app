@@ -19,7 +19,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import type { User } from '@/lib/types';
 
 type AddUserDialogProps = {
-  onAddUser: (user: Omit<User, 'id' | 'avatar' | 'role'> & { photo?: File }) => void;
+  onAddUser: (user: Omit<User, 'id' | 'avatar' | 'role'> & { photo?: File, photoPreview?: string }) => void;
 };
 
 
@@ -52,7 +52,7 @@ export function AddUserDialog({ onAddUser }: AddUserDialogProps) {
     if (name && email) {
       // The photo functionality is for presentation. In a real app, you'd upload this file
       // to a service like Firebase Storage and save the URL.
-      onAddUser({ name, email, photo: photoFile || undefined });
+      onAddUser({ name, email, photo: photoFile || undefined, photoPreview: photoPreview || undefined });
       toast({
         title: 'User Added',
         description: `${name} is being added to the database.`,
@@ -89,7 +89,7 @@ export function AddUserDialog({ onAddUser }: AddUserDialogProps) {
           <DialogHeader>
             <DialogTitle>Add New User</DialogTitle>
             <DialogDescription>
-              Enter the details for the new user. Click save when you\'re done.
+              Enter the details for the new user. Click save when you're done.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">

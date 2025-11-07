@@ -26,12 +26,12 @@ export default function UsersPage() {
   } = useCollection<User>('users');
 
   const handleAddUser = (
-    newUser: Omit<User, 'id' | 'avatar' | 'role'> & { photo?: File }
+    newUser: Omit<User, 'id' | 'avatar' | 'role'> & { photo?: File, photoPreview?: string }
   ) => {
     const userToAdd = {
       name: newUser.name,
       email: newUser.email,
-      avatar: `https://i.pravatar.cc/150?u=${newUser.email}`,
+      avatar: newUser.photoPreview || `https://i.pravatar.cc/150?u=${newUser.email}`,
       role: 'User', // Default role
     };
 
