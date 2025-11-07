@@ -50,10 +50,12 @@ export function AddUserDialog({ onAddUser }: AddUserDialogProps) {
     const email = formData.get('email') as string;
 
     if (name && email) {
+      // The photo functionality is for presentation. In a real app, you'd upload this file
+      // to a service like Firebase Storage and save the URL.
       onAddUser({ name, email, photo: photoFile || undefined });
       toast({
-        title: 'Success!',
-        description: `${name} has been added.`,
+        title: 'User Added',
+        description: `${name} is being added to the database.`,
       });
       handleOpenChange(false);
     } else {
@@ -87,7 +89,7 @@ export function AddUserDialog({ onAddUser }: AddUserDialogProps) {
           <DialogHeader>
             <DialogTitle>Add New User</DialogTitle>
             <DialogDescription>
-              Enter the details for the new user. Click save when you&apos;re done.
+              Enter the details for the new user. Click save when you\'re done.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">

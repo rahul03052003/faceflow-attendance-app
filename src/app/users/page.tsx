@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import {
   Card,
   CardContent,
@@ -10,25 +9,70 @@ import {
 } from '@/components/ui/card';
 import { UsersTable } from '@/components/users/users-table';
 import { AddUserDialog } from '@/components/users/add-user-dialog';
-import { USERS } from '@/lib/data';
 import type { User } from '@/lib/types';
+import { useCollection } from '@/firebase';
+import { addDoc, collection, deleteDoc, doc } from 'firebase/firestore';
+import { useFirestore } from '@/firebase';
+import { Skeleton } from '@/components/ui/skeleton';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 export default function UsersPage() {
-  const [users, setUsers] = useState<User[]>(USERS);
+  const firestore = useFirestore();
+  const {
+    data: users,
+    isLoading,
+    error,
+  } = useCollection<User>('users');
 
-  const handleAddUser = (newUser: Omit<User, 'id' | 'avatar' | 'role'> & { photo?: File }) => {
-    const userToAdd: User = {
-      id: (users.length + 1).toString(),
+  const handleAddUser = (
+    newUser: Omit<User, 'id' | 'avatar' | 'role'> & { photo?: File }
+  ) => {
+    const userToAdd = {
       name: newUser.name,
       email: newUser.email,
-      avatar: newUser.photo ? URL.createObjectURL(newUser.photo) : `https://i.pravatar.cc/150?u=${newUser.email}`,
+      avatar: `https://i.pravatar.cc/150?u=${newUser.email}`,
       role: 'User', // Default role
     };
-    setUsers((prevUsers) => [userToAdd, ...prevUsers]);
+
+    const collectionRef = collection(firestore, 'users');
+    addDoc(collectionRef, userToAdd).catch(async (serverError) => {
+      const permissionError = new FirestorePermissionError({
+        path: collectionRef.path,
+        operation: 'create',
+        requestResourceData: userToAdd,
+      });
+      errorEmitter.emit('permission-error', permissionError);
+    });
   };
 
   const handleDeleteUser = (userId: string) => {
-    setUsers((prevUsers) => prevUsers.filter((user) => user.id !== userId));
+    const docRef = doc(firestore, 'users', userId);
+    deleteDoc(docRef).catch(async (serverError) => {
+      const permissionError = new FirestorePermissionError({
+        path: docRef.path,
+        operation: 'delete',
+      });
+      errorEmitter.emit('permission-error', permissionError);
+    });
+  };
+
+  const renderContent = () => {
+    if (isLoading) {
+      return (
+        <div className="space-y-4">
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-12 w-full" />
+        </div>
+      );
+    }
+
+    if (error) {
+      return <p className="text-destructive">Error loading users: {error.message}</p>;
+    }
+
+    return <UsersTable users={users || []} onDeleteUser={handleDeleteUser} />;
   };
 
   return (
@@ -37,7 +81,7 @@ export default function UsersPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">User Management</h1>
           <p className="text-muted-foreground">
-            View, add, and manage user profiles.
+            View, add, and manage user profiles from your Firestore database.
           </p>
         </div>
         <AddUserDialog onAddUser={handleAddUser} />
@@ -50,9 +94,7 @@ export default function UsersPage() {
             A list of all users in the system.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <UsersTable users={users} onDeleteUser={handleDeleteUser} />
-        </CardContent>
+        <CardContent>{renderContent()}</CardContent>
       </Card>
     </div>
   );
