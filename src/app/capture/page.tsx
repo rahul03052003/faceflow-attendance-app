@@ -46,51 +46,42 @@ export default function CapturePage() {
   const streamRef = useRef<MediaStream | null>(null);
   const { toast } = useToast();
 
-  useEffect(() => {
-    let isMounted = true;
-
-    const getCameraPermission = async () => {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        console.error('Camera API not supported.');
-        setHasCameraPermission(false);
+  const getCameraPermission = async () => {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      console.error('Camera API not supported.');
+      setHasCameraPermission(false);
+      toast({
+        variant: 'destructive',
+        title: 'Unsupported Browser',
+        description: 'Your browser does not support camera access.',
+      });
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      streamRef.current = stream;
+      setHasCameraPermission(true);
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch (error) {
+      console.error('Error accessing camera:', error);
+      setHasCameraPermission(false);
+      if ((error as Error).name === 'NotAllowedError') {
         toast({
           variant: 'destructive',
-          title: 'Unsupported Browser',
-          description: 'Your browser does not support camera access.',
+          title: 'Camera Access Denied',
+          description:
+            'Please enable camera permissions in your browser settings to use this feature.',
         });
-        return;
       }
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        if (isMounted) {
-          streamRef.current = stream;
-          setHasCameraPermission(true);
-          if (videoRef.current) {
-            videoRef.current.srcObject = stream;
-          }
-        } else {
-            stream.getTracks().forEach(track => track.stop());
-        }
-      } catch (error) {
-        console.error('Error accessing camera:', error);
-        if (isMounted) {
-          setHasCameraPermission(false);
-          if ((error as Error).name === 'NotAllowedError') {
-             toast({
-              variant: 'destructive',
-              title: 'Camera Access Denied',
-              description:
-                'Please enable camera permissions in your browser settings to use this feature.',
-            });
-          }
-        }
-      }
-    };
+    }
+  };
 
+  useEffect(() => {
     getCameraPermission();
 
     return () => {
-      isMounted = false;
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((track) => track.stop());
       }
@@ -98,9 +89,14 @@ export default function CapturePage() {
         videoRef.current.srcObject = null;
       }
     };
-  }, [toast]);
+  }, []);
 
   const handleScan = async () => {
+     if (!hasCameraPermission) {
+      await getCameraPermission();
+      return;
+    }
+
     setIsScanning(true);
     setResult(null);
 
@@ -189,7 +185,7 @@ export default function CapturePage() {
           <VideoOff className="h-4 w-4" />
           <AlertTitle>Camera Access Required</AlertTitle>
           <AlertDescription>
-            Please allow camera access in your browser to use this feature.
+            Click the button below to enable your camera.
           </AlertDescription>
         </Alert>
       );
@@ -256,7 +252,7 @@ export default function CapturePage() {
         <CardFooter>
           <Button
             onClick={handleScan}
-            disabled={isScanning || !hasCameraPermission}
+            disabled={isScanning}
             className="w-full"
             size="lg"
           >
@@ -270,10 +266,15 @@ export default function CapturePage() {
                 <Sparkles className="mr-2 h-4 w-4" />
                 Scan Another
               </>
-            ) : (
+            ) : hasCameraPermission ? (
               <>
                 <ScanFace className="mr-2 h-4 w-4" />
                 Start Scan
+              </>
+            ) : (
+               <>
+                <CameraOff className="mr-2 h-4 w-4" />
+                Enable Camera
               </>
             )}
           </Button>
