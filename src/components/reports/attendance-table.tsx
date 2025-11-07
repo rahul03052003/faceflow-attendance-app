@@ -56,7 +56,7 @@ export function AttendanceTable() {
             <TableCell>
               <div className="flex items-center gap-3">
                 <Avatar>
-                  <AvatarImage src={`https://i.pravatar.cc/150?u=${record.userId}`} alt={record.userName} />
+                  <AvatarImage src={record.userAvatar} alt={record.userName} />
                   <AvatarFallback>{record.userName.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <span className="font-medium">{record.userName}</span>
