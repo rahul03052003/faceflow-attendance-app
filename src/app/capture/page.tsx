@@ -36,39 +36,63 @@ type ScanResult = {
 export default function CapturePage() {
   const [isScanning, setIsScanning] = useState(false);
   const [result, setResult] = useState<ScanResult | null>(null);
-  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
+  const [hasCameraPermission, setHasCameraPermission] = useState<
+    boolean | null
+  >(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const { toast } = useToast();
 
   useEffect(() => {
     let stream: MediaStream | null = null;
+    let isMounted = true;
 
     const getCameraPermission = async () => {
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        setHasCameraPermission(true);
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-      } catch (error) {
-        console.error('Error accessing camera:', error);
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        console.error('Camera API not supported.');
         setHasCameraPermission(false);
         toast({
           variant: 'destructive',
-          title: 'Camera Access Denied',
-          description:
-            'Please enable camera permissions in your browser settings to use this feature.',
+          title: 'Unsupported Browser',
+          description: 'Your browser does not support camera access.',
         });
+        return;
+      }
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        if (isMounted) {
+          setHasCameraPermission(true);
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+          }
+        }
+      } catch (error) {
+        console.error('Error accessing camera:', error);
+        if (isMounted) {
+          setHasCameraPermission(false);
+          if ((error as Error).name === 'NotAllowedError') {
+             toast({
+              variant: 'destructive',
+              title: 'Camera Access Denied',
+              description:
+                'Please enable camera permissions in your browser settings to use this feature.',
+            });
+          }
+        }
       }
     };
+
     getCameraPermission();
 
     return () => {
+      isMounted = false;
       if (stream) {
         stream.getTracks().forEach((track) => track.stop());
       }
-    }
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
+      }
+    };
   }, [toast]);
 
   const handleScan = async () => {
@@ -142,38 +166,37 @@ export default function CapturePage() {
         </div>
       );
     }
-    
+
     if (hasCameraPermission === false) {
       return (
-         <Alert variant="destructive">
-            <VideoOff className="h-4 w-4" />
-            <AlertTitle>Camera Access Required</AlertTitle>
-            <AlertDescription>
-                Please allow camera access in your browser to use this feature.
-            </AlertDescription>
+        <Alert variant="destructive">
+          <VideoOff className="h-4 w-4" />
+          <AlertTitle>Camera Access Required</AlertTitle>
+          <AlertDescription>
+            Please allow camera access in your browser to use this feature.
+          </AlertDescription>
         </Alert>
-      )
+      );
     }
 
     if (hasCameraPermission === null) {
-        return (
-            <div className="flex flex-col items-center gap-4 text-center">
-                <Loader2 className="h-16 w-16 animate-spin text-primary" />
-                <p className="text-muted-foreground">Accessing camera...</p>
-            </div>
-        )
+      return (
+        <div className="flex flex-col items-center gap-4 text-center">
+          <Loader2 className="h-16 w-16 animate-spin text-primary" />
+          <p className="text-muted-foreground">Accessing camera...</p>
+        </div>
+      );
     }
 
     return (
-        <div className="flex flex-col items-center gap-4 text-center">
-            <div className="p-6 bg-primary/10 rounded-full">
-            <ScanFace className="h-16 w-16 text-primary" />
-            </div>
-            <p className="text-muted-foreground">Ready to mark attendance.</p>
+      <div className="flex flex-col items-center gap-4 text-center">
+        <div className="p-6 bg-primary/10 rounded-full">
+          <ScanFace className="h-16 w-16 text-primary" />
         </div>
+        <p className="text-muted-foreground">Ready to mark attendance.</p>
+      </div>
     );
-  }
-
+  };
 
   return (
     <div className="flex justify-center items-start pt-10">
@@ -187,12 +210,18 @@ export default function CapturePage() {
         <CardContent className="flex flex-col items-center justify-center gap-6 p-6">
           <div className="w-full aspect-video rounded-md bg-muted overflow-hidden flex items-center justify-center">
             {hasCameraPermission ? (
-                <video ref={videoRef} className="w-full h-full object-cover" autoPlay muted playsInline />
+              <video
+                ref={videoRef}
+                className="w-full h-full object-cover"
+                autoPlay
+                muted
+                playsInline
+              />
             ) : (
-                <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                    <VideoOff className="h-10 w-10" />
-                    <span>Camera is off</span>
-                </div>
+              <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                <VideoOff className="h-10 w-10" />
+                <span>Camera is off</span>
+              </div>
             )}
           </div>
           {renderContent()}
