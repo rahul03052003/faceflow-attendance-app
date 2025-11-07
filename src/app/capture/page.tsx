@@ -11,6 +11,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import {
+  CameraOff,
   Frown,
   Loader2,
   Meh,
@@ -18,6 +19,7 @@ import {
   Smile,
   Sparkles,
   VideoOff,
+  X,
 } from 'lucide-react';
 import { USERS } from '@/lib/data';
 import { Badge } from '@/components/ui/badge';
@@ -41,10 +43,10 @@ export default function CapturePage() {
   >(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
-    let stream: MediaStream | null = null;
     let isMounted = true;
 
     const getCameraPermission = async () => {
@@ -59,8 +61,9 @@ export default function CapturePage() {
         return;
       }
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
         if (isMounted) {
+          streamRef.current = stream;
           setHasCameraPermission(true);
           if (videoRef.current) {
             videoRef.current.srcObject = stream;
@@ -86,8 +89,8 @@ export default function CapturePage() {
 
     return () => {
       isMounted = false;
-      if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
       }
       if (videoRef.current) {
         videoRef.current.srcObject = null;
@@ -120,6 +123,17 @@ export default function CapturePage() {
     } catch (error) {
       console.error('Failed to generate or play audio.', error);
     }
+  };
+
+  const handleCloseCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    streamRef.current = null;
+    setHasCameraPermission(false);
   };
 
   const getEmotionIcon = (emotion: string) => {
@@ -208,15 +222,26 @@ export default function CapturePage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col items-center justify-center gap-6 p-6">
-          <div className="w-full aspect-video rounded-md bg-muted overflow-hidden flex items-center justify-center">
+          <div className="w-full aspect-video rounded-md bg-muted overflow-hidden flex items-center justify-center relative">
             {hasCameraPermission ? (
-              <video
-                ref={videoRef}
-                className="w-full h-full object-cover"
-                autoPlay
-                muted
-                playsInline
-              />
+              <>
+                <video
+                  ref={videoRef}
+                  className="w-full h-full object-cover"
+                  autoPlay
+                  muted
+                  playsInline
+                />
+                <Button
+                  variant="destructive"
+                  size="icon"
+                  className="absolute top-2 right-2 rounded-full h-8 w-8"
+                  onClick={handleCloseCamera}
+                >
+                  <CameraOff className="h-4 w-4" />
+                  <span className="sr-only">Close Camera</span>
+                </Button>
+              </>
             ) : (
               <div className="flex flex-col items-center gap-2 text-muted-foreground">
                 <VideoOff className="h-10 w-10" />
