@@ -27,6 +27,10 @@ export default function UsersPage() {
     setUsers((prevUsers) => [userToAdd, ...prevUsers]);
   };
 
+  const handleDeleteUser = (userId: string) => {
+    setUsers((prevUsers) => prevUsers.filter((user) => user.id !== userId));
+  };
+
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
@@ -47,7 +51,7 @@ export default function UsersPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <UsersTable users={users} />
+          <UsersTable users={users} onDeleteUser={handleDeleteUser} />
         </CardContent>
       </Card>
     </div>
