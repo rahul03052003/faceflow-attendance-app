@@ -189,7 +189,7 @@ export default function CapturePage() {
           <AlertTitle>Camera Access Required</AlertTitle>
           <AlertDescription>
             Click the button below to enable your camera.
-          </AlertDescription>
+          </AlerDescription>
         </Alert>
       );
     }
@@ -262,7 +262,7 @@ export default function CapturePage() {
         <CardFooter>
           <Button
             onClick={handleScan}
-            disabled={isScanning && hasCameraPermission}
+            disabled={isScanning || !hasCameraPermission}
             className="w-full"
             size="lg"
           >
