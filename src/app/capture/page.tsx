@@ -189,7 +189,7 @@ export default function CapturePage() {
           <AlertTitle>Camera Access Required</AlertTitle>
           <AlertDescription>
             Click the button below to enable your camera.
-          </AlerDescription>
+          </AlertDescription>
         </Alert>
       );
     }
