@@ -18,21 +18,19 @@ import {
   Meh,
   ScanFace,
   Smile,
-  Sparkles,
   VideoOff,
-  X,
 } from 'lucide-react';
-import { USERS } from '@/lib/data';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { textToSpeech } from '@/ai/flows/text-to-speech';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import type { User } from '@/lib/types';
+import { recognizeFace } from '@/ai/flows/recognize-face';
 
 const emotions = ['Happy', 'Sad', 'Neutral'];
 
 type ScanResult = {
-  user: (typeof USERS)[0];
+  user: User;
   emotion: string;
 };
 
@@ -68,9 +66,6 @@ export default function CapturePage() {
     } catch (error) {
       console.error('Error accessing camera:', error);
       setHasCameraPermission(false);
-      if ((error as Error).name === 'NotAllowedError' || (error as Error).name === 'PermissionDeniedError') {
-         // No need to toast here, the UI will show the alert
-      }
     }
   };
 
@@ -85,18 +80,14 @@ export default function CapturePage() {
   };
   
   useEffect(() => {
-    // Automatically request camera permission on mount
     getCameraPermission();
-
-    // Cleanup function to stop camera when component unmounts
     return () => {
       stopCamera();
     };
   }, []);
 
-
   const handleScan = async () => {
-     if (!hasCameraPermission) {
+    if (!videoRef.current || !hasCameraPermission) {
       await getCameraPermission();
       return;
     }
@@ -104,31 +95,40 @@ export default function CapturePage() {
     setIsScanning(true);
     setResult(null);
 
-    // Simulate scanning delay
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-
-    const randomUser = USERS[Math.floor(Math.random() * USERS.length)];
-    const randomEmotion =
-      emotions[Math.floor(Math.random() * emotions.length)];
-    const newResult = { user: randomUser, emotion: randomEmotion };
-
-    setResult(newResult);
-    setIsScanning(false);
+    const canvas = document.createElement('canvas');
+    canvas.width = videoRef.current.videoWidth;
+    canvas.height = videoRef.current.videoHeight;
+    const context = canvas.getContext('2d');
+    if (!context) {
+      setIsScanning(false);
+      return;
+    }
+    context.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+    const photoDataUri = canvas.toDataURL('image/jpeg');
 
     try {
-      const greeting = `Hello, ${newResult.user.name}. You have been marked present.`;
-      const ttsResponse = await textToSpeech({ text: greeting });
-      if (audioRef.current) {
-        audioRef.current.src = ttsResponse.audio;
+      const { user, audio } = await recognizeFace({ photoDataUri });
+      const randomEmotion = emotions[Math.floor(Math.random() * emotions.length)];
+      const newResult = { user, emotion: randomEmotion };
+
+      setResult(newResult);
+
+      if (audio && audioRef.current) {
+        audioRef.current.src = audio;
         audioRef.current.play();
+      } else if (!audio) {
+        console.log("No audio returned from flow, likely due to a rate limit.");
       }
+
     } catch (error) {
-      console.error('Failed to generate or play audio.', error);
-       toast({
+      console.error('Face recognition failed.', error);
+      toast({
         variant: "destructive",
-        title: "Audio Generation Failed",
-        description: "Could not generate voice greeting. You may have hit an API rate limit.",
+        title: "Scan Failed",
+        description: "Could not recognize a face. Please try again.",
       });
+    } finally {
+      setIsScanning(false);
     }
   };
 
@@ -164,7 +164,7 @@ export default function CapturePage() {
         <div className="flex flex-col items-center gap-4 text-center animate-in fade-in zoom-in-95">
           <Avatar className="h-40 w-40 border-4 border-primary shadow-lg">
             <AvatarImage
-              src={`https://i.pravatar.cc/150?u=${result.user.email}`}
+              src={result.user.avatar}
               alt={result.user.name}
             />
             <AvatarFallback>{result.user.name.charAt(0)}</AvatarFallback>
@@ -188,7 +188,7 @@ export default function CapturePage() {
           <VideoOff className="h-4 w-4" />
           <AlertTitle>Camera Access Required</AlertTitle>
           <AlertDescription>
-            Click the button below to enable your camera.
+            Please allow camera access to use this feature, then click the button below.
           </AlertDescription>
         </Alert>
       );
@@ -242,15 +242,14 @@ export default function CapturePage() {
         <CardContent className="flex flex-col items-center justify-center gap-6 p-6">
           <div className="w-full aspect-video rounded-md bg-muted overflow-hidden flex items-center justify-center relative">
             {renderCameraButton()}
-            {hasCameraPermission ? (
-              <video
-                ref={videoRef}
-                className="w-full h-full object-cover"
-                autoPlay
-                muted
-                playsInline
-              />
-            ) : (
+            <video
+              ref={videoRef}
+              className={`w-full h-full object-cover ${!hasCameraPermission ? 'hidden' : ''}`}
+              autoPlay
+              muted
+              playsInline
+            />
+            {!hasCameraPermission && (
               <div className="flex flex-col items-center gap-2 text-muted-foreground">
                 <VideoOff className="h-10 w-10" />
                 <span>Camera is off</span>
@@ -262,7 +261,7 @@ export default function CapturePage() {
         <CardFooter>
           <Button
             onClick={handleScan}
-            disabled={isScanning || !hasCameraPermission}
+            disabled={isScanning}
             className="w-full"
             size="lg"
           >
@@ -273,7 +272,7 @@ export default function CapturePage() {
               </>
             ) : result ? (
               <>
-                <Sparkles className="mr-2 h-4 w-4" />
+                <ScanFace className="mr-2 h-4 w-4" />
                 Scan Another
               </>
             ) : hasCameraPermission ? (

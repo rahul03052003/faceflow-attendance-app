@@ -1,15 +1,17 @@
 'use server';
 
 /**
- * @fileOverview Recognizes a face from an image.
+ * @fileOverview Recognizes a face from an image and generates a voice greeting.
  *
- * - recognizeFace - A function that recognizes a face from an image.
+ * - recognizeFace - A function that recognizes a face, finds the user, and returns their info along with a voice greeting.
  * - RecognizeFaceInput - The input type for the recognizeFace function.
  * - RecognizeFaceOutput - The return type for the recognizeFace function.
  */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
+import { USERS } from '@/lib/data';
+import wav from 'wav';
 
 const RecognizeFaceInputSchema = z.object({
   photoDataUri: z
@@ -21,7 +23,14 @@ const RecognizeFaceInputSchema = z.object({
 export type RecognizeFaceInput = z.infer<typeof RecognizeFaceInputSchema>;
 
 const RecognizeFaceOutputSchema = z.object({
-    userId: z.string().describe('The ID of the recognized user.'),
+  user: z.object({
+    id: z.string(),
+    name: z.string(),
+    email: z.string(),
+    avatar: z.string(),
+    role: z.string(),
+  }),
+  audio: z.string().optional().describe('The base64-encoded WAV audio data URI of the greeting.'),
 });
 export type RecognizeFaceOutput = z.infer<typeof RecognizeFaceOutputSchema>;
 
@@ -31,21 +40,34 @@ export async function recognizeFace(
   return recognizeFaceFlow(input);
 }
 
-const prompt = ai.definePrompt({
-  name: 'recognizeFacePrompt',
-  input: { schema: RecognizeFaceInputSchema },
-  output: { schema: RecognizeFaceOutputSchema },
-  prompt: `You are a face recognition expert. Given the image, identify the user.
 
-  For the purpose of this demo, you can return a random user ID from the provided list, but in a real scenario, you would perform face matching.
+async function toWav(
+  pcmData: Buffer,
+  channels = 1,
+  rate = 24000,
+  sampleWidth = 2
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const writer = new wav.Writer({
+      channels,
+      sampleRate: rate,
+      bitDepth: sampleWidth * 8,
+    });
 
-  Known User IDs: 1, 2, 3, 4, 5, 6
+    const bufs: Buffer[] = [];
+    writer.on('error', reject);
+    writer.on('data', (d) => {
+      bufs.push(d);
+    });
+    writer.on('end', () => {
+      resolve(Buffer.concat(bufs).toString('base64'));
+    });
 
-  Analyze the face in the image provided.
-  Photo: {{media url=photoDataUri}}
-  
-  Return the user ID of the person you recognize.`,
-});
+    writer.write(pcmData);
+    writer.end();
+  });
+}
+
 
 const recognizeFaceFlow = ai.defineFlow(
   {
@@ -56,13 +78,41 @@ const recognizeFaceFlow = ai.defineFlow(
   async (input) => {
     // In a real application, you would implement logic to compare the face
     // against a database of known faces. For this demo, we'll simulate it.
-    
-    // Simulate getting a user ID. In a real app, this would come from a face matching service.
-    const users = ['1', '2', '3', '4', '5', '6'];
-    const randomUserId = users[Math.floor(Math.random() * users.length)];
+    const randomUser = USERS[Math.floor(Math.random() * USERS.length)];
+
+    let audioDataUri: string | undefined = undefined;
+    try {
+      const greeting = `Hello, ${randomUser.name}. You have been marked present.`;
+      const { media } = await ai.generate({
+        model: 'googleai/gemini-2.5-flash-preview-tts',
+        config: {
+          responseModalities: ['AUDIO'],
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: { voiceName: 'Algenib' },
+            },
+          },
+        },
+        prompt: greeting,
+      });
+
+      if (media) {
+        const audioBuffer = Buffer.from(
+          media.url.substring(media.url.indexOf(',') + 1),
+          'base64'
+        );
+        const wavBase64 = await toWav(audioBuffer);
+        audioDataUri = `data:audio/wav;base64,${wavBase64}`;
+      }
+    } catch(e) {
+        console.error("TTS generation failed, likely due to rate limits. Proceeding without audio.", e);
+        // Fail gracefully, audio is optional
+    }
+
 
     return {
-      userId: randomUserId
+      user: randomUser,
+      audio: audioDataUri,
     };
   }
 );
