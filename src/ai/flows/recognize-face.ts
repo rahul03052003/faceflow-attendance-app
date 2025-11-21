@@ -154,7 +154,7 @@ const recognizeFaceFlow = ai.defineFlow(
           emotion: z.string().describe('The detected emotion of the person in the photo.')
         })
       },
-      toolChoice: "any"
+      toolChoice: "auto"
     });
 
     if (!output) {
@@ -200,5 +200,3 @@ const recognizeFaceFlow = ai.defineFlow(
     };
   }
 );
-
-    
