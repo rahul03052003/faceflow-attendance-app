@@ -28,7 +28,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import type { User, AttendanceRecord } from '@/lib/types';
 import { recognizeFace } from '@/ai/flows/recognize-face';
 import { useFirestore } from '@/firebase';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { addDoc, collection, doc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 
@@ -113,7 +113,21 @@ export default function CapturePage() {
 
     try {
       const { user, emotion, audio } = await recognizeFace({ photoDataUri });
-      const newResult = { user, emotion };
+      
+      // Fetch the full user document from Firestore to get the correct avatar
+      const userDocRef = doc(firestore, 'users', user.id);
+      const userDocSnap = await getDoc(userDocRef);
+      
+      let finalUser = user;
+      if (userDocSnap.exists()) {
+        const firestoreUser = { id: userDocSnap.id, ...userDocSnap.data() } as User;
+        // The user from recognizeFace is a simulation. We want the real data, especially the avatar.
+        finalUser = firestoreUser;
+      } else {
+        console.warn(`User with ID ${user.id} not found in Firestore. Using simulated data.`);
+      }
+
+      const newResult = { user: finalUser, emotion };
 
       setResult(newResult);
 
@@ -125,9 +139,9 @@ export default function CapturePage() {
       }
       
       const attendanceRecord: Omit<AttendanceRecord, 'id'> = {
-        userId: user.id,
-        userName: user.name,
-        userAvatar: user.avatar,
+        userId: finalUser.id,
+        userName: finalUser.name,
+        userAvatar: finalUser.avatar, // Use the (potentially updated) avatar URL
         date: new Date().toISOString().split('T')[0],
         status: 'Present',
         emotion: emotion as any, // Cast because emotion can be any string from AI
@@ -321,3 +335,5 @@ export default function CapturePage() {
     </div>
   );
 }
+
+    
