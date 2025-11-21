@@ -120,12 +120,11 @@ const recognizeFaceFlow = ai.defineFlow(
     outputSchema: RecognizeFaceOutputSchema,
   },
   async (input) => {
-    // Step 1: Force the model to use the tool to find a user. This is a robust way to ensure we get a user.
+    // Step 1: Guide the model to use the tool to find a user.
     const toolResponse = await ai.generate({
       prompt: `Find the user in this photo: {{media url=photoDataUri}}. You must use the findClosestMatch tool.`,
       model: 'googleai/gemini-2.5-flash',
       tools: [findClosestMatchTool],
-      toolChoice: 'required',
       input: { photoDataUri: input.photoDataUri },
     });
 
