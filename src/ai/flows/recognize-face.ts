@@ -12,11 +12,12 @@ import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import wav from 'wav';
 import { User } from '@/lib/types';
+import { collection, getDocs, getFirestore } from 'firebase/firestore';
+import { initializeApp } from 'firebase/app';
+import { firebaseConfig } from '@/firebase/config';
 
 // In a real production app, this would come from a secure config or service
-const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || 'demo-studio-project';
-const FIRESTORE_API_ENDPOINT = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/`;
-
+// However, we will use the client SDK to fetch users now.
 
 const RecognizeFaceInputSchema = z.object({
   photoDataUri: z
@@ -74,6 +75,10 @@ async function toWav(
   });
 }
 
+// Initialize a dedicated Firebase app instance for this server-side flow.
+const flowApp = initializeApp(firebaseConfig, 'genkit-flow-app');
+const flowDb = getFirestore(flowApp);
+
 const findClosestMatchTool = ai.defineTool(
   {
     name: 'findClosestMatch',
@@ -93,26 +98,17 @@ const findClosestMatchTool = ai.defineTool(
     // otherwise, we will return a random user to simulate a match.
     console.log("Fetching users from Firestore to find a match...");
     try {
-      const response = await fetch(`${FIRESTORE_API_ENDPOINT}/users`);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch users: ${response.statusText}`);
-      }
-      const data = await response.json();
-      
-      if (!data.documents || data.documents.length === 0) {
-          throw new Error("No users found in the database.");
-      }
+      const usersCollection = collection(flowDb, 'users');
+      const usersSnapshot = await getDocs(usersCollection);
 
-      const allUsers: User[] = (data.documents || []).map((doc: any) => {
-        const name = doc.name.split('/').pop();
-        return {
-          id: name,
-          name: doc.fields.name.stringValue,
-          email: doc.fields.email.stringValue,
-          avatar: doc.fields.avatar.stringValue,
-          role: doc.fields.role.stringValue
-        }
-      });
+      if (usersSnapshot.empty) {
+        throw new Error("No users found in the database.");
+      }
+      
+      const allUsers: User[] = usersSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as User));
       
       const targetUser = allUsers.find(u => u.name.toLowerCase() === 'v rahul');
 
@@ -124,8 +120,10 @@ const findClosestMatchTool = ai.defineTool(
         const randomUser = allUsers[Math.floor(Math.random() * allUsers.length)];
         return randomUser;
       }
+
     } catch(e) {
       console.error("Failed to fetch users from Firestore.", e);
+      // This is a critical failure for the flow, so we throw an error.
       throw new Error("Could not find a user match. The database might be empty or inaccessible.");
     }
   }
@@ -153,7 +151,7 @@ const recognizeFaceFlow = ai.defineFlow(
       throw new Error("Could not identify a user in the photo. The 'findClosestMatch' tool did not return a valid user.");
     }
     
-    // Step 2: Now that we have a user, get their emotion and generate a greeting.
+    // Step 2: Now that we have a user, get their emotion.
     const { output } = await ai.generate({
        prompt: `A person named ${matchedUser.name} is in this photo. Analyze their face to determine their primary emotion. Choose from: Happy, Sad, Neutral, Surprised.
                 
