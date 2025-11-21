@@ -30,22 +30,11 @@ export function FirebaseClientProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const [instances, setInstances] = useState<FirebaseInstances | null>(null);
+  // Initialize on the client. This is safe to call multiple times
+  // because our function handles the singleton logic.
+  const instances = initializeFirebaseInstances();
 
-  useEffect(() => {
-    // Initialize on the client and set the state.
-    // This effect runs only once after the component mounts.
-    const instances = initializeFirebaseInstances();
-    setInstances(instances);
-  }, []);
-
-  // While initializing, we render nothing. This prevents child components
-  // from trying to access Firebase before it's ready.
-  if (!instances) {
-    return null;
-  }
-
-  // Once initialized, we render the provider with the guaranteed instances.
+  // We can now render the provider immediately with the guaranteed instances.
   return (
     <FirebaseProvider
       firebaseApp={instances.firebaseApp}
