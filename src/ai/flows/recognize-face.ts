@@ -101,7 +101,7 @@ const findClosestMatchTool = ai.defineTool(
   },
   async () => {
     // In a real application, this tool would use AI to find the closest match.
-    // For this simulation, we'll fetch all users from Firestore and prioritize "v rahul" if he exists,
+    // For this simulation, we'll fetch all users from Firestore and prioritize "Rahul" if he exists,
     // otherwise, we will return a random user to simulate a match.
     console.log('Fetching users from Firestore to find a match...');
     try {
@@ -122,15 +122,15 @@ const findClosestMatchTool = ai.defineTool(
       );
 
       const targetUser = allUsers.find(
-        (u) => u.name.toLowerCase() === 'v rahul'
+        (u) => u.name.toLowerCase() === 'rahul'
       );
 
       if (targetUser) {
-        console.log("Match found for 'v rahul'.");
+        console.log("Match found for 'Rahul'.");
         return targetUser;
       } else {
         console.log(
-          "'v rahul' not found, returning a random user as a simulated match."
+          "'Rahul' not found, returning a random user as a simulated match."
         );
         const randomUser =
           allUsers[Math.floor(Math.random() * allUsers.length)];
@@ -234,5 +234,3 @@ const recognizeFaceFlow = ai.defineFlow(
     };
   }
 );
-
-    
