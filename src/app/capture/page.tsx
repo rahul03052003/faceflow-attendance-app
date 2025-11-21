@@ -78,11 +78,11 @@ export default function CapturePage() {
   const stopCamera = () => {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
     }
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
-    streamRef.current = null;
   };
   
   useEffect(() => {
