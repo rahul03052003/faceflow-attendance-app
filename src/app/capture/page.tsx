@@ -202,11 +202,20 @@ export default function CapturePage() {
   };
 
   const renderContent = () => {
-    if (!firestore || hasCameraPermission === null) {
+    if (hasCameraPermission === null) {
       return (
         <div className="flex flex-col items-center gap-4 text-center">
           <Loader2 className="h-16 w-16 animate-spin text-primary" />
-          <p className="text-muted-foreground">Initializing system...</p>
+          <p className="text-muted-foreground">Initializing camera...</p>
+        </div>
+      );
+    }
+    
+    if (!firestore) {
+      return (
+        <div className="flex flex-col items-center gap-4 text-center">
+          <Loader2 className="h-16 w-16 animate-spin text-primary" />
+          <p className="text-muted-foreground">Connecting to database...</p>
         </div>
       );
     }
@@ -291,7 +300,7 @@ export default function CapturePage() {
             Position your face in the video feed and click the scan button.
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-col items-center justify-center gap-6 p-6">
+        <CardContent className="flex flex-col items-center justify-center gap-6 p-6 min-h-[400px]">
           <div className="w-full aspect-video rounded-md bg-muted overflow-hidden flex items-center justify-center relative">
             {renderCameraButton()}
             <video

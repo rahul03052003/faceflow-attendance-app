@@ -6,9 +6,9 @@ import { Firestore, getFirestore } from 'firebase/firestore';
 import { firebaseConfig } from './config';
 
 interface FirebaseContextType {
-  firebaseApp: FirebaseApp | null;
-  firestore: Firestore | null;
-  auth: Auth | null;
+  firebaseApp: FirebaseApp;
+  firestore: Firestore;
+  auth: Auth;
 }
 
 const FirebaseContext = createContext<FirebaseContextType | undefined>(
@@ -16,29 +16,24 @@ const FirebaseContext = createContext<FirebaseContextType | undefined>(
 );
 
 // This is a singleton to ensure we only initialize Firebase once.
-let firebaseApp: FirebaseApp | null = null;
-let auth: Auth | null = null;
-let firestore: Firestore | null = null;
-
-if (typeof window !== 'undefined' && !firebaseApp) {
-  firebaseApp = initializeApp(firebaseConfig);
-  auth = getAuth(firebaseApp);
-  firestore = getFirestore(firebaseApp);
+let firebaseApp: FirebaseApp;
+if (typeof window !== 'undefined') {
+    firebaseApp = initializeApp(firebaseConfig);
 }
 
 export const FirebaseProvider = ({ children }: { children: ReactNode }) => {
-  // We use a mounted state to avoid hydration errors with client-only components.
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
-  
-  // We don't render children until we are certain we are on the client.
-  // This prevents hydration mismatches.
-  if (!isMounted) {
+
+  if (!isMounted || !firebaseApp) {
     return null; 
   }
+
+  const firestore = getFirestore(firebaseApp);
+  const auth = getAuth(firebaseApp);
 
   return (
     <FirebaseContext.Provider value={{ firebaseApp, firestore, auth }}>
@@ -55,6 +50,24 @@ export const useFirebase = () => {
   return context;
 };
 
-export const useFirebaseApp = () => useFirebase().firebaseApp;
-export const useFirestore = () => useFirebase().firestore;
-export const useAuth = () => useFirebase().auth;
+export const useFirebaseApp = () => {
+    const context = useFirebase();
+    if (!context.firebaseApp) {
+        throw new Error('Firebase App not initialized. Make sure you are using the FirebaseProvider.');
+    }
+    return context.firebaseApp;
+}
+export const useFirestore = () => {
+    const context = useFirebase();
+    if (!context.firestore) {
+        throw new Error('Firestore not initialized. Make sure you are using the FirebaseProvider.');
+    }
+    return context.firestore;
+};
+export const useAuth = () => {
+    const context = useFirebase();
+    if (!context.auth) {
+        throw new Error('Firebase Auth not initialized. Make sure you are using the FirebaseProvider.');
+    }
+    return context.auth;
+};
