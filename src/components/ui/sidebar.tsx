@@ -96,7 +96,7 @@ const SidebarProvider = React.forwardRef<
     )
 
     // Helper to toggle the sidebar.
-    const toggleSidebar = React.useCallback(() => {
+    const toggleSidebar = React. useCallback(() => {
       return isMobile
         ? setOpenMobile((open) => !open)
         : setOpen((open) => !open)
@@ -134,6 +134,11 @@ const SidebarProvider = React.forwardRef<
       }),
       [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar]
     )
+    
+    // By returning null on the initial render, we avoid hydration errors.
+    if (!mounted) {
+      return null;
+    }
 
     return (
       <SidebarContext.Provider value={contextValue}>
@@ -182,12 +187,7 @@ const Sidebar = React.forwardRef<
     ref
   ) => {
     const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
-    const [mounted, setMounted] = React.useState(false);
-
-    React.useEffect(() => {
-      setMounted(true);
-    }, []);
-
+    
     if (collapsible === "none") {
       return (
         <div
@@ -201,10 +201,6 @@ const Sidebar = React.forwardRef<
           {children}
         </div>
       )
-    }
-
-    if (!mounted) {
-      return null;
     }
     
     if (isMobile) {
