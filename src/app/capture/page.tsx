@@ -98,13 +98,13 @@ export default function CapturePage() {
       return;
     }
     
-    // This check is now robust because useFirestore() won't return null
-    // after the client provider fix.
+    // With the corrected client provider, this check is now sufficient.
+    // firestore will be available by the time a user can click the button.
     if (!firestore) {
         toast({
             variant: "destructive",
             title: "System Not Ready",
-            description: "The database connection is not yet available. Please wait a moment and try again.",
+            description: "The database connection is not yet available. The page might still be loading.",
         });
         return;
     }
@@ -245,9 +245,8 @@ export default function CapturePage() {
         </Alert>
       );
     }
-
-    // With the provider fix, we no longer need a complex loading state here for Firestore.
-    // The camera permission check is sufficient.
+    
+    // The provider now handles the main initialization. We only need to wait for the camera.
     if (hasCameraPermission === null) {
       return (
         <div className="flex flex-col items-center gap-4 text-center">
@@ -315,7 +314,7 @@ export default function CapturePage() {
         <CardFooter>
           <Button
             onClick={handleScan}
-            disabled={isScanning || !firestore || !hasCameraPermission}
+            disabled={isScanning || !firestore || hasCameraPermission === false}
             className="w-full"
             size="lg"
           >

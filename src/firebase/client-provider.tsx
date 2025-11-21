@@ -1,43 +1,56 @@
-
 'use client';
+import { useState, useEffect } from 'react';
 import { FirebaseApp, initializeApp } from 'firebase/app';
 import { Auth, getAuth } from 'firebase/auth';
 import { Firestore, getFirestore } from 'firebase/firestore';
 import { firebaseConfig } from './config';
 import { FirebaseProvider } from './provider';
 
-// This is a singleton to ensure Firebase is initialized only once on the client.
-let firebaseApp: FirebaseApp | null = null;
-let firestore: Firestore | null = null;
-let auth: Auth | null = null;
-
-function getFirebaseInstances() {
-  if (!firebaseApp) {
-    firebaseApp = initializeApp(firebaseConfig);
-    firestore = getFirestore(firebaseApp);
-    auth = getAuth(firebaseApp);
-  }
-  return { firebaseApp, firestore, auth };
+interface FirebaseInstances {
+  firebaseApp: FirebaseApp;
+  firestore: Firestore;
+  auth: Auth;
 }
 
+// Singleton to ensure we only initialize once
+let firebaseInstances: FirebaseInstances | null = null;
+
+function initializeFirebaseInstances(): FirebaseInstances {
+  if (!firebaseInstances) {
+    const firebaseApp = initializeApp(firebaseConfig);
+    const firestore = getFirestore(firebaseApp);
+    const auth = getAuth(firebaseApp);
+    firebaseInstances = { firebaseApp, firestore, auth };
+  }
+  return firebaseInstances;
+}
 
 export function FirebaseClientProvider({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  // We get the instances directly. They are initialized only on the first call
-  // thanks to the singleton pattern.
-  const { firebaseApp, firestore, auth } = getFirebaseInstances();
+  const [instances, setInstances] = useState<FirebaseInstances | null>(null);
 
-  // The provider now renders immediately with the guaranteed instances.
-  // The singleton pattern above ensures we don't re-initialize on every render,
-  // preventing the "client is offline" race condition.
+  useEffect(() => {
+    // Initialize on the client and set the state.
+    // This effect runs only once after the component mounts.
+    const instances = initializeFirebaseInstances();
+    setInstances(instances);
+  }, []);
+
+  // While initializing, we render nothing. This prevents child components
+  // from trying to access Firebase before it's ready.
+  if (!instances) {
+    return null;
+  }
+
+  // Once initialized, we render the provider with the guaranteed instances.
   return (
     <FirebaseProvider
-      firebaseApp={firebaseApp}
-      firestore={firestore}
-      auth={auth}
+      firebaseApp={instances.firebaseApp}
+      firestore={instances.firestore}
+      auth={instances.auth}
     >
       {children}
     </FirebaseProvider>
