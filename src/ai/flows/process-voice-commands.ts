@@ -19,8 +19,8 @@ const ProcessVoiceCommandInputSchema = z.object({
 export type ProcessVoiceCommandInput = z.infer<typeof ProcessVoiceCommandInputSchema>;
 
 const ProcessVoiceCommandOutputSchema = z.object({
-  action: z.string().describe('The action to be performed based on the voice command.'),
-  parameters: z.record(z.any()).describe('Parameters for the action, if any.'),
+  action: z.string().describe('The action to be performed. Should be one of: "navigate", "addUser", "markPresent", "showReport", "unknown".'),
+  parameters: z.record(z.any()).describe('Parameters for the action, if any. For navigation, include a "page" parameter (e.g., "/", "/reports", "/users", "/capture"). For adding a user, include "name" and "email".'),
 });
 export type ProcessVoiceCommandOutput = z.infer<typeof ProcessVoiceCommandOutputSchema>;
 
@@ -35,12 +35,18 @@ const prompt = ai.definePrompt({
   prompt: `You are an AI assistant that processes voice commands for an attendance system.
 
   Based on the user's voice command, determine the appropriate action to be performed and any necessary parameters.
+  The available pages are: Dashboard ('/'), Capture Attendance ('/capture'), Attendance Reports ('/reports'), and User Management ('/users').
 
   Here are some example voice commands and their corresponding actions and parameters:
 
   - "Mark John as present": { "action": "markPresent", "parameters": { "name": "John" } }
   - "Show attendance report for today": { "action": "showReport", "parameters": { "date": "today" } }
-  - "Add new user Jane Doe": { "action": "addUser", "parameters": { "name": "Jane Doe" } }
+  - "Go to the dashboard": { "action": "navigate", "parameters": { "page": "/" } }
+  - "Open the user management page": { "action": "navigate", "parameters": { "page": "/users" } }
+  - "Add new user Jane Doe with email jane.doe@example.com": { "action": "addUser", "parameters": { "name": "Jane Doe", "email": "jane.doe@example.com" } }
+  - "Create a new user named Bob": { "action": "addUser", "parameters": { "name": "Bob" } }
+
+  If the command is unclear, use the "unknown" action.
 
   Voice Command: {{{command}}}
 
