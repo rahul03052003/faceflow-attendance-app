@@ -77,15 +77,15 @@ const findClosestMatchTool = ai.defineTool(
   {
     name: 'findClosestMatch',
     description:
-      'Finds the closest matching user from the database given a photo.',
-    inputSchema: z.object({}), // No input needed from the model
+      'Finds the closest matching user from a simulated database given a photo.',
+    inputSchema: z.object({
+        // This tool is now a direct simulation and doesn't need input from the model.
+    }), 
     outputSchema: z.custom<User>(),
   },
   async () => {
-    // THIS IS A SIMULATION.
-    // In a real app, this would use a face matching AI model.
-    // This tool now simulates finding a user without complex input, which was causing loops.
-    
+    // THIS IS A RELIABLE SIMULATION.
+    // It simulates finding a user from a database without making a failing network call.
     const simulatedUsers: User[] = [
       { id: '1', name: 'Diana Miller', email: 'diana.m@example.com', avatar: `https://i.pravatar.cc/150?u=diana.m@example.com`, role: 'Admin' },
       { id: '2', name: 'James Smith', email: 'james.s@example.com', avatar: `https://i.pravatar.cc/150?u=james.s@example.com`, role: 'User' },
@@ -104,7 +104,7 @@ const findClosestMatchTool = ai.defineTool(
       return targetUser;
     }
 
-    // Fallback to a random user if 'Rahul' isn't in our simulated list.
+    // Fallback to a random user if 'Rahul' isn't in our simulated list for some reason.
     console.log("'Rahul' not found, returning a random user as a simulated match.");
     const randomUser =
       simulatedUsers[Math.floor(Math.random() * simulatedUsers.length)];
@@ -120,20 +120,12 @@ const recognizeFaceFlow = ai.defineFlow(
     outputSchema: RecognizeFaceOutputSchema,
   },
   async (input) => {
-    // Step 1: Guide the model to use the tool to find a user.
-    const toolResponse = await ai.generate({
-      prompt: `Find the user in this photo: {{media url=photoDataUri}}. You must use the findClosestMatch tool.`,
-      model: 'googleai/gemini-2.5-flash',
-      tools: [findClosestMatchTool],
-      input: { photoDataUri: input.photoDataUri },
-    });
-
-    const matchedUser = toolResponse.toolRequest?.output as User | undefined;
+    // Step 1: Directly call the simulation tool. This is guaranteed to work.
+    const matchedUser = await findClosestMatchTool({});
 
     if (!matchedUser) {
-      throw new Error(
-        "Could not identify a user in the photo. The 'findClosestMatch' tool did not return a valid user."
-      );
+      // This should not happen with the new reliable simulation.
+      throw new Error("Critical error: The user simulation tool failed.");
     }
 
     // Step 2: Now that we have a user, get their emotion in a separate, simple call.
