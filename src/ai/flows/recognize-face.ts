@@ -87,16 +87,17 @@ const findClosestMatchTool = ai.defineTool(
   },
   async () => {
     // THIS IS A SIMULATION.
-    // In a real app, this would use a face matching AI model.
-    // This tool now simulates finding a user without complex I/O that was causing issues.
-    
+    // In a real app, this would use a face matching AI model against a user database.
+    // This tool now simulates finding a user without making a real database call from the flow,
+    // which was causing permission errors.
+
     const simulatedUsers: User[] = [
-        { id: '1', name: 'Diana Miller', email: 'diana.m@example.com', avatar: `https://i.pravatar.cc/150?u=diana.m@example.com`, role: 'Admin' },
-        { id: '2', name: 'James Smith', email: 'james.s@example.com', avatar: `https://i.pravatar.cc/150?u=james.s@example.com`, role: 'User' },
-        { id: 'rahul-user', name: 'Rahul', email: 'rv03052003@gmail.com', avatar: `https://i.pravatar.cc/150?u=rv03052003@gmail.com`, role: 'User' },
+      { id: '1', name: 'Diana Miller', email: 'diana.m@example.com', avatar: `https://i.pravatar.cc/150?u=diana.m@example.com`, role: 'Admin' },
+      { id: '2', name: 'James Smith', email: 'james.s@example.com', avatar: `https://i.pravatar.cc/150?u=james.s@example.com`, role: 'User' },
+      { id: 'rahul-user', name: 'Rahul', email: 'rv03052003@gmail.com', avatar: `https://i.pravatar.cc/150?u=rv03052003@gmail.com`, role: 'User' },
     ];
     
-    console.log("Simulating user match...");
+    console.log("Simulating user match from a hardcoded list...");
 
     // Prioritize finding the user 'Rahul' for this demo.
     const targetUser = simulatedUsers.find(
@@ -104,7 +105,7 @@ const findClosestMatchTool = ai.defineTool(
     );
 
     if (targetUser) {
-      console.log("Match found for 'Rahul'.");
+      console.log("Match found for 'Rahul' in the simulated list.");
       return targetUser;
     }
 
