@@ -1,5 +1,5 @@
 'use client';
-import { ATTENDANCE_RECORDS } from '@/lib/data';
+import type { AttendanceRecord } from '@/lib/types';
 import {
   Table,
   TableBody,
@@ -30,7 +30,7 @@ function EmotionIcon({ emotion }: { emotion: string }) {
   return (
     <TooltipProvider>
       <Tooltip>
-        <TooltipTrigger>{iconMap[emotion]}</TooltipTrigger>
+        <TooltipTrigger>{iconMap[emotion] || iconMap['N/A']}</TooltipTrigger>
         <TooltipContent>
           <p>{emotion}</p>
         </TooltipContent>
@@ -39,7 +39,20 @@ function EmotionIcon({ emotion }: { emotion: string }) {
   );
 }
 
-export function AttendanceTable() {
+type AttendanceTableProps = {
+  attendanceRecords: AttendanceRecord[];
+};
+
+export function AttendanceTable({ attendanceRecords }: AttendanceTableProps) {
+
+  const sortedRecords = [...attendanceRecords].sort((a, b) => {
+    const dateA = new Date(a.date).getTime();
+    const dateB = new Date(b.date).getTime();
+    if (dateB !== dateA) return dateB - dateA;
+    // @ts-ignore
+    return (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0);
+  });
+  
   return (
     <Table>
       <TableHeader>
@@ -51,7 +64,7 @@ export function AttendanceTable() {
         </TableRow>
       </TableHeader>
       <TableBody>
-        {ATTENDANCE_RECORDS.map((record) => (
+        {sortedRecords.map((record) => (
           <TableRow key={record.id}>
             <TableCell>
               <div className="flex items-center gap-3">

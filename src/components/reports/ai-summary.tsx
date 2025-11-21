@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -12,9 +12,14 @@ import {
 } from '@/components/ui/card';
 import { Bot, Loader2 } from 'lucide-react';
 import { summarizeAttendanceReport } from '@/ai/flows/summarize-attendance-reports';
-import { ATTENDANCE_RECORDS } from '@/lib/data';
+import type { AttendanceRecord } from '@/lib/types';
 
-export function AiSummary() {
+type AiSummaryProps = {
+  attendanceRecords: AttendanceRecord[];
+  isLoading: boolean;
+};
+
+export function AiSummary({ attendanceRecords, isLoading: isLoadingRecords }: AiSummaryProps) {
   const [summary, setSummary] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -25,7 +30,7 @@ export function AiSummary() {
     setSummary('');
 
     try {
-      const reportData = JSON.stringify(ATTENDANCE_RECORDS, null, 2);
+      const reportData = JSON.stringify(attendanceRecords, null, 2);
       const result = await summarizeAttendanceReport({ reportData });
       setSummary(result.summary);
     } catch (e) {
@@ -35,6 +40,12 @@ export function AiSummary() {
       setIsLoading(false);
     }
   };
+  
+  // Clear summary if records change
+  useEffect(() => {
+    setSummary('');
+  }, [attendanceRecords]);
+
 
   return (
     <Card>
@@ -55,9 +66,12 @@ export function AiSummary() {
         )}
         {error && <p className="text-sm text-destructive">{error}</p>}
         {summary && <p className="text-sm text-muted-foreground">{summary}</p>}
+        {!summary && !isLoading && !error && (
+            <p className="text-sm text-muted-foreground text-center pt-4">Click below to generate a summary.</p>
+        )}
       </CardContent>
       <CardFooter>
-        <Button onClick={handleGenerateSummary} disabled={isLoading} className="w-full">
+        <Button onClick={handleGenerateSummary} disabled={isLoading || isLoadingRecords} className="w-full">
           {isLoading ? 'Generating...' : 'Generate Summary'}
         </Button>
       </CardFooter>

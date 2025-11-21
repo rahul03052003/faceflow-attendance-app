@@ -13,7 +13,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from '@/components/ui/chart';
-import { ATTENDANCE_RECORDS } from '@/lib/data';
+import type { AttendanceRecord } from '@/lib/types';
 
 const emotionColors: { [key: string]: string } = {
   Happy: 'hsl(var(--chart-1))',
@@ -22,36 +22,44 @@ const emotionColors: { [key: string]: string } = {
   Surprised: 'hsl(var(--chart-4))',
 };
 
-export function EmotionChart() {
-  const emotionData = ATTENDANCE_RECORDS.filter(
-    (record) => record.emotion !== 'N/A'
-  ).reduce((acc: { [key: string]: number }, record) => {
-    acc[record.emotion] = (acc[record.emotion] || 0) + 1;
-    return acc;
-  }, {});
+type EmotionChartProps = {
+  attendanceRecords: AttendanceRecord[];
+};
+
+export function EmotionChart({ attendanceRecords }: EmotionChartProps) {
+  const emotionData = attendanceRecords
+    .filter((record) => record.emotion !== 'N/A')
+    .reduce((acc: { [key: string]: number }, record) => {
+      acc[record.emotion] = (acc[record.emotion] || 0) + 1;
+      return acc;
+    }, {});
 
   const chartData = Object.keys(emotionData).map((emotion) => ({
     name: emotion,
     count: emotionData[emotion],
-    fill: emotionColors[emotion],
+    fill: emotionColors[emotion] || 'hsl(var(--muted))',
   }));
 
   const chartConfig = {
     count: {
-      label: "Count",
+      label: 'Count',
     },
     ...Object.keys(emotionColors).reduce((acc, emotion) => {
-        acc[emotion] = {
-            label: emotion,
-            color: emotionColors[emotion],
-        };
-        return acc;
-    }, {} as any)
+      acc[emotion] = {
+        label: emotion,
+        color: emotionColors[emotion],
+      };
+      return acc;
+    }, {} as any),
   };
-
 
   return (
     <div className="h-64 w-full">
+       {chartData.length === 0 ? (
+        <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+          No emotion data yet.
+        </div>
+      ) : (
       <ChartContainer config={chartConfig} className="min-h-[200px] w-full">
         <BarChart
           accessibilityLayer
@@ -72,10 +80,11 @@ export function EmotionChart() {
             tickMargin={8}
             allowDecimals={false}
           />
-           <ChartTooltip content={<ChartTooltipContent />} />
+          <ChartTooltip content={<ChartTooltipContent />} />
           <Bar dataKey="count" radius={4} />
         </BarChart>
       </ChartContainer>
+      )}
     </div>
   );
 }
