@@ -158,7 +158,7 @@ const recognizeFaceFlow = ai.defineFlow(
     });
 
     if (!output) {
-      throw new Error("The AI model failed to process the recognition request.");
+      throw new Error("The AI model failed to process the recognition request and returned no output.");
     }
     
     const { matchedUser, emotion } = output;
