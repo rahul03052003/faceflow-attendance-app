@@ -6,29 +6,31 @@ import { firebaseConfig } from './config';
 import { FirebaseProvider } from './provider';
 import { useState, useEffect } from 'react';
 
+// This is a singleton to ensure Firebase is initialized only once.
+let firebaseApp: FirebaseApp | null = null;
+let firestore: Firestore | null = null;
+let auth: Auth | null = null;
+
+function getFirebaseInstances() {
+  if (!firebaseApp) {
+    firebaseApp = initializeApp(firebaseConfig);
+    firestore = getFirestore(firebaseApp);
+    auth = getAuth(firebaseApp);
+  }
+  return { firebaseApp, firestore, auth };
+}
+
+
 export function FirebaseClientProvider({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const [firebaseApp, setFirebaseApp] = useState<FirebaseApp | null>(null);
-  const [firestore, setFirestore] = useState<Firestore | null>(null);
-  const [auth, setAuth] = useState<Auth | null>(null);
+  // We get the instances directly. They are initialized only on the first call.
+  const { firebaseApp, firestore, auth } = getFirebaseInstances();
 
-  useEffect(() => {
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-    const authInstance = getAuth(app);
-
-    setFirebaseApp(app);
-    setFirestore(db);
-    setAuth(authInstance);
-  }, []);
-
-  if (!firebaseApp || !firestore || !auth) {
-    return null; // Or a loading spinner
-  }
-
+  // The provider now renders immediately with the guaranteed instances.
+  // The singleton pattern above ensures we don't re-initialize on every render.
   return (
     <FirebaseProvider
       firebaseApp={firebaseApp}

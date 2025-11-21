@@ -98,6 +98,8 @@ export default function CapturePage() {
       return;
     }
     
+    // This check is now robust because useFirestore() won't return null
+    // after the client provider fix.
     if (!firestore) {
         toast({
             variant: "destructive",
@@ -124,14 +126,12 @@ export default function CapturePage() {
     try {
       const { user, emotion, audio } = await recognizeFace({ photoDataUri });
       
-      // Fetch the full user document from Firestore to get the correct avatar
       const userDocRef = doc(firestore, 'users', user.id);
       const userDocSnap = await getDoc(userDocRef);
       
       let finalUser = user;
       if (userDocSnap.exists()) {
         const firestoreUser = { id: userDocSnap.id, ...userDocSnap.data() } as User;
-        // The user from recognizeFace is a simulation. We want the real data, especially the avatar.
         finalUser = firestoreUser;
       } else {
         console.warn(`User with ID ${user.id} not found in Firestore. Using simulated data.`);
@@ -151,10 +151,10 @@ export default function CapturePage() {
       const attendanceRecord: Omit<AttendanceRecord, 'id'> = {
         userId: finalUser.id,
         userName: finalUser.name,
-        userAvatar: finalUser.avatar, // Use the (potentially updated) avatar URL
+        userAvatar: finalUser.avatar,
         date: new Date().toISOString().split('T')[0],
         status: 'Present',
-        emotion: emotion as any, // Cast because emotion can be any string from AI
+        emotion: emotion as any,
         timestamp: serverTimestamp(),
       };
       
@@ -246,11 +246,13 @@ export default function CapturePage() {
       );
     }
 
-    if (hasCameraPermission === null || !firestore) {
+    // With the provider fix, we no longer need a complex loading state here for Firestore.
+    // The camera permission check is sufficient.
+    if (hasCameraPermission === null) {
       return (
         <div className="flex flex-col items-center gap-4 text-center">
           <Loader2 className="h-16 w-16 animate-spin text-primary" />
-          <p className="text-muted-foreground">Initializing system...</p>
+          <p className="text-muted-foreground">Waiting for camera...</p>
         </div>
       );
     }
@@ -301,7 +303,7 @@ export default function CapturePage() {
               muted
               playsInline
             />
-            {!hasCameraPermission && (
+            {!hasCameraPermission && hasCameraPermission !== null && (
               <div className="flex flex-col items-center gap-2 text-muted-foreground">
                 <VideoOff className="h-10 w-10" />
                 <span>Camera is off</span>
@@ -345,6 +347,3 @@ export default function CapturePage() {
     </div>
   );
 }
-
-    
-    
