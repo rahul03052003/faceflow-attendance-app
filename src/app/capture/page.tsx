@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
@@ -312,7 +313,7 @@ export default function CapturePage() {
         <CardFooter>
           <Button
             onClick={handleScan}
-            disabled={isScanning || !firestore}
+            disabled={isScanning || !firestore || !hasCameraPermission}
             className="w-full"
             size="lg"
           >
