@@ -78,19 +78,14 @@ const findClosestMatchTool = ai.defineTool(
     name: 'findClosestMatch',
     description:
       'Finds the closest matching user from the database given a photo.',
-    inputSchema: z.object({
-      photoToIdentify: z
-        .string()
-        .describe("The photo of the user to identify, as a data URI."),
-    }),
+    inputSchema: z.object({}), // No input needed from the model
     outputSchema: z.custom<User>(),
   },
   async () => {
     // THIS IS A SIMULATION.
-    // In a real app, this would use a face matching AI model against a user database.
-    // This tool now simulates finding a user without making a real database call from the flow,
-    // which was causing permission errors.
-
+    // In a real app, this would use a face matching AI model.
+    // This tool now simulates finding a user without complex input, which was causing loops.
+    
     const simulatedUsers: User[] = [
       { id: '1', name: 'Diana Miller', email: 'diana.m@example.com', avatar: `https://i.pravatar.cc/150?u=diana.m@example.com`, role: 'Admin' },
       { id: '2', name: 'James Smith', email: 'james.s@example.com', avatar: `https://i.pravatar.cc/150?u=james.s@example.com`, role: 'User' },
@@ -127,7 +122,7 @@ const recognizeFaceFlow = ai.defineFlow(
   async (input) => {
     // Step 1: Force the model to use the tool to find a user. This is a robust way to ensure we get a user.
     const toolResponse = await ai.generate({
-      prompt: `Find the user in this photo: {{media url=photoDataUri}}`,
+      prompt: `Find the user in this photo: {{media url=photoDataUri}}. You must use the findClosestMatch tool.`,
       model: 'googleai/gemini-2.5-flash',
       tools: [findClosestMatchTool],
       toolChoice: 'required',
