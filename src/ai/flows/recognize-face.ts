@@ -13,7 +13,7 @@ import { z } from 'genkit';
 import wav from 'wav';
 import { User } from '@/lib/types';
 import { collection, getDocs, getFirestore } from 'firebase/firestore';
-import { initializeApp, getApp } from 'firebase/app';
+import { initializeApp, getApp, getApps } from 'firebase/app';
 import { firebaseConfig } from '@/firebase/config';
 
 const RecognizeFaceInputSchema = z.object({
@@ -79,12 +79,10 @@ async function toWav(
 // Initialize Firebase App for Genkit flow if it doesn't exist.
 // This is necessary because server-side flows run in a separate context.
 function getFlowFirestore() {
-  try {
-    return getFirestore(getApp('genkit-flow-app'));
-  } catch (e) {
-    const flowApp = initializeApp(firebaseConfig, 'genkit-flow-app');
-    return getFirestore(flowApp);
+  if (getApps().length === 0) {
+    initializeApp(firebaseConfig);
   }
+  return getFirestore();
 }
 
 const findClosestMatchTool = ai.defineTool(
