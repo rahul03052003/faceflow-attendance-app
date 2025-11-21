@@ -13,11 +13,8 @@ import { z } from 'genkit';
 import wav from 'wav';
 import { User } from '@/lib/types';
 import { collection, getDocs, getFirestore } from 'firebase/firestore';
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApp } from 'firebase/app';
 import { firebaseConfig } from '@/firebase/config';
-
-// In a real production app, this would come from a secure config or service
-// However, we will use the client SDK to fetch users now.
 
 const RecognizeFaceInputSchema = z.object({
   photoDataUri: z
@@ -37,7 +34,12 @@ const RecognizeFaceOutputSchema = z.object({
     role: z.string(),
   }),
   emotion: z.string().describe('The detected emotion of the person.'),
-  audio: z.string().optional().describe('The base64-encoded WAV audio data URI of the greeting.'),
+  audio: z
+    .string()
+    .optional()
+    .describe(
+      'The base64-encoded WAV audio data URI of the greeting.'
+    ),
 });
 export type RecognizeFaceOutput = z.infer<typeof RecognizeFaceOutputSchema>;
 
@@ -46,7 +48,6 @@ export async function recognizeFace(
 ): Promise<RecognizeFaceOutput> {
   return recognizeFaceFlow(input);
 }
-
 
 async function toWav(
   pcmData: Buffer,
@@ -75,65 +76,72 @@ async function toWav(
   });
 }
 
-// Initialize a dedicated Firebase app instance for this server-side flow.
-// This is often needed for server-side logic to avoid conflicts with client-side instances.
-let flowDb: Firestore;
-try {
+// Initialize Firebase App for Genkit flow if it doesn't exist.
+// This is necessary because server-side flows run in a separate context.
+function getFlowFirestore() {
+  try {
+    return getFirestore(getApp('genkit-flow-app'));
+  } catch (e) {
     const flowApp = initializeApp(firebaseConfig, 'genkit-flow-app');
-    flowDb = getFirestore(flowApp);
-} catch (e) {
-    // This can happen with Next.js hot-reloading. If the app is already initialized, we get the existing instance.
-    if (e instanceof Error && e.message.includes('already exists')) {
-        const existingApp = initializeApp(firebaseConfig); // Gets the default instance
-        flowDb = getFirestore(existingApp);
-    } else {
-        throw e;
-    }
+    return getFirestore(flowApp);
+  }
 }
-
 
 const findClosestMatchTool = ai.defineTool(
   {
     name: 'findClosestMatch',
-    description: 'Finds the closest matching user from the database given a photo.',
+    description:
+      'Finds the closest matching user from the database given a photo.',
     inputSchema: z.object({
-      photoDataUri: z.string().describe("The photo of the user to identify, as a data URI.")
+      photoToIdentify: z
+        .string()
+        .describe("The photo of the user to identify, as a data URI."),
     }),
-    outputSchema: z.custom<User>()
+    outputSchema: z.custom<User>(),
   },
-  async (input) => {
+  async () => {
     // In a real application, this tool would use AI to find the closest match.
     // For this simulation, we'll fetch all users from Firestore and prioritize "v rahul" if he exists,
     // otherwise, we will return a random user to simulate a match.
-    console.log("Fetching users from Firestore to find a match...");
+    console.log('Fetching users from Firestore to find a match...');
     try {
+      const flowDb = getFlowFirestore();
       const usersCollection = collection(flowDb, 'users');
       const usersSnapshot = await getDocs(usersCollection);
 
       if (usersSnapshot.empty) {
-        throw new Error("No users found in the database.");
+        throw new Error('No users found in the database.');
       }
-      
-      const allUsers: User[] = usersSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      } as User));
-      
-      const targetUser = allUsers.find(u => u.name.toLowerCase() === 'v rahul');
+
+      const allUsers: User[] = usersSnapshot.docs.map(
+        (doc) =>
+          ({
+            id: doc.id,
+            ...doc.data(),
+          } as User)
+      );
+
+      const targetUser = allUsers.find(
+        (u) => u.name.toLowerCase() === 'v rahul'
+      );
 
       if (targetUser) {
         console.log("Match found for 'v rahul'.");
         return targetUser;
       } else {
-        console.log("'v rahul' not found, returning a random user as a simulated match.");
-        const randomUser = allUsers[Math.floor(Math.random() * allUsers.length)];
+        console.log(
+          "'v rahul' not found, returning a random user as a simulated match."
+        );
+        const randomUser =
+          allUsers[Math.floor(Math.random() * allUsers.length)];
         return randomUser;
       }
-
-    } catch(e) {
-      console.error("Failed to fetch users from Firestore.", e);
+    } catch (e) {
+      console.error('Failed to fetch users from Firestore.', e);
       // This is a critical failure for the flow, so we throw an error.
-      throw new Error("Could not find a user match. The database might be empty or inaccessible.");
+      throw new Error(
+        'Could not find a user match. The database might be empty or inaccessible.'
+      );
     }
   }
 );
@@ -146,38 +154,47 @@ const recognizeFaceFlow = ai.defineFlow(
     outputSchema: RecognizeFaceOutputSchema,
   },
   async (input) => {
-     // Step 1: Force the model to use the tool to find a user.
+    // Step 1: Force the model to use the tool to find a user. This is a robust way to ensure we get a user.
     const toolResponse = await ai.generate({
       prompt: `Find the user in this photo: {{media url=photoDataUri}}`,
       model: 'googleai/gemini-2.5-flash',
       tools: [findClosestMatchTool],
       toolChoice: 'required',
+      input: { photoDataUri: input.photoDataUri },
     });
 
     const matchedUser = toolResponse.toolRequest?.output as User | undefined;
 
     if (!matchedUser) {
-      throw new Error("Could not identify a user in the photo. The 'findClosestMatch' tool did not return a valid user.");
+      throw new Error(
+        "Could not identify a user in the photo. The 'findClosestMatch' tool did not return a valid user."
+      );
     }
-    
-    // Step 2: Now that we have a user, get their emotion.
-    const { output } = await ai.generate({
-       prompt: `A person named ${matchedUser.name} is in this photo. Analyze their face to determine their primary emotion. Choose from: Happy, Sad, Neutral, Surprised.
+
+    // Step 2: Now that we have a user, get their emotion in a separate, simple call.
+    const { output: emotionOutput } = await ai.generate({
+      prompt: `A person named ${matchedUser.name} is in this photo. Analyze their face to determine their primary emotion. Choose from: Happy, Sad, Neutral, Surprised.
                 
                 Photo: {{media url=photoDataUri}}`,
       model: 'googleai/gemini-2.5-flash',
       output: {
         schema: z.object({
-          emotion: z.string().describe('The detected emotion of the person in the photo.')
-        })
-      }
+          emotion: z
+            .string()
+            .describe('The detected emotion of the person in the photo.'),
+        }),
+      },
+      input: { photoDataUri: input.photoDataUri },
     });
-    
-    if (!output) {
-      throw new Error("The AI model failed to determine the emotion from the photo.");
-    }
-    const { emotion } = output;
 
+    if (!emotionOutput) {
+      throw new Error(
+        'The AI model failed to determine the emotion from the photo.'
+      );
+    }
+    const { emotion } = emotionOutput;
+
+    // Step 3: Generate the audio greeting in a final, separate call.
     let audioDataUri: string | undefined = undefined;
     try {
       const greeting = `Hello, ${matchedUser.name}. You have been marked present.`;
@@ -202,11 +219,13 @@ const recognizeFaceFlow = ai.defineFlow(
         const wavBase64 = await toWav(audioBuffer);
         audioDataUri = `data:audio/wav;base64,${wavBase64}`;
       }
-    } catch(e) {
-        console.error("TTS generation failed, likely due to rate limits. Proceeding without audio.", e);
-        // Fail gracefully, audio is optional
+    } catch (e) {
+      console.error(
+        'TTS generation failed, likely due to rate limits. Proceeding without audio.',
+        e
+      );
+      // Fail gracefully, audio is optional
     }
-
 
     return {
       user: matchedUser,
@@ -215,3 +234,5 @@ const recognizeFaceFlow = ai.defineFlow(
     };
   }
 );
+
+    
