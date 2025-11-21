@@ -30,7 +30,21 @@ export function AiSummary({ attendanceRecords, isLoading: isLoadingRecords }: Ai
     setSummary('');
 
     try {
-      const reportData = JSON.stringify(attendanceRecords, null, 2);
+      // We don't need to send the full object, just the relevant parts.
+      const simplifiedRecords = attendanceRecords.map(r => ({
+        date: r.date,
+        status: r.status,
+        emotion: r.emotion,
+        userName: r.userName
+      }));
+      const reportData = JSON.stringify(simplifiedRecords, null, 2);
+      
+      if (simplifiedRecords.length === 0) {
+        setSummary("There is no attendance data to summarize.");
+        setIsLoading(false);
+        return;
+      }
+
       const result = await summarizeAttendanceReport({ reportData });
       setSummary(result.summary);
     } catch (e) {
@@ -58,16 +72,16 @@ export function AiSummary({ attendanceRecords, isLoading: isLoadingRecords }: Ai
           Let AI analyze the attendance data and provide key insights.
         </CardDescription>
       </CardHeader>
-      <CardContent className="min-h-[100px]">
+      <CardContent className="min-h-[100px] prose-sm text-muted-foreground">
         {isLoading && (
           <div className="flex justify-center items-center h-full">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
         )}
-        {error && <p className="text-sm text-destructive">{error}</p>}
-        {summary && <p className="text-sm text-muted-foreground">{summary}</p>}
+        {error && <p className="text-destructive">{error}</p>}
+        {summary && <p>{summary}</p>}
         {!summary && !isLoading && !error && (
-            <p className="text-sm text-muted-foreground text-center pt-4">Click below to generate a summary.</p>
+            <p className="text-center pt-4">Click below to generate a summary.</p>
         )}
       </CardContent>
       <CardFooter>
