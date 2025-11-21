@@ -10,7 +10,6 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import { USERS } from '@/lib/data';
 import wav from 'wav';
 import { User } from '@/lib/types';
 
@@ -99,6 +98,11 @@ const findClosestMatchTool = ai.defineTool(
         throw new Error(`Failed to fetch users: ${response.statusText}`);
       }
       const data = await response.json();
+      
+      if (!data.documents || data.documents.length === 0) {
+          throw new Error("No users found in the database.");
+      }
+
       const allUsers: User[] = (data.documents || []).map((doc: any) => {
         const name = doc.name.split('/').pop();
         return {
@@ -117,15 +121,12 @@ const findClosestMatchTool = ai.defineTool(
         return targetUser;
       } else {
         console.log("'v rahul' not found, returning a random user as a simulated match.");
-        const randomUser = allUsers[Math.floor(Math.random() * allUsers.length)] || USERS[0];
+        const randomUser = allUsers[Math.floor(Math.random() * allUsers.length)];
         return randomUser;
       }
     } catch(e) {
-      console.error("Failed to fetch users from Firestore, falling back to static data.", e);
-      // Fallback to static data if Firestore fetch fails
-      const staticTarget = USERS.find(u => u.name.toLowerCase() === 'v rahul');
-      if (staticTarget) return staticTarget;
-      return USERS[Math.floor(Math.random() * USERS.length)];
+      console.error("Failed to fetch users from Firestore.", e);
+      throw new Error("Could not find a user match. The database might be empty or inaccessible.");
     }
   }
 );
