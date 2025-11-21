@@ -96,6 +96,15 @@ export default function CapturePage() {
       await getCameraPermission();
       return;
     }
+    
+    if (!firestore) {
+        toast({
+            variant: "destructive",
+            title: "System Not Ready",
+            description: "The database connection is not yet available. Please wait a moment and try again.",
+        });
+        return;
+    }
 
     setIsScanning(true);
     setResult(null);
@@ -236,11 +245,11 @@ export default function CapturePage() {
       );
     }
 
-    if (hasCameraPermission === null) {
+    if (hasCameraPermission === null || !firestore) {
       return (
         <div className="flex flex-col items-center gap-4 text-center">
           <Loader2 className="h-16 w-16 animate-spin text-primary" />
-          <p className="text-muted-foreground">Accessing camera...</p>
+          <p className="text-muted-foreground">Initializing system...</p>
         </div>
       );
     }
@@ -303,7 +312,7 @@ export default function CapturePage() {
         <CardFooter>
           <Button
             onClick={handleScan}
-            disabled={isScanning}
+            disabled={isScanning || !firestore}
             className="w-full"
             size="lg"
           >

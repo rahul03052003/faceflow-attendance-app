@@ -5,9 +5,9 @@ import { Auth } from 'firebase/auth';
 import { Firestore } from 'firebase/firestore';
 
 interface FirebaseContextType {
-  firebaseApp: FirebaseApp;
-  firestore: Firestore;
-  auth: Auth;
+  firebaseApp: FirebaseApp | null;
+  firestore: Firestore | null;
+  auth: Auth | null;
 }
 
 const FirebaseContext = createContext<FirebaseContextType | undefined>(
@@ -21,9 +21,9 @@ export const FirebaseProvider = ({
   auth,
 }: {
   children: React.ReactNode;
-  firebaseApp: FirebaseApp;
-  firestore: Firestore;
-  auth: Auth;
+  firebaseApp: FirebaseApp | null;
+  firestore: Firestore | null;
+  auth: Auth | null;
 }) => {
   return (
     <FirebaseContext.Provider value={{ firebaseApp, firestore, auth }}>
