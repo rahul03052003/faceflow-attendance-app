@@ -76,8 +76,21 @@ async function toWav(
 }
 
 // Initialize a dedicated Firebase app instance for this server-side flow.
-const flowApp = initializeApp(firebaseConfig, 'genkit-flow-app');
-const flowDb = getFirestore(flowApp);
+// This is often needed for server-side logic to avoid conflicts with client-side instances.
+let flowDb: Firestore;
+try {
+    const flowApp = initializeApp(firebaseConfig, 'genkit-flow-app');
+    flowDb = getFirestore(flowApp);
+} catch (e) {
+    // This can happen with Next.js hot-reloading. If the app is already initialized, we get the existing instance.
+    if (e instanceof Error && e.message.includes('already exists')) {
+        const existingApp = initializeApp(firebaseConfig); // Gets the default instance
+        flowDb = getFirestore(existingApp);
+    } else {
+        throw e;
+    }
+}
+
 
 const findClosestMatchTool = ai.defineTool(
   {
@@ -89,11 +102,7 @@ const findClosestMatchTool = ai.defineTool(
     outputSchema: z.custom<User>()
   },
   async (input) => {
-    // In a real application, this tool would contain complex logic to:
-    // 1. Extract facial features (embeddings) from the input photo.
-    // 2. Query a vector database (like Firestore Vector Search) to find the embedding with the closest cosine similarity.
-    // 3. Return the user associated with that embedding.
-
+    // In a real application, this tool would use AI to find the closest match.
     // For this simulation, we'll fetch all users from Firestore and prioritize "v rahul" if he exists,
     // otherwise, we will return a random user to simulate a match.
     console.log("Fetching users from Firestore to find a match...");
