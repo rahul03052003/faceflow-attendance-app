@@ -18,16 +18,20 @@ import {
   Meh,
   ScanFace,
   Smile,
+  Sparkles,
   VideoOff,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import type { User } from '@/lib/types';
+import type { User, AttendanceRecord } from '@/lib/types';
 import { recognizeFace } from '@/ai/flows/recognize-face';
+import { useFirestore } from '@/firebase';
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
-const emotions = ['Happy', 'Sad', 'Neutral'];
 
 type ScanResult = {
   user: User;
@@ -44,6 +48,7 @@ export default function CapturePage() {
   const audioRef = useRef<HTMLAudioElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const { toast } = useToast();
+  const firestore = useFirestore();
 
   const getCameraPermission = async () => {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -107,9 +112,8 @@ export default function CapturePage() {
     const photoDataUri = canvas.toDataURL('image/jpeg');
 
     try {
-      const { user, audio } = await recognizeFace({ photoDataUri });
-      const randomEmotion = emotions[Math.floor(Math.random() * emotions.length)];
-      const newResult = { user, emotion: randomEmotion };
+      const { user, emotion, audio } = await recognizeFace({ photoDataUri });
+      const newResult = { user, emotion };
 
       setResult(newResult);
 
@@ -119,6 +123,27 @@ export default function CapturePage() {
       } else if (!audio) {
         console.log("No audio returned from flow, likely due to a rate limit.");
       }
+      
+      const attendanceRecord: Omit<AttendanceRecord, 'id'> = {
+        userId: user.id,
+        userName: user.name,
+        userAvatar: user.avatar,
+        date: new Date().toISOString().split('T')[0],
+        status: 'Present',
+        emotion: emotion as any, // Cast because emotion can be any string from AI
+        timestamp: serverTimestamp(),
+      };
+      
+      const collectionRef = collection(firestore, 'attendance');
+      addDoc(collectionRef, attendanceRecord).catch(async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+            path: collectionRef.path,
+            operation: 'create',
+            requestResourceData: attendanceRecord,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      });
+
 
     } catch (error) {
       console.error('Face recognition failed.', error);
@@ -145,8 +170,10 @@ export default function CapturePage() {
         return <Frown className="h-6 w-6 text-blue-500" />;
       case 'Neutral':
         return <Meh className="h-6 w-6 text-yellow-500" />;
+      case 'Surprised':
+        return <Sparkles className="h-6 w-6 text-purple-500" />;
       default:
-        return null;
+        return <Meh className="h-6 w-6 text-gray-500" />;
     }
   };
 
@@ -187,6 +214,7 @@ export default function CapturePage() {
         <Alert variant="destructive">
           <VideoOff className="h-4 w-4" />
           <AlertTitle>Camera Access Required</AlertTitle>
+
           <AlertDescription>
             Please allow camera access to use this feature, then click the button below.
           </AlertDescription>

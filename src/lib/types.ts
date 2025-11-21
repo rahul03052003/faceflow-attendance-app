@@ -1,3 +1,5 @@
+import { FieldValue } from 'firebase/firestore';
+
 export type User = {
   id: string;
   name: string;
@@ -14,6 +16,7 @@ export type AttendanceRecord = {
   date: string;
   status: 'Present' | 'Absent';
   emotion: 'Happy' | 'Sad' | 'Neutral' | 'Surprised' | 'N/A';
+  timestamp?: FieldValue;
 };
 
 export type NavItem = {

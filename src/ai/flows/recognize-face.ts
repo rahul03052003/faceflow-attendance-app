@@ -30,6 +30,7 @@ const RecognizeFaceOutputSchema = z.object({
     avatar: z.string(),
     role: z.string(),
   }),
+  emotion: z.string().describe('The detected emotion of the person.'),
   audio: z.string().optional().describe('The base64-encoded WAV audio data URI of the greeting.'),
 });
 export type RecognizeFaceOutput = z.infer<typeof RecognizeFaceOutputSchema>;
@@ -68,6 +69,17 @@ async function toWav(
   });
 }
 
+const emotionPrompt = ai.definePrompt({
+    name: 'emotionPrompt',
+    input: { schema: z.object({ photoDataUri: z.string() }) },
+    output: { schema: z.object({ emotion: z.string().describe('The detected emotion of the person in the photo. Choose from: Happy, Sad, Neutral, Surprised.') }) },
+    prompt: `Analyze the face in the following image and determine the person\'s emotion.
+
+    Photo: {{media url=photoDataUri}}
+    
+    Output in JSON format.`,
+});
+
 
 const recognizeFaceFlow = ai.defineFlow(
   {
@@ -79,6 +91,8 @@ const recognizeFaceFlow = ai.defineFlow(
     // In a real application, you would implement logic to compare the face
     // against a database of known faces. For this demo, we'll simulate it.
     const randomUser = USERS[Math.floor(Math.random() * USERS.length)];
+
+    const { output: emotionOutput } = await emotionPrompt({ photoDataUri: input.photoDataUri });
 
     let audioDataUri: string | undefined = undefined;
     try {
@@ -112,6 +126,7 @@ const recognizeFaceFlow = ai.defineFlow(
 
     return {
       user: randomUser,
+      emotion: emotionOutput?.emotion || 'Neutral',
       audio: audioDataUri,
     };
   }
