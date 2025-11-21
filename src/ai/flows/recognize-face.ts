@@ -12,8 +12,7 @@ import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import wav from 'wav';
 import { User } from '@/lib/types';
-import { collection, getDocs, getFirestore } from 'firebase/firestore';
-import { initializeApp, getApp, getApps } from 'firebase/app';
+import { initializeApp, getApps } from 'firebase/app';
 import { firebaseConfig } from '@/firebase/config';
 
 const RecognizeFaceInputSchema = z.object({
@@ -78,11 +77,8 @@ async function toWav(
 
 // Initialize Firebase App for Genkit flow if it doesn't exist.
 // This is necessary because server-side flows run in a separate context.
-function getFlowFirestore() {
-  if (getApps().length === 0) {
-    initializeApp(firebaseConfig);
-  }
-  return getFirestore();
+if (getApps().length === 0) {
+  initializeApp(firebaseConfig);
 }
 
 const findClosestMatchTool = ai.defineTool(
@@ -98,49 +94,35 @@ const findClosestMatchTool = ai.defineTool(
     outputSchema: z.custom<User>(),
   },
   async () => {
-    // In a real application, this tool would use AI to find the closest match.
-    // For this simulation, we'll fetch all users from Firestore and prioritize "Rahul" if he exists,
-    // otherwise, we will return a random user to simulate a match.
-    console.log('Fetching users from Firestore to find a match...');
-    try {
-      const flowDb = getFlowFirestore();
-      const usersCollection = collection(flowDb, 'users');
-      const usersSnapshot = await getDocs(usersCollection);
+    // THIS IS A SIMULATION.
+    // In a real app, this would use a face matching AI model.
+    // Here, we simulate finding a user from a predefined list.
+    // The previous implementation failed because Genkit flows run in a separate
+    // context without Firestore access.
+    
+    const simulatedUsers: User[] = [
+        { id: '1', name: 'Diana Miller', email: 'diana.m@example.com', avatar: `https://i.pravatar.cc/150?u=diana.m@example.com`, role: 'Admin' },
+        { id: '2', name: 'James Smith', email: 'james.s@example.com', avatar: `https://i.pravatar.cc/150?u=james.s@example.com`, role: 'User' },
+        { id: 'rahul-user', name: 'Rahul', email: 'rv03052003@gmail.com', avatar: `https://i.pravatar.cc/150?u=rv03052003@gmail.com`, role: 'User' },
+    ];
+    
+    console.log("Simulating user match...");
 
-      if (usersSnapshot.empty) {
-        throw new Error('No users found in the database.');
-      }
+    // Prioritize finding the user 'Rahul' for this demo.
+    const targetUser = simulatedUsers.find(
+      (u) => u.name.toLowerCase() === 'rahul'
+    );
 
-      const allUsers: User[] = usersSnapshot.docs.map(
-        (doc) =>
-          ({
-            id: doc.id,
-            ...doc.data(),
-          } as User)
-      );
-
-      const targetUser = allUsers.find(
-        (u) => u.name.toLowerCase() === 'rahul'
-      );
-
-      if (targetUser) {
-        console.log("Match found for 'Rahul'.");
-        return targetUser;
-      } else {
-        console.log(
-          "'Rahul' not found, returning a random user as a simulated match."
-        );
-        const randomUser =
-          allUsers[Math.floor(Math.random() * allUsers.length)];
-        return randomUser;
-      }
-    } catch (e) {
-      console.error('Failed to fetch users from Firestore.', e);
-      // This is a critical failure for the flow, so we throw an error.
-      throw new Error(
-        'Could not find a user match. The database might be empty or inaccessible.'
-      );
+    if (targetUser) {
+      console.log("Match found for 'Rahul'.");
+      return targetUser;
     }
+
+    // Fallback to a random user if 'Rahul' isn't in our simulated list.
+    console.log("'Rahul' not found, returning a random user as a simulated match.");
+    const randomUser =
+      simulatedUsers[Math.floor(Math.random() * simulatedUsers.length)];
+    return randomUser;
   }
 );
 
