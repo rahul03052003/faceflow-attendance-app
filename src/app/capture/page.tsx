@@ -202,6 +202,15 @@ export default function CapturePage() {
   };
 
   const renderContent = () => {
+    if (!firestore || hasCameraPermission === null) {
+      return (
+        <div className="flex flex-col items-center gap-4 text-center">
+          <Loader2 className="h-16 w-16 animate-spin text-primary" />
+          <p className="text-muted-foreground">Initializing system...</p>
+        </div>
+      );
+    }
+
     if (isScanning) {
       return (
         <div className="flex flex-col items-center gap-4 text-center">
@@ -243,16 +252,6 @@ export default function CapturePage() {
             Please allow camera access to use this feature, then click the button below.
           </AlertDescription>
         </Alert>
-      );
-    }
-    
-    // The provider now handles the main initialization. We only need to wait for the camera.
-    if (hasCameraPermission === null) {
-      return (
-        <div className="flex flex-col items-center gap-4 text-center">
-          <Loader2 className="h-16 w-16 animate-spin text-primary" />
-          <p className="text-muted-foreground">Waiting for camera...</p>
-        </div>
       );
     }
 

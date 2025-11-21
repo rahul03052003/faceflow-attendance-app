@@ -1,8 +1,9 @@
 'use client';
-import React, { createContext, useContext } from 'react';
-import { FirebaseApp } from 'firebase/app';
-import { Auth } from 'firebase/auth';
-import { Firestore } from 'firebase/firestore';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { FirebaseApp, initializeApp } from 'firebase/app';
+import { Auth, getAuth } from 'firebase/auth';
+import { Firestore, getFirestore } from 'firebase/firestore';
+import { firebaseConfig } from './config';
 
 interface FirebaseContextType {
   firebaseApp: FirebaseApp | null;
@@ -14,17 +15,38 @@ const FirebaseContext = createContext<FirebaseContextType | undefined>(
   undefined
 );
 
-export const FirebaseProvider = ({
-  children,
-  firebaseApp,
-  firestore,
-  auth,
-}: {
-  children: React.ReactNode;
-  firebaseApp: FirebaseApp | null;
-  firestore: Firestore | null;
-  auth: Auth | null;
-}) => {
+// This is a singleton to ensure we only initialize Firebase once.
+let firebaseApp: FirebaseApp | null = null;
+let auth: Auth | null = null;
+let firestore: Firestore | null = null;
+
+if (typeof window !== 'undefined' && !firebaseApp) {
+  firebaseApp = initializeApp(firebaseConfig);
+  auth = getAuth(firebaseApp);
+  firestore = getFirestore(firebaseApp);
+}
+
+export const FirebaseProvider = ({ children }: { children: ReactNode }) => {
+  const [isInitialized, setIsInitialized] = useState(!!firebaseApp);
+
+  useEffect(() => {
+    // This effect handles the case where the script might run after the initial render.
+    if (!isInitialized) {
+      if (!firebaseApp) {
+          firebaseApp = initializeApp(firebaseConfig);
+          auth = getAuth(firebaseApp);
+          firestore = getFirestore(firebaseApp);
+      }
+      setIsInitialized(true);
+    }
+  }, [isInitialized]);
+
+  // We don't render children until we are certain Firebase is initialized.
+  // This prevents any child component from accessing a null instance.
+  if (!isInitialized) {
+    return null; 
+  }
+
   return (
     <FirebaseContext.Provider value={{ firebaseApp, firestore, auth }}>
       {children}

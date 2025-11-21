@@ -4,7 +4,7 @@ import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/layout/app-sidebar';
 import { AppHeader } from '@/components/layout/app-header';
 import { Toaster } from '@/components/ui/toaster';
-import { FirebaseClientProvider } from '@/firebase/client-provider';
+import { FirebaseProvider } from '@/firebase/provider';
 import { FirebaseErrorListener } from '@/components/firebase-error-listener';
 
 export const metadata: Metadata = {
@@ -34,7 +34,7 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body antialiased">
-        <FirebaseClientProvider>
+        <FirebaseProvider>
           <FirebaseErrorListener>
             <SidebarProvider>
               <div className="flex min-h-screen w-full">
@@ -49,7 +49,7 @@ export default function RootLayout({
             </SidebarProvider>
             <Toaster />
           </FirebaseErrorListener>
-        </FirebaseClientProvider>
+        </FirebaseProvider>
       </body>
     </html>
   );
