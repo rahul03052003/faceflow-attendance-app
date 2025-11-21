@@ -139,29 +139,37 @@ const recognizeFaceFlow = ai.defineFlow(
     outputSchema: RecognizeFaceOutputSchema,
   },
   async (input) => {
-    const { output } = await ai.generate({
-      prompt: `You are a face recognition system. A person's photo is provided. 
-               First, find the closest matching user in the database for the given photo.
-               Then, analyze the face in the photo to determine the person's primary emotion. 
-               Choose from: Happy, Sad, Neutral, Surprised.
-               
-               Photo: {{media url=photoDataUri}}`,
+     // Step 1: Force the model to use the tool to find a user.
+    const toolResponse = await ai.generate({
+      prompt: `Find the user in this photo: {{media url=photoDataUri}}`,
       model: 'googleai/gemini-2.5-flash',
       tools: [findClosestMatchTool],
-      output: {
-        schema: z.object({
-          matchedUser: z.custom<User>().describe('The user object of the person who was identified.'),
-          emotion: z.string().describe('The detected emotion of the person in the photo.')
-        })
-      },
-      toolChoice: "auto"
+      toolChoice: 'required',
     });
 
-    if (!output) {
-      throw new Error("The AI model failed to process the recognition request and returned no output.");
+    const matchedUser = toolResponse.toolRequest?.output as User | undefined;
+
+    if (!matchedUser) {
+      throw new Error("Could not identify a user in the photo. The 'findClosestMatch' tool did not return a valid user.");
     }
     
-    const { matchedUser, emotion } = output;
+    // Step 2: Now that we have a user, get their emotion and generate a greeting.
+    const { output } = await ai.generate({
+       prompt: `A person named ${matchedUser.name} is in this photo. Analyze their face to determine their primary emotion. Choose from: Happy, Sad, Neutral, Surprised.
+                
+                Photo: {{media url=photoDataUri}}`,
+      model: 'googleai/gemini-2.5-flash',
+      output: {
+        schema: z.object({
+          emotion: z.string().describe('The detected emotion of the person in the photo.')
+        })
+      }
+    });
+    
+    if (!output) {
+      throw new Error("The AI model failed to determine the emotion from the photo.");
+    }
+    const { emotion } = output;
 
     let audioDataUri: string | undefined = undefined;
     try {
