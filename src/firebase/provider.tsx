@@ -27,23 +27,16 @@ if (typeof window !== 'undefined' && !firebaseApp) {
 }
 
 export const FirebaseProvider = ({ children }: { children: ReactNode }) => {
-  const [isInitialized, setIsInitialized] = useState(!!firebaseApp);
+  // We use a mounted state to avoid hydration errors with client-only components.
+  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
-    // This effect handles the case where the script might run after the initial render.
-    if (!isInitialized) {
-      if (!firebaseApp) {
-          firebaseApp = initializeApp(firebaseConfig);
-          auth = getAuth(firebaseApp);
-          firestore = getFirestore(firebaseApp);
-      }
-      setIsInitialized(true);
-    }
-  }, [isInitialized]);
-
-  // We don't render children until we are certain Firebase is initialized.
-  // This prevents any child component from accessing a null instance.
-  if (!isInitialized) {
+    setIsMounted(true);
+  }, []);
+  
+  // We don't render children until we are certain we are on the client.
+  // This prevents hydration mismatches.
+  if (!isMounted) {
     return null; 
   }
 
