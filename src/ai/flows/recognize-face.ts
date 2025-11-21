@@ -12,8 +12,6 @@ import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import wav from 'wav';
 import { User } from '@/lib/types';
-import { initializeApp, getApps } from 'firebase/app';
-import { firebaseConfig } from '@/firebase/config';
 
 const RecognizeFaceInputSchema = z.object({
   photoDataUri: z
@@ -75,12 +73,6 @@ async function toWav(
   });
 }
 
-// Initialize Firebase App for Genkit flow if it doesn't exist.
-// This is necessary because server-side flows run in a separate context.
-if (getApps().length === 0) {
-  initializeApp(firebaseConfig);
-}
-
 const findClosestMatchTool = ai.defineTool(
   {
     name: 'findClosestMatch',
@@ -96,9 +88,7 @@ const findClosestMatchTool = ai.defineTool(
   async () => {
     // THIS IS A SIMULATION.
     // In a real app, this would use a face matching AI model.
-    // Here, we simulate finding a user from a predefined list.
-    // The previous implementation failed because Genkit flows run in a separate
-    // context without Firestore access.
+    // This tool now simulates finding a user without complex I/O that was causing issues.
     
     const simulatedUsers: User[] = [
         { id: '1', name: 'Diana Miller', email: 'diana.m@example.com', avatar: `https://i.pravatar.cc/150?u=diana.m@example.com`, role: 'Admin' },
