@@ -93,7 +93,7 @@ const recognizeFaceFlow = ai.defineFlow(
   async (input) => {
     // Step 1: Analyze the input image to get its features and emotion.
     const liveImageAnalysisResult = await ai.generate({
-        model: 'googleai/gemini-1.5-flash',
+        model: 'googleai/gemini-pro-vision',
         prompt: `Analyze the person in this photo and determine their primary emotion.
         
         Photo: {{media url=photoDataUri}}`,
