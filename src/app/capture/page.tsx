@@ -22,6 +22,7 @@ import {
   Sparkles,
   VideoOff,
   UserSearch,
+  UserCheck,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -33,8 +34,6 @@ import { useFirestore, useCollection } from '@/firebase';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 
 // Define a new type for the attendance record to be created
 type NewAttendanceRecord = {
@@ -57,7 +56,6 @@ export default function CapturePage() {
   const [result, setResult] = useState<ScanResult | null>(null);
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const [isCameraStarting, setIsCameraStarting] = useState(false);
-  const [userNameToFind, setUserNameToFind] = useState('');
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -129,31 +127,13 @@ export default function CapturePage() {
   }
 
   const scan = async () => {
-    if (!videoRef.current?.srcObject || !firestore || !users) {
+    if (!videoRef.current?.srcObject || !firestore) {
        toast({
           variant: "destructive",
           title: "System Not Ready",
-          description: "Camera, database, or user list is not yet available. Please try again.",
+          description: "Camera or database is not yet available. Please try again.",
        });
        return;
-    }
-    
-    // Find the user to recognize on the client side
-    let userToRecognize: User | undefined;
-    if (userNameToFind) {
-      userToRecognize = users.find(u => u.name.toLowerCase() === userNameToFind.toLowerCase());
-    } else {
-      // Fallback to the first user if no name is entered
-      userToRecognize = users[0];
-    }
-
-    if (!userToRecognize) {
-      toast({
-        variant: "destructive",
-        title: "User Not Found",
-        description: `Could not find a user named "${userNameToFind}". Please check the name or add the user.`,
-      });
-      return;
     }
     
     setIsScanning(true);
@@ -175,10 +155,19 @@ export default function CapturePage() {
     const photoDataUri = canvas.toDataURL('image/jpeg');
 
     try {
-      // The AI flow is now simpler: it only needs the photo and the name to greet.
-      const { emotion, audio } = await recognizeFace({ photoDataUri, userNameToGreet: userToRecognize.name });
+      const { user: matchedUser, emotion, audio } = await recognizeFace({ photoDataUri });
       
-      const newResult = { user: userToRecognize, emotion };
+      if (!matchedUser) {
+        toast({
+          variant: "destructive",
+          title: "Recognition Failed",
+          description: "Could not identify a registered user in the photo. Please try again.",
+        });
+        setIsScanning(false);
+        return;
+      }
+
+      const newResult = { user: matchedUser, emotion };
       setResult(newResult);
 
       if (audio && audioRef.current) {
@@ -189,9 +178,9 @@ export default function CapturePage() {
       }
       
       const attendanceRecord: NewAttendanceRecord = {
-        userId: userToRecognize.id,
-        userName: userToRecognize.name,
-        userAvatar: userToRecognize.avatar,
+        userId: matchedUser.id,
+        userName: matchedUser.name,
+        userAvatar: matchedUser.avatar,
         date: new Date().toISOString().split('T')[0],
         status: 'Present',
         emotion: emotion,
@@ -271,7 +260,8 @@ export default function CapturePage() {
       return (
         <div className="flex flex-col items-center gap-4 text-center">
           <Loader2 className="h-16 w-16 animate-spin text-primary" />
-          <p className="text-muted-foreground">Scanning and analyzing for {userNameToFind || 'any user'}...</p>
+          <p className="text-muted-foreground">Scanning for a registered user...</p>
+          <p className="text-sm text-muted-foreground">(This may take a moment)</p>
         </div>
       );
     }
@@ -286,9 +276,10 @@ export default function CapturePage() {
             <AvatarFallback>{result.user.name.charAt(0)}</AvatarFallback>
           </Avatar>
           <div className="flex items-center gap-2">
-            <h3 className="text-xl font-semibold">{result.user.name}</h3>
+            <UserCheck className="h-6 w-6 text-green-600" />
+            <h3 className="text-2xl font-semibold">{result.user.name}</h3>
           </div>
-          <Badge variant="secondary">Status: Present</Badge>
+          <Badge variant="secondary">Status: Marked Present</Badge>
           <div className="flex items-center gap-2">
             <p className="font-medium">Emotion:</p>
             {getEmotionIcon(result.emotion)}
@@ -316,7 +307,7 @@ export default function CapturePage() {
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">Capture Attendance</CardTitle>
           <CardDescription>
-            Enter a student's name to simulate recognition, then click Scan.
+            The system will capture your photo and recognize you automatically.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col items-center justify-center gap-6 p-6 min-h-[400px]">
@@ -341,20 +332,7 @@ export default function CapturePage() {
             />
             {!hasCameraPermission && renderVideoContent()}
           </div>
-          <div className="w-full space-y-2">
-            <Label htmlFor="user-name" className="flex items-center gap-2">
-              <UserSearch className="h-4 w-4" />
-              Simulate Recognition for User
-            </Label>
-            <Input
-              id="user-name"
-              placeholder="Enter user's name (e.g., Rahul)"
-              value={userNameToFind}
-              onChange={(e) => setUserNameToFind(e.target.value)}
-              disabled={isScanning || isLoadingUsers}
-            />
-          </div>
-
+          
           <div className="w-full">
             {renderMainContent()}
           </div>

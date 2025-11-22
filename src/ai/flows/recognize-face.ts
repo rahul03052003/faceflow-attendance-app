@@ -1,9 +1,9 @@
 'use server';
 
 /**
- * @fileOverview Recognizes a face from an image and generates a voice greeting.
+ * @fileOverview Recognizes a face from an image by comparing it against registered user profiles.
  *
- * - recognizeFace - A function that recognizes a face, finds the user, and returns their info along with a voice greeting.
+ * - recognizeFace - A function that takes a photo, finds the closest matching user from the database, and returns their info along with a voice greeting.
  * - RecognizeFaceInput - The input type for the recognizeFace function.
  * - RecognizeFaceOutput - The return type for the recognizeFace function.
  */
@@ -20,11 +20,11 @@ const RecognizeFaceInputSchema = z.object({
     .describe(
       "A photo of a person's face, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'"
     ),
-  userNameToGreet: z.string().describe("The name of the user to greet in the audio."),
 });
 export type RecognizeFaceInput = z.infer<typeof RecognizeFaceInputSchema>;
 
 const RecognizeFaceOutputSchema = z.object({
+  user: User.optional().describe("The user who was recognized, if any."),
   emotion: z.string().describe('The detected emotion of the person.'),
   audio: z
     .string()
@@ -41,6 +41,7 @@ export async function recognizeFace(
   return recognizeFaceFlow(input);
 }
 
+// Helper to convert PCM audio from the TTS model to WAV format
 async function toWav(
   pcmData: Buffer,
   channels = 1,
@@ -68,6 +69,7 @@ async function toWav(
   });
 }
 
+
 const recognizeFaceFlow = ai.defineFlow(
   {
     name: 'recognizeFaceFlow',
@@ -75,65 +77,122 @@ const recognizeFaceFlow = ai.defineFlow(
     outputSchema: RecognizeFaceOutputSchema,
   },
   async (input) => {
-    
-    // Step 1: Get the emotion in a simple call.
-    const { output: emotionOutput } = await ai.generate({
-      prompt: `A person named ${input.userNameToGreet} is in this photo. Analyze their face to determine their primary emotion. Choose from: Happy, Sad, Neutral, Surprised.
-                
-                Photo: {{media url=photoDataUri}}`,
-      model: 'googleai/gemini-pro-vision',
-      output: {
-        schema: z.object({
-          emotion: z
-            .string()
-            .describe('The detected emotion of the person in the photo.'),
-        }),
-      },
-      input: { photoDataUri: input.photoDataUri },
+    // Step 1: Fetch all users from Firestore. A real-world app would optimize this.
+    const usersSnapshot = await firestore.collection('users').get();
+    const users: User[] = [];
+    usersSnapshot.forEach(doc => {
+      users.push({ id: doc.id, ...doc.data() } as User);
     });
 
-    if (!emotionOutput) {
-      throw new Error(
-        'The AI model failed to determine the emotion from the photo.'
-      );
+    if (users.length === 0) {
+      throw new Error("No users are registered in the system to compare against.");
     }
-    const { emotion } = emotionOutput;
+    
+    // Step 2: Concurrently analyze the input image and all user profile images.
+    const analysisPromises = [
+      ai.generate({
+        model: 'googleai/gemini-pro-vision',
+        prompt: `Describe the facial features of the person in this photo in a detailed JSON format. Include descriptions of eyes, nose, mouth, face shape, and any distinguishing marks. Also, determine their primary emotion.
+        
+        Photo: {{media url=photoDataUri}}`,
+        output: {
+          schema: z.object({
+            features: z.object({
+              eyes: z.string(),
+              nose: z.string(),
+              mouth: z.string(),
+              faceShape: z.string(),
+            }),
+            emotion: z.string().describe('Primary emotion: Happy, Sad, Neutral, Surprised.'),
+          }),
+        },
+        input: { photoDataUri: input.photoDataUri },
+      }),
+      ...users.map(user => ai.generate({
+        model: 'googleai/gemini-pro-vision',
+        prompt: `Describe the facial features of the person in this photo in a detailed JSON format. Include descriptions of eyes, nose, mouth, and face shape.
+        
+        Photo: {{media url=avatarUrl}}`,
+        output: {
+          schema: z.object({
+            features: z.object({
+              eyes: z.string(),
+              nose: z.string(),
+              mouth: z.string(),
+              faceShape: z.string(),
+            }),
+          }),
+        },
+        input: { avatarUrl: user.avatar },
+      }))
+    ];
 
-    // Step 2: Generate the audio greeting in a final, separate call.
+    const [liveImageAnalysisResult, ...userImageAnalysisResults] = await Promise.all(analysisPromises);
+
+    const liveImageAnalysis = liveImageAnalysisResult.output;
+    if (!liveImageAnalysis) {
+      throw new Error("Failed to analyze the live camera image.");
+    }
+
+    // Step 3: Find the best match by comparing the analysis of the live image to all user images.
+    const userAnalyses = userImageAnalysisResults.map(result => result.output);
+    const comparisonPrompt = `You are a facial recognition expert. Based on the detailed descriptions of a live photo and several user profile photos, determine which user is the best match.
+
+    LIVE PHOTO DESCRIPTION:
+    ${JSON.stringify(liveImageAnalysis.features, null, 2)}
+
+    REGISTERED USER DESCRIPTIONS:
+    ${userAnalyses.map((analysis, index) => `
+    USER ID: ${users[index].id}
+    USER NAME: ${users[index].name}
+    DESCRIPTION:
+    ${JSON.stringify(analysis?.features, null, 2)}
+    ---`).join('\n')}
+
+    Based on your comparison, respond with the ID of the best-matching user. If no user is a confident match, respond with "unknown".`;
+    
+    const { text: matchedUserId } = await ai.generate({ prompt: comparisonPrompt });
+
+    const matchedUser = users.find(u => u.id === matchedUserId.trim());
+
+    // Step 4: If a user was matched, generate a personalized audio greeting.
     let audioDataUri: string | undefined = undefined;
-    try {
-      const greeting = `Hello, ${input.userNameToGreet}. You have been marked present.`;
-      const { media } = await ai.generate({
-        model: 'googleai/gemini-2.5-flash-preview-tts',
-        config: {
-          responseModalities: ['AUDIO'],
-          speechConfig: {
-            voiceConfig: {
-              prebuiltVoiceConfig: { voiceName: 'Algenib' },
+    if (matchedUser) {
+      try {
+        const greeting = `Hello, ${matchedUser.name}. You have been marked present.`;
+        const { media } = await ai.generate({
+          model: 'googleai/gemini-2.5-flash-preview-tts',
+          config: {
+            responseModalities: ['AUDIO'],
+            speechConfig: {
+              voiceConfig: {
+                prebuiltVoiceConfig: { voiceName: 'Algenib' },
+              },
             },
           },
-        },
-        prompt: greeting,
-      });
+          prompt: greeting,
+        });
 
-      if (media) {
-        const audioBuffer = Buffer.from(
-          media.url.substring(media.url.indexOf(',') + 1),
-          'base64'
+        if (media) {
+          const audioBuffer = Buffer.from(
+            media.url.substring(media.url.indexOf(',') + 1),
+            'base64'
+          );
+          const wavBase64 = await toWav(audioBuffer);
+          audioDataUri = `data:audio/wav;base64,${wavBase64}`;
+        }
+      } catch (e) {
+        console.error(
+          'TTS generation failed, likely due to rate limits. Proceeding without audio.',
+          e
         );
-        const wavBase64 = await toWav(audioBuffer);
-        audioDataUri = `data:audio/wav;base64,${wavBase64}`;
+        // Fail gracefully, as audio is optional.
       }
-    } catch (e) {
-      console.error(
-        'TTS generation failed, likely due to rate limits. Proceeding without audio.',
-        e
-      );
-      // Fail gracefully, audio is optional
     }
 
     return {
-      emotion: emotion || 'Neutral',
+      user: matchedUser,
+      emotion: liveImageAnalysis.emotion || 'Neutral',
       audio: audioDataUri,
     };
   }
