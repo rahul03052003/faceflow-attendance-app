@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { MoreHorizontal } from 'lucide-react';
+import { MoreHorizontal, Ban } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,7 +29,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
@@ -37,16 +36,41 @@ import { useToast } from '@/hooks/use-toast';
 type UsersTableProps = {
   users: User[];
   onDeleteUser: (userId: string) => void;
+  isDemo?: boolean;
 };
 
-export function UsersTable({ users, onDeleteUser }: UsersTableProps) {
+export function UsersTable({ users, onDeleteUser, isDemo = false }: UsersTableProps) {
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const { toast } = useToast();
 
   const handleDeleteClick = (user: User) => {
+    if (isDemo) {
+        toast({
+            variant: "destructive",
+            title: "Demo Mode",
+            description: "Deleting users is disabled in demo mode.",
+        });
+        return;
+    }
     setUserToDelete(user);
     setIsAlertOpen(true);
+  };
+  
+  const handleEditClick = () => {
+    if (isDemo) {
+        toast({
+            variant: "destructive",
+            title: "Demo Mode",
+            description: "Editing users is disabled in demo mode.",
+        });
+        return;
+    }
+    // In a real app, this would open an edit dialog.
+     toast({
+        title: "Coming Soon!",
+        description: "Editing functionality is not yet implemented.",
+    });
   };
 
   const handleConfirmDelete = () => {
@@ -104,11 +128,16 @@ export function UsersTable({ users, onDeleteUser }: UsersTableProps) {
                   <DropdownMenuContent align="end">
                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem>Edit</DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleEditClick} disabled={isDemo}>
+                      {isDemo && <Ban className="mr-2 h-4 w-4" />}
+                      Edit
+                    </DropdownMenuItem>
                     <DropdownMenuItem
                       className="text-destructive"
                       onClick={() => handleDeleteClick(user)}
+                       disabled={isDemo}
                     >
+                     {isDemo && <Ban className="mr-2 h-4 w-4" />}
                       Delete
                     </DropdownMenuItem>
                   </DropdownMenuContent>

@@ -16,18 +16,27 @@ import { useFirestore } from '@/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { DEMO_USERS } from '@/lib/types';
 
 export default function UsersPage() {
   const firestore = useFirestore();
   const {
-    data: users,
+    data: usersData,
     isLoading,
     error,
   } = useCollection<User>('users');
 
+  const useDemoData = (!usersData || usersData.length === 0) && !isLoading;
+  const users = useDemoData ? DEMO_USERS : usersData;
+
+
   const handleAddUser = (
     newUser: Omit<User, 'id' | 'avatar' | 'role'> & { photo?: File, photoPreview?: string }
   ) => {
+    if (useDemoData) {
+      alert("Cannot add users when in demo mode. Please connect to Firebase to add real data.");
+      return;
+    }
     const userToAdd = {
       name: newUser.name,
       email: newUser.email,
@@ -47,6 +56,10 @@ export default function UsersPage() {
   };
 
   const handleDeleteUser = (userId: string) => {
+    if (useDemoData) {
+      alert("Cannot delete users when in demo mode. Please connect to Firebase to add real data.");
+      return;
+    }
     const docRef = doc(firestore, 'users', userId);
     deleteDoc(docRef).catch(async (serverError) => {
       const permissionError = new FirestorePermissionError({
@@ -58,7 +71,7 @@ export default function UsersPage() {
   };
 
   const renderContent = () => {
-    if (isLoading) {
+    if (isLoading && !useDemoData) {
       return (
         <div className="space-y-4">
           <Skeleton className="h-12 w-full" />
@@ -72,7 +85,7 @@ export default function UsersPage() {
       return <p className="text-destructive">Error loading users: {error.message}</p>;
     }
 
-    return <UsersTable users={users || []} onDeleteUser={handleDeleteUser} />;
+    return <UsersTable users={users || []} onDeleteUser={handleDeleteUser} isDemo={useDemoData} />;
   };
 
   return (
@@ -92,6 +105,7 @@ export default function UsersPage() {
           <CardTitle>User List</CardTitle>
           <CardDescription>
             A list of all users in the system.
+            {useDemoData && <span className="text-yellow-600 dark:text-yellow-400 font-semibold"> (Demo Data)</span>}
           </CardDescription>
         </CardHeader>
         <CardContent>{renderContent()}</CardContent>
