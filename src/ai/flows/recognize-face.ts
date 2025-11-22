@@ -9,7 +9,8 @@
  * - RecognizeFaceOutput - The return type for the recognizeFace function.
  */
 
-import { ai, firestore } from '@/ai/genkit';
+import { ai } from '@/ai/genkit';
+import { firestore } from '@/firebase/admin';
 import { z } from 'genkit';
 import wav from 'wav';
 
