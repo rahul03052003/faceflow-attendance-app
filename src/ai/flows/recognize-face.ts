@@ -12,6 +12,13 @@ import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import wav from 'wav';
 import { User } from '@/lib/types';
+import { initializeApp } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
+
+// Initialize Firebase Admin SDK if not already initialized
+if (!initializeApp.length) {
+    initializeApp();
+}
 
 const RecognizeFaceInputSchema = z.object({
   photoDataUri: z
@@ -77,37 +84,29 @@ const findClosestMatchTool = ai.defineTool(
   {
     name: 'findClosestMatch',
     description:
-      'Finds the closest matching user from a simulated database given a photo.',
-    inputSchema: z.object({
-        // This tool is now a direct simulation and doesn't need input from the model.
-    }), 
+      'Finds the closest matching user from the Firestore database given a photo. This tool simulates matching by selecting a user.',
+    inputSchema: z.object({}),
     outputSchema: z.custom<User>(),
   },
   async () => {
-    // THIS IS A RELIABLE SIMULATION.
-    // It simulates finding a user from a database without making a failing network call.
-    const simulatedUsers: User[] = [
-      { id: '1', name: 'Diana Miller', email: 'diana.m@example.com', avatar: `https://i.pravatar.cc/150?u=diana.m@example.com`, role: 'Admin' },
-      { id: '2', name: 'James Smith', email: 'james.s@example.com', avatar: `https://i.pravatar.cc/150?u=james.s@example.com`, role: 'User' },
-      { id: 'rahul-user', name: 'Rahul', email: 'rv03052003@gmail.com', avatar: `https://i.pravatar.cc/150?u=rv03052003@gmail.com`, role: 'User' },
-    ];
+    console.log("Simulating user match from Firestore 'users' collection...");
+    const db = getFirestore();
+    const usersSnapshot = await db.collection('users').get();
     
-    console.log("Simulating user match from a hardcoded list...");
-
-    // Prioritize finding the user 'Rahul' for this demo.
-    const targetUser = simulatedUsers.find(
-      (u) => u.name.toLowerCase() === 'rahul'
-    );
-
-    if (targetUser) {
-      console.log("Match found for 'Rahul' in the simulated list.");
-      return targetUser;
+    if (usersSnapshot.empty) {
+      throw new Error("No users found in the database. Please add a user first.");
     }
+    
+    const users: User[] = [];
+    usersSnapshot.forEach(doc => {
+      users.push({ id: doc.id, ...doc.data() } as User);
+    });
 
-    // Fallback to a random user if 'Rahul' isn't in our simulated list for some reason.
-    console.log("'Rahul' not found, returning a random user as a simulated match.");
-    const randomUser =
-      simulatedUsers[Math.floor(Math.random() * simulatedUsers.length)];
+    // In a real application, this would involve a sophisticated face matching algorithm.
+    // For this simulation, we will randomly select a user from the database.
+    const randomUser = users[Math.floor(Math.random() * users.length)];
+    
+    console.log(`Simulated match found: ${randomUser.name}`);
     return randomUser;
   }
 );
@@ -120,12 +119,11 @@ const recognizeFaceFlow = ai.defineFlow(
     outputSchema: RecognizeFaceOutputSchema,
   },
   async (input) => {
-    // Step 1: Directly call the simulation tool. This is guaranteed to work.
+    // Step 1: Call the tool to find a matching user from the database.
     const matchedUser = await findClosestMatchTool({});
 
     if (!matchedUser) {
-      // This should not happen with the new reliable simulation.
-      throw new Error("Critical error: The user simulation tool failed.");
+      throw new Error("Could not find a matching user in the database.");
     }
 
     // Step 2: Now that we have a user, get their emotion in a separate, simple call.
