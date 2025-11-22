@@ -21,6 +21,7 @@ import {
   Smile,
   Sparkles,
   VideoOff,
+  UserSearch,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -28,10 +29,12 @@ import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import type { User, AttendanceRecord } from '@/lib/types';
 import { recognizeFace } from '@/ai/flows/recognize-face';
-import { useFirestore } from '@/firebase';
-import { addDoc, collection, doc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { useFirestore, useCollection } from '@/firebase';
+import { addDoc, collection, doc, getDoc, serverTimestamp, where, query, getDocs } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 
 type ScanResult = {
@@ -45,11 +48,13 @@ export default function CapturePage() {
   const [hasCameraPermission, setHasCameraPermission] = useState<
     boolean | null
   >(null);
+  const [userNameToFind, setUserNameToFind] = useState('');
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const { toast } = useToast();
   const firestore = useFirestore();
+  const { data: users, isLoading: isLoadingUsers } = useCollection<User>('users');
 
   const stopCamera = useCallback(() => {
     if (streamRef.current) {
@@ -134,7 +139,7 @@ export default function CapturePage() {
     const photoDataUri = canvas.toDataURL('image/jpeg');
 
     try {
-      const { user, emotion, audio } = await recognizeFace({ photoDataUri });
+      const { user, emotion, audio } = await recognizeFace({ photoDataUri, userName: userNameToFind });
       
       const userDocRef = doc(firestore, 'users', user.id);
       const userDocSnap = await getDoc(userDocRef);
@@ -178,12 +183,12 @@ export default function CapturePage() {
       });
 
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Face recognition failed.', error);
       toast({
         variant: "destructive",
         title: "Scan Failed",
-        description: "Could not recognize a face. Please try again.",
+        description: error.message || "Could not recognize a face. Please try again.",
       });
     } finally {
       setIsScanning(false);
@@ -224,7 +229,7 @@ export default function CapturePage() {
       return (
         <div className="flex flex-col items-center gap-4 text-center">
           <Loader2 className="h-16 w-16 animate-spin text-primary" />
-          <p className="text-muted-foreground">Scanning and analyzing...</p>
+          <p className="text-muted-foreground">Scanning and analyzing for {userNameToFind || 'any user'}...</p>
         </div>
       );
     }
@@ -297,7 +302,7 @@ export default function CapturePage() {
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">Capture Attendance</CardTitle>
           <CardDescription>
-            Position your face in the video feed and click the scan button.
+            Enter a student's name to simulate recognition, then click Scan.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col items-center justify-center gap-6 p-6 min-h-[400px]">
@@ -317,12 +322,29 @@ export default function CapturePage() {
               </div>
             )}
           </div>
-          {renderContent()}
+          <div className="w-full space-y-2">
+            <Label htmlFor="user-name" className="flex items-center gap-2">
+              <UserSearch className="h-4 w-4" />
+              Simulate Recognition for User
+            </Label>
+            <Input
+              id="user-name"
+              placeholder="Enter user's name (e.g., Rahul)"
+              value={userNameToFind}
+              onChange={(e) => setUserNameToFind(e.target.value)}
+              disabled={isScanning || isLoadingUsers}
+            />
+             {isLoadingUsers && <p className="text-xs text-muted-foreground">Loading user list...</p>}
+          </div>
+
+          <div className="w-full">
+            {renderContent()}
+          </div>
         </CardContent>
         <CardFooter>
           <Button
             onClick={handleScan}
-            disabled={isScanning || !firestore}
+            disabled={isScanning || !firestore || !hasCameraPermission}
             className="w-full"
             size="lg"
           >

@@ -20,6 +20,7 @@ const RecognizeFaceInputSchema = z.object({
     .describe(
       "A photo of a person's face, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
     ),
+  userName: z.string().optional().describe("The name of the user to match. This is for simulation purposes."),
 });
 export type RecognizeFaceInput = z.infer<typeof RecognizeFaceInputSchema>;
 
@@ -79,28 +80,41 @@ const findClosestMatchTool = ai.defineTool(
   {
     name: 'findClosestMatch',
     description:
-      'Finds the closest matching user from the Firestore database given a photo. This tool simulates matching by selecting a user.',
-    inputSchema: z.object({}),
+      'Finds the closest matching user from the Firestore database given a photo. This tool simulates matching by finding a user by name, or selecting the first user if no name is provided.',
+    inputSchema: z.object({
+      userName: z.string().optional(),
+    }),
     outputSchema: z.custom<User>(),
   },
-  async () => {
-    console.log("Simulating user match from Firestore 'users' collection...");
-    // The firestore instance is now imported from genkit.ts, where it is properly initialized.
-    const usersSnapshot = await firestore.collection('users').get();
+  async ({ userName }) => {
+    console.log(`Simulating user match from Firestore 'users' collection for: ${userName || 'any user'}`);
     
-    if (usersSnapshot.empty) {
-      throw new Error("No users found in the database. Please add a user first.");
+    const usersCollection = firestore.collection('users');
+    let query = usersCollection.limit(1);
+
+    if (userName) {
+      // In a real app, this would be a vector search on face embeddings.
+      // Here, we simulate by querying for the user's name.
+      query = usersCollection.where('name', '==', userName).limit(1);
     }
     
-    const users: User[] = [];
-    usersSnapshot.forEach(doc => {
-      users.push({ id: doc.id, ...doc.data() } as User);
-    });
-
-    // In a real application, this would involve a sophisticated face matching algorithm.
-    // For this simulation, we will consistently select the first user from the database.
-    const matchedUser = users[0];
+    const usersSnapshot = await query.get();
     
+    if (usersSnapshot.empty) {
+       // If no user is found by name, fall back to the first user in the DB
+       const fallbackSnapshot = await usersCollection.limit(1).get();
+       if (fallbackSnapshot.empty) {
+         throw new Error("No users found in the database. Please add a user first.");
+       }
+       const doc = fallbackSnapshot.docs[0];
+       const matchedUser = { id: doc.id, ...doc.data() } as User;
+       console.log(`Simulated match (fallback): ${matchedUser.name}`);
+       return matchedUser;
+    }
+    
+    const doc = usersSnapshot.docs[0];
+    const matchedUser = { id: doc.id, ...doc.data() } as User;
+
     console.log(`Simulated match found: ${matchedUser.name}`);
     return matchedUser;
   }
@@ -115,7 +129,7 @@ const recognizeFaceFlow = ai.defineFlow(
   },
   async (input) => {
     // Step 1: Call the tool to find a matching user from the database.
-    const matchedUser = await findClosestMatchTool({});
+    const matchedUser = await findClosestMatchTool({ userName: input.userName });
 
     if (!matchedUser) {
       throw new Error("Could not find a matching user in the database.");
