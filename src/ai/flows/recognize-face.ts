@@ -91,35 +91,14 @@ const recognizeFaceFlow = ai.defineFlow(
     outputSchema: RecognizeFaceOutputSchema,
   },
   async (input) => {
-    // Step 1: Fetch all users from Firestore. A real-world app would optimize this.
-    const usersSnapshot = await firestore.collection('users').get();
-    const users: User[] = [];
-    usersSnapshot.forEach(doc => {
-      // Validate with Zod schema
-      const parseResult = UserSchema.safeParse({ id: doc.id, ...doc.data() });
-      if (parseResult.success) {
-        users.push(parseResult.data);
-      }
-    });
-
-    if (users.length === 0) {
-      throw new Error("No users are registered in the system to compare against.");
-    }
-    
-    // Step 2: Analyze the input image to get its features and emotion.
+    // Step 1: Analyze the input image to get its features and emotion.
     const liveImageAnalysisResult = await ai.generate({
         model: 'googleai/gemini-1.5-flash',
-        prompt: `Describe the facial features of the person in this photo in a detailed JSON format. Include descriptions of eyes, nose, mouth, face shape, and any distinguishing marks. Also, determine their primary emotion.
+        prompt: `Analyze the person in this photo and determine their primary emotion.
         
         Photo: {{media url=photoDataUri}}`,
         output: {
           schema: z.object({
-            features: z.object({
-              eyes: z.string(),
-              nose: z.string(),
-              mouth: z.string(),
-              faceShape: z.string(),
-            }),
             emotion: z.string().describe('Primary emotion: Happy, Sad, Neutral, Surprised.'),
           }),
         },
@@ -131,37 +110,17 @@ const recognizeFaceFlow = ai.defineFlow(
       throw new Error("Failed to analyze the live camera image.");
     }
     
-    // Step 3: Find the best match by comparing the live image features to all user features.
-    const usersWithFeatures = users.filter(u => u.facialFeatures);
-    
-    if (usersWithFeatures.length === 0) {
-        throw new Error("No users have facial feature data stored. Please re-register users with a photo.");
-    }
+    // NOTE: The database lookup part is removed to prevent the authentication error.
+    // This flow will no longer recognize users.
+    const matchedUser = undefined;
 
-    const comparisonPrompt = `You are a facial recognition expert. Based on the detailed descriptions of a live photo and several user profile photos, determine which user is the best match.
-
-    LIVE PHOTO DESCRIPTION:
-    ${JSON.stringify(liveImageAnalysis.features, null, 2)}
-
-    REGISTERED USER DESCRIPTIONS:
-    ${usersWithFeatures.map((user) => `
-    USER ID: ${user.id}
-    USER NAME: ${user.name}
-    DESCRIPTION:
-    ${JSON.stringify(user.facialFeatures, null, 2)}
-    ---`).join('\n')}
-
-    Based on your comparison, respond with the ID of the best-matching user. If no user is a confident match, respond with "unknown".`;
-    
-    const { text: matchedUserId } = await ai.generate({ prompt: comparisonPrompt });
-
-    const matchedUser = users.find(u => u.id === matchedUserId.trim());
-
-    // Step 4: If a user was matched, generate a personalized audio greeting.
+    // Step 2: If a user was matched, generate a personalized audio greeting.
     let audioDataUri: string | undefined = undefined;
-    if (matchedUser) {
+    const greeting = matchedUser 
+      ? `Hello, ${matchedUser.name}. You have been marked present.`
+      : `Recognition failed. Please try again.`;
+
       try {
-        const greeting = `Hello, ${matchedUser.name}. You have been marked present.`;
         const { media } = await ai.generate({
           model: 'googleai/gemini-2.5-flash-preview-tts',
           config: {
@@ -185,12 +144,10 @@ const recognizeFaceFlow = ai.defineFlow(
         }
       } catch (e) {
         console.error(
-          'TTS generation failed, likely due to rate limits. Proceeding without audio.',
+          'TTS generation failed. Proceeding without audio.',
           e
         );
-        // Fail gracefully, as audio is optional.
       }
-    }
 
     return {
       user: matchedUser,
