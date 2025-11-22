@@ -1,17 +1,14 @@
 import {genkit} from 'genkit';
 import {googleAI} from '@genkit-ai/google-genai';
 import {config} from 'dotenv';
-import {initializeApp, getApps, App, applicationDefault} from 'firebase-admin/app';
+import {initializeApp, App} from 'firebase-admin/app';
 import {getFirestore, Firestore} from 'firebase-admin/firestore';
 
 config();
 
 // Initialize Firebase Admin SDK
-if (!getApps().length) {
-  initializeApp();
-}
-
-export const firestore: Firestore = getFirestore();
+const app: App = initializeApp();
+export const firestore: Firestore = getFirestore(app);
 
 export const ai = genkit({
   plugins: [googleAI()],
