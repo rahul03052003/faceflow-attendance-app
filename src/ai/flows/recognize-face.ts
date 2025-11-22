@@ -8,7 +8,8 @@
  * - RecognizeFaceOutput - The return type for the recognizeFace function.
  */
 
-import { ai, firestore } from '@/ai/genkit';
+import { ai } from '@/ai/genkit';
+import { firestore } from '@/firebase/admin';
 import { z } from 'genkit';
 import wav from 'wav';
 import { User } from '@/lib/types';
@@ -18,7 +19,7 @@ const RecognizeFaceInputSchema = z.object({
   photoDataUri: z
     .string()
     .describe(
-      "A photo of a person's face, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
+      "A photo of a person's face, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'"
     ),
   userName: z.string().optional().describe("The name of the user to match. This is for simulation purposes."),
 });
@@ -126,6 +127,7 @@ const recognizeFaceFlow = ai.defineFlow(
     name: 'recognizeFaceFlow',
     inputSchema: RecognizeFaceInputSchema,
     outputSchema: RecognizeFaceOutputSchema,
+    tools: [findClosestMatchTool],
   },
   async (input) => {
     // Step 1: Call the tool to find a matching user from the database.
