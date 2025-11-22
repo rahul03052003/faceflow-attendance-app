@@ -18,9 +18,32 @@ import { UserPlus, Upload } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import type { User } from '@/lib/types';
+import { useForm, FormProvider, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { ai } from '@/ai/genkit';
+
+const formSchema = z.object({
+  name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
+  email: z.string().email({ message: 'Please enter a valid email.' }),
+  registerNo: z.string().min(1, { message: 'Register number is required.' }),
+  photo: z.any().optional(),
+});
+
+type FormValues = z.infer<typeof formSchema>;
+
 
 type AddUserDialogProps = {
-  onAddUser: (user: Omit<User, 'id' | 'avatar' | 'role' | 'subjects'> & { photo?: File, photoPreview?: string }) => void;
+  onAddUser: (user: Omit<User, 'id' | 'avatar' | 'role' | 'subjects' | 'facialFeatures'> & { photo?: File, photoPreview?: string }) => void;
 };
 
 
@@ -29,8 +52,16 @@ export function AddUserDialog({ onAddUser }: AddUserDialogProps) {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const formRef = useRef<HTMLFormElement>(null);
   const { toast } = useToast();
+  
+  const form = useForm<FormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      name: '',
+      email: '',
+      registerNo: '',
+    },
+  });
 
   const handlePhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -44,36 +75,22 @@ export function AddUserDialog({ onAddUser }: AddUserDialogProps) {
     }
   };
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    const name = formData.get('name') as string;
-    const email = formData.get('email') as string;
-    const registerNo = formData.get('registerNo') as string;
-
-    if (name && email && registerNo) {
+  const onSubmit = (values: FormValues) => {
       // The photo functionality is for presentation. In a real app, you'd upload this file
       // to a service like Firebase Storage and save the URL.
-      onAddUser({ name, email, registerNo, photo: photoFile || undefined, photoPreview: photoPreview || undefined });
+      onAddUser({ ...values, photo: photoFile || undefined, photoPreview: photoPreview || undefined });
       toast({
         title: 'User Added',
-        description: `${name} is being added to the database.`,
+        description: `${values.name} is being added to the database.`,
       });
       handleOpenChange(false);
-    } else {
-       toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Please fill out all fields.',
-      });
-    }
   };
   
   const handleOpenChange = (isOpen: boolean) => {
     if (!isOpen) {
       setPhotoPreview(null);
       setPhotoFile(null);
-      formRef.current?.reset();
+      form.reset();
     }
     setOpen(isOpen);
   };
@@ -87,57 +104,79 @@ export function AddUserDialog({ onAddUser }: AddUserDialogProps) {
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
-        <form onSubmit={handleSubmit} ref={formRef}>
-          <DialogHeader>
-            <DialogTitle>Add New User</DialogTitle>
-            <DialogDescription>
-              Enter the details for the new user. Click save when you're done.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="flex flex-col items-center gap-4">
-                <Avatar className="h-24 w-24">
-                  <AvatarImage src={photoPreview || undefined} alt="User photo" />
-                  <AvatarFallback>
-                    <UserPlus className="h-10 w-10 text-muted-foreground" />
-                  </AvatarFallback>
-                </Avatar>
-                 <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handlePhotoChange}
-                  className="hidden"
-                  accept="image/png, image/jpeg, image/jpg"
-                  name="photo"
-                />
-                <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>
-                    <Upload className="mr-2 h-4 w-4" />
-                    Upload Photo
-                </Button>
+        <FormProvider {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)}>
+            <DialogHeader>
+              <DialogTitle>Add New User</DialogTitle>
+              <DialogDescription>
+                Enter the details for the new user. Click save when you're done.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="flex flex-col items-center gap-4">
+                  <Avatar className="h-24 w-24">
+                    <AvatarImage src={photoPreview || undefined} alt="User photo" />
+                    <AvatarFallback>
+                      <UserPlus className="h-10 w-10 text-muted-foreground" />
+                    </AvatarFallback>
+                  </Avatar>
+                   <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handlePhotoChange}
+                    className="hidden"
+                    accept="image/png, image/jpeg, image/jpg"
+                  />
+                  <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>
+                      <Upload className="mr-2 h-4 w-4" />
+                      Upload Photo
+                  </Button>
+              </div>
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem className="grid grid-cols-4 items-center gap-4">
+                    <FormLabel className="text-right">Name</FormLabel>
+                    <FormControl className="col-span-3">
+                      <Input placeholder="John Doe" {...field} />
+                    </FormControl>
+                    <FormMessage className="col-span-4 text-right" />
+                  </FormItem>
+                )}
+              />
+               <FormField
+                control={form.control}
+                name="registerNo"
+                render={({ field }) => (
+                  <FormItem className="grid grid-cols-4 items-center gap-4">
+                    <FormLabel className="text-right">Register No.</FormLabel>
+                    <FormControl className="col-span-3">
+                       <Input placeholder="R001" {...field} />
+                    </FormControl>
+                     <FormMessage className="col-span-4 text-right" />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem className="grid grid-cols-4 items-center gap-4">
+                    <FormLabel className="text-right">Email</FormLabel>
+                    <FormControl className="col-span-3">
+                      <Input placeholder="john.doe@example.com" {...field} />
+                    </FormControl>
+                    <FormMessage className="col-span-4 text-right" />
+                  </FormItem>
+                )}
+              />
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="name" className="text-right">
-                Name
-              </Label>
-              <Input id="name" name="name" placeholder="John Doe" className="col-span-3" required />
-            </div>
-             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="registerNo" className="text-right">
-                Register No.
-              </Label>
-              <Input id="registerNo" name="registerNo" placeholder="R001" className="col-span-3" required />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="email" className="text-right">
-                Email
-              </Label>
-              <Input id="email" name="email" type="email" placeholder="john.doe@example.com" className="col-span-3" required />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button type="submit">Save User</Button>
-          </DialogFooter>
-        </form>
+            <DialogFooter>
+              <Button type="submit">Save User</Button>
+            </DialogFooter>
+          </form>
+        </FormProvider>
       </DialogContent>
     </Dialog>
   );
