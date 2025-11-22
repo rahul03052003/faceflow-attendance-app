@@ -91,14 +91,39 @@ const recognizeFaceFlow = ai.defineFlow(
     outputSchema: RecognizeFaceOutputSchema,
   },
   async (input) => {
-    // Step 1: Analyze the input image to get its features and emotion.
+    // Step 1: Fetch all users from Firestore. A real-world app would optimize this.
+    const usersSnapshot = await firestore.collection('users').get();
+    const users: User[] = [];
+    usersSnapshot.forEach(doc => {
+      // Validate with Zod schema before pushing
+      const userData = { id: doc.id, ...doc.data() };
+      const parsed = UserSchema.safeParse(userData);
+      if (parsed.success) {
+        users.push(parsed.data as User);
+      }
+    });
+
+    if (users.length === 0) {
+        throw new Error("No users found in the database to compare against.");
+    }
+    
+    // Step 2: Analyze the input image to get its features and emotion.
     const liveImageAnalysisResult = await ai.generate({
         model: 'googleai/gemini-pro-vision',
-        prompt: `Analyze the person in this photo and determine their primary emotion.
+        prompt: `Analyze the person in this photo. Determine their primary emotion and describe their facial features in JSON format.
+        
+        Compare the facial features to the following list of registered users and identify the best match.
+        
+        Registered Users (with their stored features):
+        ${JSON.stringify(users.map(u => ({ id: u.id, name: u.name, features: u.facialFeatures })), null, 2)}
         
         Photo: {{media url=photoDataUri}}`,
         output: {
           schema: z.object({
+            bestMatch: z.object({
+                userId: z.string().describe("The ID of the best matching user from the provided list."),
+                confidence: z.number().describe("A confidence score from 0.0 to 1.0 on the match.")
+            }).optional(),
             emotion: z.string().describe('Primary emotion: Happy, Sad, Neutral, Surprised.'),
           }),
         },
@@ -110,11 +135,9 @@ const recognizeFaceFlow = ai.defineFlow(
       throw new Error("Failed to analyze the live camera image.");
     }
     
-    // NOTE: The database lookup part is removed to prevent the authentication error.
-    // This flow will no longer recognize users.
-    const matchedUser = undefined;
+    const matchedUser = users.find(u => u.id === liveImageAnalysis.bestMatch?.userId);
 
-    // Step 2: If a user was matched, generate a personalized audio greeting.
+    // Step 3: If a user was matched, generate a personalized audio greeting.
     let audioDataUri: string | undefined = undefined;
     const greeting = matchedUser 
       ? `Hello, ${matchedUser.name}. You have been marked present.`
