@@ -29,7 +29,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import type { User } from '@/lib/types';
 import { recognizeFace } from '@/ai/flows/recognize-face';
-import { useFirestore } from '@/firebase';
+import { useFirestore, useCollection } from '@/firebase';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -65,6 +65,10 @@ export default function CapturePage() {
   
   const { toast } = useToast();
   const firestore = useFirestore();
+  
+  // Fetch users on the client-side
+  const { data: users, isLoading: isLoadingUsers } = useCollection<User>('users');
+
 
   const stopCamera = useCallback(() => {
     if (streamRef.current) {
@@ -125,13 +129,31 @@ export default function CapturePage() {
   }
 
   const scan = async () => {
-    if (!videoRef.current?.srcObject || !firestore) {
+    if (!videoRef.current?.srcObject || !firestore || !users) {
        toast({
           variant: "destructive",
           title: "System Not Ready",
-          description: "Camera or database is not yet available. Please try again.",
+          description: "Camera, database, or user list is not yet available. Please try again.",
        });
        return;
+    }
+    
+    // Find the user to recognize on the client side
+    let userToRecognize: User | undefined;
+    if (userNameToFind) {
+      userToRecognize = users.find(u => u.name.toLowerCase() === userNameToFind.toLowerCase());
+    } else {
+      // Fallback to the first user if no name is entered
+      userToRecognize = users[0];
+    }
+
+    if (!userToRecognize) {
+      toast({
+        variant: "destructive",
+        title: "User Not Found",
+        description: `Could not find a user named "${userNameToFind}". Please check the name or add the user.`,
+      });
+      return;
     }
     
     setIsScanning(true);
@@ -153,9 +175,10 @@ export default function CapturePage() {
     const photoDataUri = canvas.toDataURL('image/jpeg');
 
     try {
-      const { user, emotion, audio } = await recognizeFace({ photoDataUri, userName: userNameToFind || undefined });
+      // The AI flow is now simpler: it only needs the photo and the name to greet.
+      const { emotion, audio } = await recognizeFace({ photoDataUri, userNameToGreet: userToRecognize.name });
       
-      const newResult = { user, emotion };
+      const newResult = { user: userToRecognize, emotion };
       setResult(newResult);
 
       if (audio && audioRef.current) {
@@ -166,9 +189,9 @@ export default function CapturePage() {
       }
       
       const attendanceRecord: NewAttendanceRecord = {
-        userId: user.id,
-        userName: user.name,
-        userAvatar: user.avatar,
+        userId: userToRecognize.id,
+        userName: userToRecognize.name,
+        userAvatar: userToRecognize.avatar,
         date: new Date().toISOString().split('T')[0],
         status: 'Present',
         emotion: emotion,
@@ -186,11 +209,11 @@ export default function CapturePage() {
       });
 
     } catch (error: any) {
-      console.error('Face recognition failed.', error);
+      console.error('Face recognition flow failed.', error);
       toast({
         variant: "destructive",
-        title: "Scan Failed",
-        description: error.message || "Could not recognize a face. Please try again.",
+        title: "AI Scan Failed",
+        description: error.message || "The AI could not process the image. Please try again.",
       });
     } finally {
       setIsScanning(false);
@@ -328,7 +351,7 @@ export default function CapturePage() {
               placeholder="Enter user's name (e.g., Rahul)"
               value={userNameToFind}
               onChange={(e) => setUserNameToFind(e.target.value)}
-              disabled={isScanning}
+              disabled={isScanning || isLoadingUsers}
             />
           </div>
 
@@ -339,7 +362,7 @@ export default function CapturePage() {
         <CardFooter>
           <Button
             onClick={handleScanClick}
-            disabled={isScanning || !firestore || isCameraStarting}
+            disabled={isScanning || !firestore || isCameraStarting || isLoadingUsers}
             className="w-full"
             size="lg"
           >
