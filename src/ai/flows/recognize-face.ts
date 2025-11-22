@@ -8,11 +8,10 @@
  * - RecognizeFaceOutput - The return type for the recognizeFace function.
  */
 
-import { ai } from '@/ai/genkit';
+import { ai, firestore } from '@/ai/genkit';
 import { z } from 'genkit';
 import wav from 'wav';
 import { User } from '@/lib/types';
-import { getFirestore } from 'firebase-admin/firestore';
 
 
 const RecognizeFaceInputSchema = z.object({
@@ -85,9 +84,8 @@ const findClosestMatchTool = ai.defineTool(
   },
   async () => {
     console.log("Simulating user match from Firestore 'users' collection...");
-    // Firebase Admin is initialized in genkit.ts, so we can just get the firestore instance.
-    const db = getFirestore();
-    const usersSnapshot = await db.collection('users').get();
+    // The firestore instance is now imported from genkit.ts, where it is properly initialized.
+    const usersSnapshot = await firestore.collection('users').get();
     
     if (usersSnapshot.empty) {
       throw new Error("No users found in the database. Please add a user first.");

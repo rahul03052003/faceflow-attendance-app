@@ -2,6 +2,7 @@ import {genkit} from 'genkit';
 import {googleAI} from '@genkit-ai/google-genai';
 import { config } from 'dotenv';
 import {initializeApp, getApps, App, getApp} from 'firebase-admin/app';
+import { getFirestore, Firestore } from 'firebase-admin/firestore';
 
 config();
 
@@ -16,7 +17,11 @@ function getFirebaseAdminApp(): App {
 }
 
 // Initialize Firebase Admin on server startup.
-getFirebaseAdminApp();
+const adminApp = getFirebaseAdminApp();
+
+// Get the Firestore instance from the initialized admin app.
+export const firestore = getFirestore(adminApp);
+
 
 export const ai = genkit({
   plugins: [googleAI()],
