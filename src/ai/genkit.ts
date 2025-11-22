@@ -9,9 +9,11 @@ function getFirebaseAdminApp(): App {
     if (getApps().length > 0) {
       return getApp();
     }
+    // This will use the default credentials provided by the environment.
     return initializeApp();
 }
 
+// Initialize Firebase Admin on server startup.
 getFirebaseAdminApp();
 
 export const ai = genkit({
