@@ -28,6 +28,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: '/capture', label: 'Capture Attendance', icon: ScanFace },
   { href: '/reports', label: 'Attendance Reports', icon: BarChart3 },
   { href: '/users', label: 'User Management', icon: Users },
+  { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
 export function AppSidebar() {
@@ -61,12 +62,6 @@ export function AppSidebar() {
       </SidebarContent>
       <SidebarFooter className="p-2">
         <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton tooltip={{ children: 'Settings' }}>
-              <Settings />
-              <span>Settings</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton tooltip={{ children: 'Support' }}>
               <LifeBuoy />

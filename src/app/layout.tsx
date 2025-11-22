@@ -6,6 +6,7 @@ import { AppHeader } from '@/components/layout/app-header';
 import { Toaster } from '@/components/ui/toaster';
 import { FirebaseProvider } from '@/firebase/provider';
 import { FirebaseErrorListener } from '@/components/firebase-error-listener';
+import { ThemeProvider } from '@/components/theme-provider';
 
 export const metadata: Metadata = {
   title:
@@ -34,22 +35,29 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body antialiased">
-        <FirebaseProvider>
-          <FirebaseErrorListener>
-            <SidebarProvider>
-              <div className="flex min-h-screen w-full">
-                <AppSidebar />
-                <SidebarInset className="flex min-h-0 flex-1 flex-col !p-0">
-                  <AppHeader />
-                  <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
-                    {children}
-                  </main>
-                </SidebarInset>
-              </div>
-            </SidebarProvider>
-            <Toaster />
-          </FirebaseErrorListener>
-        </FirebaseProvider>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <FirebaseProvider>
+            <FirebaseErrorListener>
+              <SidebarProvider>
+                <div className="flex min-h-screen w-full">
+                  <AppSidebar />
+                  <SidebarInset className="flex min-h-0 flex-1 flex-col !p-0">
+                    <AppHeader />
+                    <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
+                      {children}
+                    </main>
+                  </SidebarInset>
+                </div>
+              </SidebarProvider>
+              <Toaster />
+            </FirebaseErrorListener>
+          </FirebaseProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
