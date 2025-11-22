@@ -55,7 +55,6 @@ export default function CapturePage() {
   const [isScanning, setIsScanning] = useState(false);
   const [result, setResult] = useState<ScanResult | null>(null);
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
-  const [isCameraStarting, setIsCameraStarting] = useState(false);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -80,9 +79,8 @@ export default function CapturePage() {
   }, []);
 
   const startCamera = useCallback(async () => {
-    if (isCameraStarting || streamRef.current) return;
+    if (streamRef.current) return;
 
-    setIsCameraStarting(true);
     setHasCameraPermission(null);
 
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -93,7 +91,6 @@ export default function CapturePage() {
         title: 'Unsupported Browser',
         description: 'Your browser does not support camera access.',
       });
-      setIsCameraStarting(false);
       return;
     }
     try {
@@ -106,17 +103,23 @@ export default function CapturePage() {
     } catch (error) {
       console.error('Error accessing camera:', error);
       setHasCameraPermission(false);
-    } finally {
-      setIsCameraStarting(false);
+      toast({
+        variant: 'destructive',
+        title: 'Camera Access Denied',
+        description: 'Please enable camera permissions in your browser settings to use this app.',
+      });
     }
-  }, [toast, isCameraStarting]);
+  }, [toast]);
   
-  // Effect to clean up camera on component unmount
+  // Effect to request camera permission on component mount
   useEffect(() => {
+    startCamera();
+    
+    // Cleanup on unmount
     return () => {
       stopCamera();
     };
-  }, [stopCamera]);
+  }, [startCamera, stopCamera]);
   
   const handleScanClick = () => {
       if (!hasCameraPermission) {
@@ -228,7 +231,7 @@ export default function CapturePage() {
       if (hasCameraPermission === false) {
            return (
             <Alert variant="destructive" className="m-4">
-              <VideoOff className="h-4 w-4" />
+              <CameraOff className="h-4 w-4" />
               <AlertTitle>Camera Access Denied</AlertTitle>
               <AlertDescription>
                 Please allow camera access in your browser settings to use this feature.
@@ -236,15 +239,7 @@ export default function CapturePage() {
             </Alert>
           );
       }
-      if (hasCameraPermission === null && !isCameraStarting) {
-          return (
-              <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                <VideoOff className="h-10 w-10" />
-                <span>Camera is off</span>
-              </div>
-          );
-      }
-      if (isCameraStarting) {
+      if (hasCameraPermission === null) {
           return (
              <div className="flex flex-col items-center gap-4 text-center">
               <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -252,7 +247,7 @@ export default function CapturePage() {
             </div>
           )
       }
-      return null; // Video will be visible
+      return null; // Video will be visible if hasCameraPermission is true
   }
 
   const renderMainContent = () => {
@@ -340,7 +335,7 @@ export default function CapturePage() {
         <CardFooter>
           <Button
             onClick={handleScanClick}
-            disabled={isScanning || !firestore || isCameraStarting || isLoadingUsers}
+            disabled={isScanning || hasCameraPermission === null || isLoadingUsers}
             className="w-full"
             size="lg"
           >
@@ -372,3 +367,5 @@ export default function CapturePage() {
     </div>
   );
 }
+
+    
