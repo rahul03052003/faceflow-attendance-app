@@ -12,16 +12,8 @@ import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import wav from 'wav';
 import { User } from '@/lib/types';
-import { initializeApp, getApps } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
-import { credential } from 'firebase-admin';
 
-// Initialize Firebase Admin SDK only once
-if (getApps().length === 0) {
-  initializeApp({
-    credential: credential.applicationDefault(),
-  });
-}
 
 const RecognizeFaceInputSchema = z.object({
   photoDataUri: z
