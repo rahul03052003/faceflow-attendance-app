@@ -15,30 +15,29 @@ const FirebaseContext = createContext<FirebaseContextType | undefined>(
   undefined
 );
 
-// This is a singleton to ensure we only initialize Firebase once on the client.
-let firebaseApp: FirebaseApp;
-if (typeof window !== 'undefined') {
-    firebaseApp = initializeApp(firebaseConfig);
-}
-
 export const FirebaseProvider = ({ children }: { children: ReactNode }) => {
-  const [isMounted, setIsMounted] = useState(false);
+  const [services, setServices] = useState<{
+    firebaseApp: FirebaseApp;
+    firestore: Firestore;
+    auth: Auth;
+  } | null>(null);
 
   useEffect(() => {
-    setIsMounted(true);
+    // This effect runs only on the client, after the initial render.
+    const app = initializeApp(firebaseConfig);
+    const firestore = getFirestore(app);
+    const auth = getAuth(app);
+    setServices({ firebaseApp: app, firestore, auth });
   }, []);
 
-  // We wait until the component has mounted to render the children.
-  // This prevents hydration errors and ensures Firebase is ready on the client.
-  if (!isMounted || !firebaseApp) {
+  // We wait until the services are initialized on the client to render the children.
+  // This prevents hydration errors and ensures Firebase is ready.
+  if (!services) {
     return null; 
   }
 
-  const firestore = getFirestore(firebaseApp);
-  const auth = getAuth(firebaseApp);
-
   return (
-    <FirebaseContext.Provider value={{ firebaseApp, firestore, auth }}>
+    <FirebaseContext.Provider value={services}>
       {children}
     </FirebaseContext.Provider>
   );

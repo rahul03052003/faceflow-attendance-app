@@ -104,7 +104,7 @@ export default function CapturePage() {
         toast({
             variant: "destructive",
             title: "System Not Ready",
-            description: "The database connection is not yet available. The page might still be loading.",
+            description: "The database connection is not yet available. Please wait a moment and try again.",
         });
         return;
     }
@@ -211,15 +211,6 @@ export default function CapturePage() {
       );
     }
     
-    if (!firestore) {
-      return (
-        <div className="flex flex-col items-center gap-4 text-center">
-          <Loader2 className="h-16 w-16 animate-spin text-primary" />
-          <p className="text-muted-foreground">Connecting to database...</p>
-        </div>
-      );
-    }
-
     if (isScanning) {
       return (
         <div className="flex flex-col items-center gap-4 text-center">
