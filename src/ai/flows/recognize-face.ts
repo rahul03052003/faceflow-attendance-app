@@ -12,12 +12,26 @@ import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import wav from 'wav';
 import { User } from '@/lib/types';
-import { initializeApp, getApps } from 'firebase-admin/app';
+import { initializeApp, getApps, App, cert, getApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 
-// Initialize Firebase Admin SDK if not already initialized
-if (getApps().length === 0) {
-    initializeApp();
+function getFirebaseAdminApp(): App {
+  if (getApps().length > 0) {
+    return getApp();
+  }
+
+  // When running in a Google Cloud environment, the Admin SDK can auto-detect credentials.
+  // For local development, you must set the GOOGLE_APPLICATION_CREDENTIALS environment variable.
+  // See: https://firebase.google.com/docs/admin/setup#initialize-sdk
+  if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+    // We are in a local environment, use a service account
+    return initializeApp({
+      credential: cert(process.env.GOOGLE_APPLICATION_CREDENTIALS),
+    });
+  } else {
+    // We are in a Google Cloud environment (App Hosting, Cloud Functions, etc.)
+    return initializeApp();
+  }
 }
 
 const RecognizeFaceInputSchema = z.object({
@@ -90,7 +104,8 @@ const findClosestMatchTool = ai.defineTool(
   },
   async () => {
     console.log("Simulating user match from Firestore 'users' collection...");
-    const db = getFirestore();
+    const app = getFirebaseAdminApp();
+    const db = getFirestore(app);
     const usersSnapshot = await db.collection('users').get();
     
     if (usersSnapshot.empty) {
