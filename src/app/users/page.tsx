@@ -18,9 +18,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { DEMO_USERS } from '@/lib/types';
-import { ai } from '@/ai/genkit';
-import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
+import { generateFacialFeatures } from '@/ai/flows/generate-facial-features';
 
 export default function UsersPage() {
   const firestore = useFirestore();
@@ -46,24 +45,8 @@ export default function UsersPage() {
     let facialFeatures: any = null;
     if (newUser.photoPreview) {
         try {
-            const result = await ai.generate({
-                model: 'googleai/gemini-pro-vision',
-                prompt: `Describe the facial features of the person in this photo in a detailed JSON format. Include descriptions of eyes, nose, mouth, face shape, and any distinguishing marks.
-                
-                Photo: {{media url=photoDataUri}}`,
-                output: {
-                  schema: z.object({
-                    features: z.object({
-                      eyes: z.string(),
-                      nose: z.string(),
-                      mouth: z.string(),
-                      faceShape: z.string(),
-                    }),
-                  }),
-                },
-                input: { photoDataUri: newUser.photoPreview },
-            });
-            facialFeatures = result.output?.features;
+            const result = await generateFacialFeatures({ photoDataUri: newUser.photoPreview });
+            facialFeatures = result.features;
         } catch (e) {
             console.error("Failed to generate facial features:", e);
             toast({
