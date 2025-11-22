@@ -98,11 +98,11 @@ const findClosestMatchTool = ai.defineTool(
     });
 
     // In a real application, this would involve a sophisticated face matching algorithm.
-    // For this simulation, we will randomly select a user from the database.
-    const randomUser = users[Math.floor(Math.random() * users.length)];
+    // For this simulation, we will consistently select the first user from the database.
+    const matchedUser = users[0];
     
-    console.log(`Simulated match found: ${randomUser.name}`);
-    return randomUser;
+    console.log(`Simulated match found: ${matchedUser.name}`);
+    return matchedUser;
   }
 );
 
