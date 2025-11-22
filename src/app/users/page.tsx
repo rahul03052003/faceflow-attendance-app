@@ -12,7 +12,7 @@ import { UsersTable } from '@/components/users/users-table';
 import { AddUserDialog } from '@/components/users/add-user-dialog';
 import type { User } from '@/lib/types';
 import { useCollection } from '@/firebase';
-import { addDoc, collection, deleteDoc, doc } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
 import { errorEmitter } from '@/firebase/error-emitter';
@@ -42,40 +42,43 @@ export default function UsersPage() {
       return;
     }
     
-    let facialFeatures: any = null;
-    if (newUser.photoPreview) {
-        try {
-            const result = await generateFacialFeatures({ photoDataUri: newUser.photoPreview });
-            facialFeatures = result.features;
-        } catch (e) {
-            console.error("Failed to generate facial features:", e);
-            toast({
-                variant: "destructive",
-                title: "AI Analysis Failed",
-                description: "Could not analyze the user's photo for facial recognition. The user will be added without this data."
-            })
-        }
-    }
-
-
+    // Add user without facial features first
     const userToAdd = {
       name: newUser.name,
       email: newUser.email,
       registerNo: newUser.registerNo,
       avatar: newUser.photoPreview || `https://i.pravatar.cc/150?u=${newUser.email}`,
       role: 'Student' as const, // Default role
-      facialFeatures: facialFeatures,
+      facialFeatures: null,
     };
 
     const collectionRef = collection(firestore, 'users');
-    addDoc(collectionRef, userToAdd).catch(async (serverError) => {
-      const permissionError = new FirestorePermissionError({
-        path: collectionRef.path,
-        operation: 'create',
-        requestResourceData: userToAdd,
-      });
-      errorEmitter.emit('permission-error', permissionError);
-    });
+    
+    try {
+        const docRef = await addDoc(collectionRef, userToAdd);
+
+        // Now, if there is a photo, generate features and update the document
+        if (newUser.photoPreview) {
+            try {
+                const result = await generateFacialFeatures({ photoDataUri: newUser.photoPreview });
+                await updateDoc(docRef, { facialFeatures: result.features });
+            } catch (e) {
+                console.error("Failed to generate facial features:", e);
+                toast({
+                    variant: "destructive",
+                    title: "AI Analysis Failed",
+                    description: "Could not analyze the user's photo for facial recognition. The user has been added, but recognition may fail."
+                })
+            }
+        }
+    } catch (serverError) {
+         const permissionError = new FirestorePermissionError({
+            path: collectionRef.path,
+            operation: 'create',
+            requestResourceData: userToAdd,
+          });
+         errorEmitter.emit('permission-error', permissionError);
+    }
   };
 
   const handleDeleteUser = (userId: string) => {

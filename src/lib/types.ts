@@ -1,3 +1,4 @@
+
 import { FieldValue, Timestamp } from 'firebase/firestore';
 
 export type User = {
@@ -8,6 +9,7 @@ export type User = {
   avatar: string;
   role: 'Admin' | 'User' | 'Student' | 'Teacher';
   subjects?: string[];
+  facialFeatures?: any;
 };
 
 export type Subject = {
@@ -44,6 +46,7 @@ export const DEMO_USERS: User[] = [
     registerNo: 'R001',
     avatar: 'https://i.pravatar.cc/150?u=john.doe@example.com',
     role: 'Admin',
+    facialFeatures: {},
   },
   {
     id: 'demo-user-2',
@@ -52,6 +55,7 @@ export const DEMO_USERS: User[] = [
     registerNo: 'R002',
     avatar: 'https://i.pravatar.cc/150?u=jane.smith@example.com',
     role: 'Student',
+    facialFeatures: {},
   },
   {
     id: 'demo-user-3',
@@ -60,6 +64,7 @@ export const DEMO_USERS: User[] = [
     registerNo: 'R003',
     avatar: 'https://i.pravatar.cc/150?u=peter.jones@example.com',
     role: 'Student',
+    facialFeatures: {},
   },
 ];
 
