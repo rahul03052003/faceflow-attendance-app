@@ -1,3 +1,4 @@
+
 'use client';
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { FirebaseApp, initializeApp } from 'firebase/app';
@@ -53,22 +54,15 @@ export const useFirebase = () => {
 
 export const useFirebaseApp = () => {
     const context = useFirebase();
-    if (!context.firebaseApp) {
-        throw new Error('Firebase App not initialized. Make sure you are using the FirebaseProvider.');
-    }
     return context.firebaseApp;
 }
 export const useFirestore = () => {
     const context = useFirebase();
-    if (!context.firestore) {
-        throw new Error('Firestore not initialized. Make sure you are using the FirebaseProvider.');
-    }
     return context.firestore;
 };
 export const useAuth = () => {
     const context = useFirebase();
-    if (!context.auth) {
-        throw new Error('Firebase Auth not initialized. Make sure you are using the FirebaseProvider.');
-    }
     return context.auth;
 };
+
+    

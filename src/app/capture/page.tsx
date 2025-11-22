@@ -99,7 +99,6 @@ export default function CapturePage() {
     }
     
     // With the corrected provider, this check is now sufficient.
-    // firestore will be available by the time a user can click the button.
     if (!firestore) {
         toast({
             variant: "destructive",
@@ -345,3 +344,5 @@ export default function CapturePage() {
     </div>
   );
 }
+
+    
