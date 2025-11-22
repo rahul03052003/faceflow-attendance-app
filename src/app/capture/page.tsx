@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -51,7 +51,17 @@ export default function CapturePage() {
   const { toast } = useToast();
   const firestore = useFirestore();
 
-  const getCameraPermission = async () => {
+  const stopCamera = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+  }, []);
+
+  const getCameraPermission = useCallback(async () => {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       console.error('Camera API not supported.');
       setHasCameraPermission(false);
@@ -60,7 +70,7 @@ export default function CapturePage() {
         title: 'Unsupported Browser',
         description: 'Your browser does not support camera access.',
       });
-      return;
+      return false;
     }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -69,36 +79,37 @@ export default function CapturePage() {
         videoRef.current.srcObject = stream;
       }
       setHasCameraPermission(true);
+      return true;
     } catch (error) {
       console.error('Error accessing camera:', error);
       setHasCameraPermission(false);
+      return false;
     }
-  };
-
-  const stopCamera = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    }
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
-  };
+  }, [toast]);
   
   useEffect(() => {
     getCameraPermission();
     return () => {
       stopCamera();
     };
-  }, []);
+  }, [getCameraPermission, stopCamera]);
 
   const handleScan = async () => {
-    if (!videoRef.current || !hasCameraPermission) {
-      await getCameraPermission();
-      return;
+    let hasPermission = hasCameraPermission;
+    if (!hasPermission) {
+       hasPermission = await getCameraPermission();
+       if (!hasPermission) return;
+    }
+
+    if (!videoRef.current?.srcObject) {
+       toast({
+          variant: "destructive",
+          title: "Camera Not Ready",
+          description: "The video feed is not active. Please wait a moment.",
+       });
+       return;
     }
     
-    // With the corrected provider, this check is now sufficient.
     if (!firestore) {
         toast({
             variant: "destructive",
@@ -137,7 +148,6 @@ export default function CapturePage() {
       }
 
       const newResult = { user: finalUser, emotion };
-
       setResult(newResult);
 
       if (audio && audioRef.current) {
@@ -312,7 +322,7 @@ export default function CapturePage() {
         <CardFooter>
           <Button
             onClick={handleScan}
-            disabled={isScanning || !firestore || hasCameraPermission === false}
+            disabled={isScanning || !firestore}
             className="w-full"
             size="lg"
           >
@@ -344,5 +354,3 @@ export default function CapturePage() {
     </div>
   );
 }
-
-    
