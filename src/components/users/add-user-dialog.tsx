@@ -48,11 +48,12 @@ export function AddUserDialog({ onAddUser }: AddUserDialogProps) {
     const formData = new FormData(event.currentTarget);
     const name = formData.get('name') as string;
     const email = formData.get('email') as string;
+    const registerNo = formData.get('registerNo') as string;
 
-    if (name && email) {
+    if (name && email && registerNo) {
       // The photo functionality is for presentation. In a real app, you'd upload this file
       // to a service like Firebase Storage and save the URL.
-      onAddUser({ name, email, photo: photoFile || undefined, photoPreview: photoPreview || undefined });
+      onAddUser({ name, email, registerNo, photo: photoFile || undefined, photoPreview: photoPreview || undefined });
       toast({
         title: 'User Added',
         description: `${name} is being added to the database.`,
@@ -118,6 +119,12 @@ export function AddUserDialog({ onAddUser }: AddUserDialogProps) {
                 Name
               </Label>
               <Input id="name" name="name" placeholder="John Doe" className="col-span-3" required />
+            </div>
+             <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="registerNo" className="text-right">
+                Register No.
+              </Label>
+              <Input id="registerNo" name="registerNo" placeholder="R001" className="col-span-3" required />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="email" className="text-right">

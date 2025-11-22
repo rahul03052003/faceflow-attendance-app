@@ -1,5 +1,6 @@
+
 'use client';
-import type { User } from '@/lib/types';
+import type { Subject } from '@/lib/types';
 import {
   Table,
   TableBody,
@@ -8,8 +9,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 import { MoreHorizontal, Ban } from 'lucide-react';
 import {
   DropdownMenu,
@@ -33,27 +32,27 @@ import {
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 
-type UsersTableProps = {
-  users: User[];
-  onDeleteUser: (userId: string) => void;
+type SubjectsTableProps = {
+  subjects: Subject[];
+  onDeleteSubject: (subjectId: string) => void;
   isDemo?: boolean;
 };
 
-export function UsersTable({ users, onDeleteUser, isDemo = false }: UsersTableProps) {
+export function SubjectsTable({ subjects, onDeleteSubject, isDemo = false }: SubjectsTableProps) {
   const [isAlertOpen, setIsAlertOpen] = useState(false);
-  const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [subjectToDelete, setSubjectToDelete] = useState<Subject | null>(null);
   const { toast } = useToast();
 
-  const handleDeleteClick = (user: User) => {
+  const handleDeleteClick = (subject: Subject) => {
     if (isDemo) {
         toast({
             variant: "destructive",
             title: "Demo Mode",
-            description: "Deleting users is disabled in demo mode.",
+            description: "Deleting subjects is disabled in demo mode.",
         });
         return;
     }
-    setUserToDelete(user);
+    setSubjectToDelete(subject);
     setIsAlertOpen(true);
   };
   
@@ -62,7 +61,7 @@ export function UsersTable({ users, onDeleteUser, isDemo = false }: UsersTablePr
         toast({
             variant: "destructive",
             title: "Demo Mode",
-            description: "Editing users is disabled in demo mode.",
+            description: "Editing subjects is disabled in demo mode.",
         });
         return;
     }
@@ -74,15 +73,15 @@ export function UsersTable({ users, onDeleteUser, isDemo = false }: UsersTablePr
   };
 
   const handleConfirmDelete = () => {
-    if (userToDelete) {
-      onDeleteUser(userToDelete.id);
+    if (subjectToDelete) {
+      onDeleteSubject(subjectToDelete.id);
       toast({
-        title: 'User Deleted',
-        description: `${userToDelete.name} has been removed from the system.`,
+        title: 'Subject Deleted',
+        description: `${subjectToDelete.title} has been removed from the system.`,
       });
     }
     setIsAlertOpen(false);
-    setUserToDelete(null);
+    setSubjectToDelete(null);
   };
 
   return (
@@ -90,35 +89,18 @@ export function UsersTable({ users, onDeleteUser, isDemo = false }: UsersTablePr
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>User</TableHead>
-            <TableHead>Register No.</TableHead>
-            <TableHead>Role</TableHead>
+            <TableHead>Title</TableHead>
+            <TableHead>Code</TableHead>
             <TableHead>
               <span className="sr-only">Actions</span>
             </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {users.map((user) => (
-            <TableRow key={user.id}>
-              <TableCell>
-                <div className="flex items-center gap-3">
-                  <Avatar>
-                    <AvatarImage src={user.avatar} alt={user.name} />
-                    <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="font-medium">{user.name}</p>
-                    <p className="text-sm text-muted-foreground">{user.email}</p>
-                  </div>
-                </div>
-              </TableCell>
-              <TableCell>{user.registerNo}</TableCell>
-              <TableCell>
-                <Badge variant={user.role === 'Admin' ? 'default' : 'secondary'}>
-                  {user.role}
-                </Badge>
-              </TableCell>
+          {subjects.map((subject) => (
+            <TableRow key={subject.id}>
+              <TableCell className="font-medium">{subject.title}</TableCell>
+              <TableCell>{subject.code}</TableCell>
               <TableCell className="text-right">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -131,15 +113,15 @@ export function UsersTable({ users, onDeleteUser, isDemo = false }: UsersTablePr
                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={handleEditClick} disabled={isDemo}>
-                      {isDemo && <Ban className="mr-2 h-4 w-4" />}
+                       {isDemo && <Ban className="mr-2 h-4 w-4" />}
                       Edit
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       className="text-destructive"
-                      onClick={() => handleDeleteClick(user)}
+                      onClick={() => handleDeleteClick(subject)}
                        disabled={isDemo}
                     >
-                     {isDemo && <Ban className="mr-2 h-4 w-4" />}
+                       {isDemo && <Ban className="mr-2 h-4 w-4" />}
                       Delete
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -155,7 +137,7 @@ export function UsersTable({ users, onDeleteUser, isDemo = false }: UsersTablePr
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription>
               This action cannot be undone. This will permanently delete the
-              user account of {userToDelete?.name}.
+              subject {subjectToDelete?.title}.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

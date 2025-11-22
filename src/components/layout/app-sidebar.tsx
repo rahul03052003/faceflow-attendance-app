@@ -19,6 +19,7 @@ import {
   Bot,
   Settings,
   LifeBuoy,
+  Book,
 } from 'lucide-react';
 import type { NavItem } from '@/lib/types';
 import { Button } from '../ui/button';
@@ -28,6 +29,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: '/capture', label: 'Capture Attendance', icon: ScanFace },
   { href: '/reports', label: 'Attendance Reports', icon: BarChart3 },
   { href: '/users', label: 'User Management', icon: Users },
+  { href: '/subjects', label: 'Subjects', icon: Book },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
 

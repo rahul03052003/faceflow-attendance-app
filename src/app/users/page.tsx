@@ -40,8 +40,9 @@ export default function UsersPage() {
     const userToAdd = {
       name: newUser.name,
       email: newUser.email,
+      registerNo: newUser.registerNo,
       avatar: newUser.photoPreview || `https://i.pravatar.cc/150?u=${newUser.email}`,
-      role: 'User', // Default role
+      role: 'Student', // Default role
     };
 
     const collectionRef = collection(firestore, 'users');
