@@ -1,7 +1,7 @@
 import {genkit} from 'genkit';
 import {googleAI} from '@genkit-ai/google-genai';
 import {config} from 'dotenv';
-import {initializeApp, getApps, App, credential} from 'firebase-admin/app';
+import {initializeApp, getApps, App} from 'firebase-admin/app';
 import {getFirestore, Firestore} from 'firebase-admin/firestore';
 
 config();
