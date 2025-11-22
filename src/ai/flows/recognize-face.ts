@@ -30,6 +30,7 @@ const RecognizeFaceOutputSchema = z.object({
     email: z.string(),
     avatar: z.string(),
     role: z.string(),
+    registerNo: z.string(),
   }),
   emotion: z.string().describe('The detected emotion of the person.'),
   audio: z
