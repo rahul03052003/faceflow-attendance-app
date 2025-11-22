@@ -17,6 +17,10 @@ if (getApps().length === 0) {
 export const firestore: Firestore = getFirestore(app);
 
 export const ai = genkit({
-  plugins: [googleAI()],
+  plugins: [googleAI({
+    // Explicitly disable metadata checks for this specific use case.
+    // This is a workaround for server environment issues.
+    skipMetadataCheck: true
+  })],
   model: 'googleai/gemini-2.5-flash',
 });

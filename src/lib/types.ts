@@ -1,4 +1,4 @@
-import { FieldValue } from 'firebase/firestore';
+import { FieldValue, Timestamp } from 'firebase/firestore';
 
 export type User = {
   id: string;
@@ -17,13 +17,16 @@ export type Subject = {
   teacherId?: string;
 };
 
+// This represents the structure of the document in Firestore
 export type AttendanceRecord = {
   id: string;
-  subjectId: string;
+  userId: string;
+  userName: string;
+  userAvatar: string;
   date: string;
-  present: { [userId: string]: { detectedBy: 'face' | 'manual'; emotion: string; timestamp: FieldValue } };
-  absent: string[];
-  takenBy: string;
+  status: 'Present' | 'Absent' | 'Late';
+  emotion: 'Happy' | 'Sad' | 'Neutral' | 'Surprised' | 'N/A';
+  timestamp: Timestamp | FieldValue;
 };
 
 export type NavItem = {
@@ -61,8 +64,26 @@ export const DEMO_USERS: User[] = [
 ];
 
 export const DEMO_ATTENDANCE: AttendanceRecord[] = [
-    // This demo data structure needs to be updated to match the new schema.
-    // For now, we will leave it empty as the old structure is incompatible.
+    { 
+        id: 'demo-att-1', 
+        userId: 'demo-user-2', 
+        userName: 'Jane Smith', 
+        userAvatar: 'https://i.pravatar.cc/150?u=jane.smith@example.com',
+        date: new Date().toISOString().split('T')[0],
+        status: 'Present',
+        emotion: 'Happy',
+        timestamp: new Date() as any // Type casting for demo
+    },
+    { 
+        id: 'demo-att-2', 
+        userId: 'demo-user-3', 
+        userName: 'Peter Jones', 
+        userAvatar: 'https://i.pravatar.cc/150?u=peter.jones@example.com',
+        date: new Date().toISOString().split('T')[0],
+        status: 'Present',
+        emotion: 'Neutral',
+        timestamp: new Date() as any
+    },
 ];
 
 export const DEMO_SUBJECTS: Subject[] = [

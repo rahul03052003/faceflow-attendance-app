@@ -140,7 +140,7 @@ const recognizeFaceFlow = ai.defineFlow(
       prompt: `A person named ${matchedUser.name} is in this photo. Analyze their face to determine their primary emotion. Choose from: Happy, Sad, Neutral, Surprised.
                 
                 Photo: {{media url=photoDataUri}}`,
-      model: 'googleai/gemini-2.5-flash',
+      model: 'googleai/gemini-pro-vision',
       output: {
         schema: z.object({
           emotion: z

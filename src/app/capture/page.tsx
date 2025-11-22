@@ -27,15 +27,25 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import type { User, AttendanceRecord } from '@/lib/types';
+import type { User } from '@/lib/types';
 import { recognizeFace } from '@/ai/flows/recognize-face';
-import { useFirestore, useCollection } from '@/firebase';
-import { addDoc, collection, doc, getDoc, serverTimestamp, where, query, getDocs } from 'firebase/firestore';
+import { useFirestore } from '@/firebase';
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
+// Define a new type for the attendance record to be created
+type NewAttendanceRecord = {
+    userId: string;
+    userName: string;
+    userAvatar: string;
+    date: string;
+    status: 'Present';
+    emotion: string;
+    timestamp: any; // serverTimestamp
+};
 
 type ScanResult = {
   user: User;
@@ -45,16 +55,16 @@ type ScanResult = {
 export default function CapturePage() {
   const [isScanning, setIsScanning] = useState(false);
   const [result, setResult] = useState<ScanResult | null>(null);
-  const [hasCameraPermission, setHasCameraPermission] = useState<
-    boolean | null
-  >(null);
+  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
+  const [isCameraStarting, setIsCameraStarting] = useState(false);
   const [userNameToFind, setUserNameToFind] = useState('');
+  
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  
   const { toast } = useToast();
   const firestore = useFirestore();
-  const { data: users, isLoading: isLoadingUsers } = useCollection<User>('users');
 
   const stopCamera = useCallback(() => {
     if (streamRef.current) {
@@ -64,9 +74,15 @@ export default function CapturePage() {
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
+    setHasCameraPermission(false);
   }, []);
 
-  const getCameraPermission = useCallback(async () => {
+  const startCamera = useCallback(async () => {
+    if (isCameraStarting || streamRef.current) return;
+
+    setIsCameraStarting(true);
+    setHasCameraPermission(null);
+
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       console.error('Camera API not supported.');
       setHasCameraPermission(false);
@@ -75,7 +91,8 @@ export default function CapturePage() {
         title: 'Unsupported Browser',
         description: 'Your browser does not support camera access.',
       });
-      return false;
+      setIsCameraStarting(false);
+      return;
     }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -84,50 +101,47 @@ export default function CapturePage() {
         videoRef.current.srcObject = stream;
       }
       setHasCameraPermission(true);
-      return true;
     } catch (error) {
       console.error('Error accessing camera:', error);
       setHasCameraPermission(false);
-      return false;
+    } finally {
+      setIsCameraStarting(false);
     }
-  }, [toast]);
+  }, [toast, isCameraStarting]);
   
+  // Effect to clean up camera on component unmount
   useEffect(() => {
-    getCameraPermission();
     return () => {
       stopCamera();
     };
-  }, [getCameraPermission, stopCamera]);
+  }, [stopCamera]);
+  
+  const handleScanClick = () => {
+      if (!hasCameraPermission) {
+          startCamera();
+          return;
+      }
+      scan();
+  }
 
-  const handleScan = async () => {
-    let hasPermission = hasCameraPermission;
-    if (!hasPermission) {
-       hasPermission = await getCameraPermission();
-       if (!hasPermission) return;
-    }
-
-    if (!videoRef.current?.srcObject) {
+  const scan = async () => {
+    if (!videoRef.current?.srcObject || !firestore) {
        toast({
           variant: "destructive",
-          title: "Camera Not Ready",
-          description: "The video feed is not active. Please wait a moment.",
+          title: "System Not Ready",
+          description: "Camera or database is not yet available. Please try again.",
        });
        return;
     }
     
-    if (!firestore) {
-        toast({
-            variant: "destructive",
-            title: "System Not Ready",
-            description: "The database connection is not yet available. Please wait a moment and try again.",
-        });
-        return;
-    }
-
     setIsScanning(true);
     setResult(null);
 
     const canvas = document.createElement('canvas');
+    if (!videoRef.current) {
+        setIsScanning(false);
+        return;
+    }
     canvas.width = videoRef.current.videoWidth;
     canvas.height = videoRef.current.videoHeight;
     const context = canvas.getContext('2d');
@@ -139,36 +153,25 @@ export default function CapturePage() {
     const photoDataUri = canvas.toDataURL('image/jpeg');
 
     try {
-      const { user, emotion, audio } = await recognizeFace({ photoDataUri, userName: userNameToFind });
+      const { user, emotion, audio } = await recognizeFace({ photoDataUri, userName: userNameToFind || undefined });
       
-      const userDocRef = doc(firestore, 'users', user.id);
-      const userDocSnap = await getDoc(userDocRef);
-      
-      let finalUser = user;
-      if (userDocSnap.exists()) {
-        const firestoreUser = { id: userDocSnap.id, ...userDocSnap.data() } as User;
-        finalUser = firestoreUser;
-      } else {
-        console.warn(`User with ID ${user.id} not found in Firestore. Using simulated data.`);
-      }
-
-      const newResult = { user: finalUser, emotion };
+      const newResult = { user, emotion };
       setResult(newResult);
 
       if (audio && audioRef.current) {
         audioRef.current.src = audio;
-        audioRef.current.play();
+        audioRef.current.play().catch(e => console.error("Audio playback failed", e));
       } else if (!audio) {
         console.log("No audio returned from flow, likely due to a rate limit.");
       }
       
-      const attendanceRecord: Omit<AttendanceRecord, 'id'> = {
-        userId: finalUser.id,
-        userName: finalUser.name,
-        userAvatar: finalUser.avatar,
+      const attendanceRecord: NewAttendanceRecord = {
+        userId: user.id,
+        userName: user.name,
+        userAvatar: user.avatar,
         date: new Date().toISOString().split('T')[0],
         status: 'Present',
-        emotion: emotion as any,
+        emotion: emotion,
         timestamp: serverTimestamp(),
       };
       
@@ -182,7 +185,6 @@ export default function CapturePage() {
         errorEmitter.emit('permission-error', permissionError);
       });
 
-
     } catch (error: any) {
       console.error('Face recognition failed.', error);
       toast({
@@ -193,11 +195,6 @@ export default function CapturePage() {
     } finally {
       setIsScanning(false);
     }
-  };
-
-  const handleCloseCamera = () => {
-    stopCamera();
-    setHasCameraPermission(false);
   };
   
   const getEmotionIcon = (emotion: string) => {
@@ -215,16 +212,38 @@ export default function CapturePage() {
     }
   };
 
-  const renderContent = () => {
-    if (hasCameraPermission === null) {
-      return (
-        <div className="flex flex-col items-center gap-4 text-center">
-          <Loader2 className="h-16 w-16 animate-spin text-primary" />
-          <p className="text-muted-foreground">Initializing camera...</p>
-        </div>
-      );
-    }
-    
+  const renderVideoContent = () => {
+      if (hasCameraPermission === false) {
+           return (
+            <Alert variant="destructive" className="m-4">
+              <VideoOff className="h-4 w-4" />
+              <AlertTitle>Camera Access Denied</AlertTitle>
+              <AlertDescription>
+                Please allow camera access in your browser settings to use this feature.
+              </AlertDescription>
+            </Alert>
+          );
+      }
+      if (hasCameraPermission === null && !isCameraStarting) {
+          return (
+              <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                <VideoOff className="h-10 w-10" />
+                <span>Camera is off</span>
+              </div>
+          );
+      }
+      if (isCameraStarting) {
+          return (
+             <div className="flex flex-col items-center gap-4 text-center">
+              <Loader2 className="h-12 w-12 animate-spin text-primary" />
+              <p className="text-muted-foreground">Starting camera...</p>
+            </div>
+          )
+      }
+      return null; // Video will be visible
+  }
+
+  const renderMainContent = () => {
     if (isScanning) {
       return (
         <div className="flex flex-col items-center gap-4 text-center">
@@ -256,45 +275,17 @@ export default function CapturePage() {
       );
     }
 
-    if (hasCameraPermission === false) {
-      return (
-        <Alert variant="destructive">
-          <VideoOff className="h-4 w-4" />
-          <AlertTitle>Camera Access Required</AlertTitle>
-
-          <AlertDescription>
-            Please allow camera access to use this feature, then click the button below.
-          </AlertDescription>
-        </Alert>
-      );
-    }
-
     return (
       <div className="flex flex-col items-center gap-4 text-center">
         <div className="p-6 bg-primary/10 rounded-full">
           <ScanFace className="h-16 w-16 text-primary" />
         </div>
-        <p className="text-muted-foreground">Ready to mark attendance.</p>
+        <p className="text-muted-foreground">
+          {hasCameraPermission ? "Ready to mark attendance." : "Enable your camera to begin."}
+        </p>
       </div>
     );
   };
-
-  const renderCameraButton = () => {
-    if (hasCameraPermission) {
-      return (
-        <Button
-          variant="destructive"
-          size="icon"
-          className="absolute top-2 right-2 rounded-full h-8 w-8 z-10"
-          onClick={handleCloseCamera}
-        >
-          <CameraOff className="h-4 w-4" />
-          <span className="sr-only">Close Camera</span>
-        </Button>
-      );
-    }
-    return null;
-  }
 
   return (
     <div className="flex justify-center items-start pt-10">
@@ -307,7 +298,17 @@ export default function CapturePage() {
         </CardHeader>
         <CardContent className="flex flex-col items-center justify-center gap-6 p-6 min-h-[400px]">
           <div className="w-full aspect-video rounded-md bg-muted overflow-hidden flex items-center justify-center relative">
-            {renderCameraButton()}
+            {hasCameraPermission && (
+              <Button
+                variant="destructive"
+                size="icon"
+                className="absolute top-2 right-2 rounded-full h-8 w-8 z-10"
+                onClick={stopCamera}
+              >
+                <CameraOff className="h-4 w-4" />
+                <span className="sr-only">Close Camera</span>
+              </Button>
+            )}
             <video
               ref={videoRef}
               className={`w-full h-full object-cover ${!hasCameraPermission ? 'hidden' : ''}`}
@@ -315,12 +316,7 @@ export default function CapturePage() {
               muted
               playsInline
             />
-            {!hasCameraPermission && hasCameraPermission !== null && (
-              <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                <VideoOff className="h-10 w-10" />
-                <span>Camera is off</span>
-              </div>
-            )}
+            {!hasCameraPermission && renderVideoContent()}
           </div>
           <div className="w-full space-y-2">
             <Label htmlFor="user-name" className="flex items-center gap-2">
@@ -332,19 +328,18 @@ export default function CapturePage() {
               placeholder="Enter user's name (e.g., Rahul)"
               value={userNameToFind}
               onChange={(e) => setUserNameToFind(e.target.value)}
-              disabled={isScanning || isLoadingUsers}
+              disabled={isScanning}
             />
-             {isLoadingUsers && <p className="text-xs text-muted-foreground">Loading user list...</p>}
           </div>
 
           <div className="w-full">
-            {renderContent()}
+            {renderMainContent()}
           </div>
         </CardContent>
         <CardFooter>
           <Button
-            onClick={handleScan}
-            disabled={isScanning || !firestore || !hasCameraPermission}
+            onClick={handleScanClick}
+            disabled={isScanning || !firestore || isCameraStarting}
             className="w-full"
             size="lg"
           >
