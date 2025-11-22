@@ -85,6 +85,7 @@ const findClosestMatchTool = ai.defineTool(
   },
   async () => {
     console.log("Simulating user match from Firestore 'users' collection...");
+    // Firebase Admin is initialized in genkit.ts, so we can just get the firestore instance.
     const db = getFirestore();
     const usersSnapshot = await db.collection('users').get();
     

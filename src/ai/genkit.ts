@@ -5,11 +5,13 @@ import {initializeApp, getApps, App, getApp} from 'firebase-admin/app';
 
 config();
 
+// This function ensures Firebase Admin is initialized only once.
 function getFirebaseAdminApp(): App {
     if (getApps().length > 0) {
       return getApp();
     }
-    // This will use the default credentials provided by the environment.
+    // This will use the default credentials provided by the environment,
+    // which is the correct setup for App Hosting and local development.
     return initializeApp();
 }
 
