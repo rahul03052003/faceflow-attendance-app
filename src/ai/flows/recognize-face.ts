@@ -108,7 +108,7 @@ const recognizeFaceFlow = ai.defineFlow(
     
     // Step 2: Analyze the input image to get its features and emotion.
     const liveImageAnalysisResult = await ai.generate({
-        model: 'googleai/gemini-pro-vision',
+        model: 'googleai/gemini-1.5-flash',
         prompt: `Describe the facial features of the person in this photo in a detailed JSON format. Include descriptions of eyes, nose, mouth, face shape, and any distinguishing marks. Also, determine their primary emotion.
         
         Photo: {{media url=photoDataUri}}`,

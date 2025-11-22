@@ -53,7 +53,7 @@ const generateFacialFeaturesFlow = ai.defineFlow(
     },
     async (input) => {
         const result = await ai.generate({
-            model: 'googleai/gemini-pro-vision',
+            model: 'googleai/gemini-1.5-flash',
             prompt: `Describe the facial features of the person in this photo in a detailed JSON format. Include descriptions of eyes, nose, mouth, face shape, and any distinguishing marks.
             
             Photo: {{media url=photoDataUri}}`,
