@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -42,7 +43,7 @@ export default function UsersPage() {
       email: newUser.email,
       registerNo: newUser.registerNo,
       avatar: newUser.photoPreview || `https://i.pravatar.cc/150?u=${newUser.email}`,
-      role: 'Student', // Default role
+      role: 'Student' as const, // Default role
     };
 
     const collectionRef = collection(firestore, 'users');

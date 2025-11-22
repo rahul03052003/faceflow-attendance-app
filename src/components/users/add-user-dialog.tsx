@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useRef } from 'react';
@@ -19,7 +20,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import type { User } from '@/lib/types';
 
 type AddUserDialogProps = {
-  onAddUser: (user: Omit<User, 'id' | 'avatar' | 'role'> & { photo?: File, photoPreview?: string }) => void;
+  onAddUser: (user: Omit<User, 'id' | 'avatar' | 'role' | 'subjects'> & { photo?: File, photoPreview?: string }) => void;
 };
 
 
