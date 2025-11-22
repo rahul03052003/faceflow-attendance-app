@@ -15,7 +15,7 @@ const FirebaseContext = createContext<FirebaseContextType | undefined>(
   undefined
 );
 
-// This is a singleton to ensure we only initialize Firebase once.
+// This is a singleton to ensure we only initialize Firebase once on the client.
 let firebaseApp: FirebaseApp;
 if (typeof window !== 'undefined') {
     firebaseApp = initializeApp(firebaseConfig);
@@ -28,6 +28,8 @@ export const FirebaseProvider = ({ children }: { children: ReactNode }) => {
     setIsMounted(true);
   }, []);
 
+  // We wait until the component has mounted to render the children.
+  // This prevents hydration errors and ensures Firebase is ready on the client.
   if (!isMounted || !firebaseApp) {
     return null; 
   }

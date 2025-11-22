@@ -98,7 +98,7 @@ export default function CapturePage() {
       return;
     }
     
-    // With the corrected client provider, this check is now sufficient.
+    // With the corrected provider, this check is now sufficient.
     // firestore will be available by the time a user can click the button.
     if (!firestore) {
         toast({
