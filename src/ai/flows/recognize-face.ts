@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -11,8 +12,20 @@
 import { ai, firestore } from '@/ai/genkit';
 import { z } from 'genkit';
 import wav from 'wav';
-import { User } from '@/lib/types';
 
+// Define User schema directly in the flow for self-containment
+const UserSchema = z.object({
+    id: z.string(),
+    name: z.string(),
+    email: z.string(),
+    registerNo: z.string(),
+    avatar: z.string(),
+    role: z.enum(['Admin', 'User', 'Student', 'Teacher']),
+    subjects: z.array(z.string()).optional(),
+    facialFeatures: z.any().optional().describe("Stored facial features for recognition."),
+  });
+  
+type User = z.infer<typeof UserSchema>;
 
 const RecognizeFaceInputSchema = z.object({
   photoDataUri: z
@@ -24,7 +37,7 @@ const RecognizeFaceInputSchema = z.object({
 export type RecognizeFaceInput = z.infer<typeof RecognizeFaceInputSchema>;
 
 const RecognizeFaceOutputSchema = z.object({
-  user: User.optional().describe("The user who was recognized, if any."),
+  user: UserSchema.optional().describe("The user who was recognized, if any."),
   emotion: z.string().describe('The detected emotion of the person.'),
   audio: z
     .string()
@@ -81,16 +94,19 @@ const recognizeFaceFlow = ai.defineFlow(
     const usersSnapshot = await firestore.collection('users').get();
     const users: User[] = [];
     usersSnapshot.forEach(doc => {
-      users.push({ id: doc.id, ...doc.data() } as User);
+      // Validate with Zod schema
+      const parseResult = UserSchema.safeParse({ id: doc.id, ...doc.data() });
+      if (parseResult.success) {
+        users.push(parseResult.data);
+      }
     });
 
     if (users.length === 0) {
       throw new Error("No users are registered in the system to compare against.");
     }
     
-    // Step 2: Concurrently analyze the input image and all user profile images.
-    const analysisPromises = [
-      ai.generate({
+    // Step 2: Analyze the input image to get its features and emotion.
+    const liveImageAnalysisResult = await ai.generate({
         model: 'googleai/gemini-pro-vision',
         prompt: `Describe the facial features of the person in this photo in a detailed JSON format. Include descriptions of eyes, nose, mouth, face shape, and any distinguishing marks. Also, determine their primary emotion.
         
@@ -107,46 +123,31 @@ const recognizeFaceFlow = ai.defineFlow(
           }),
         },
         input: { photoDataUri: input.photoDataUri },
-      }),
-      ...users.map(user => ai.generate({
-        model: 'googleai/gemini-pro-vision',
-        prompt: `Describe the facial features of the person in this photo in a detailed JSON format. Include descriptions of eyes, nose, mouth, and face shape.
-        
-        Photo: {{media url=avatarUrl}}`,
-        output: {
-          schema: z.object({
-            features: z.object({
-              eyes: z.string(),
-              nose: z.string(),
-              mouth: z.string(),
-              faceShape: z.string(),
-            }),
-          }),
-        },
-        input: { avatarUrl: user.avatar },
-      }))
-    ];
-
-    const [liveImageAnalysisResult, ...userImageAnalysisResults] = await Promise.all(analysisPromises);
+      });
 
     const liveImageAnalysis = liveImageAnalysisResult.output;
     if (!liveImageAnalysis) {
       throw new Error("Failed to analyze the live camera image.");
     }
+    
+    // Step 3: Find the best match by comparing the live image features to all user features.
+    const usersWithFeatures = users.filter(u => u.facialFeatures);
+    
+    if (usersWithFeatures.length === 0) {
+        throw new Error("No users have facial feature data stored. Please re-register users with a photo.");
+    }
 
-    // Step 3: Find the best match by comparing the analysis of the live image to all user images.
-    const userAnalyses = userImageAnalysisResults.map(result => result.output);
     const comparisonPrompt = `You are a facial recognition expert. Based on the detailed descriptions of a live photo and several user profile photos, determine which user is the best match.
 
     LIVE PHOTO DESCRIPTION:
     ${JSON.stringify(liveImageAnalysis.features, null, 2)}
 
     REGISTERED USER DESCRIPTIONS:
-    ${userAnalyses.map((analysis, index) => `
-    USER ID: ${users[index].id}
-    USER NAME: ${users[index].name}
+    ${usersWithFeatures.map((user) => `
+    USER ID: ${user.id}
+    USER NAME: ${user.name}
     DESCRIPTION:
-    ${JSON.stringify(analysis?.features, null, 2)}
+    ${JSON.stringify(user.facialFeatures, null, 2)}
     ---`).join('\n')}
 
     Based on your comparison, respond with the ID of the best-matching user. If no user is a confident match, respond with "unknown".`;
