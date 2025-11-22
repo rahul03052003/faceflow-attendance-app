@@ -12,12 +12,14 @@ import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import wav from 'wav';
 import { User } from '@/lib/types';
-import { initializeApp, getApps, App } from 'firebase-admin/app';
+import { initializeApp, getApps, App, credential } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 
 // Initialize Firebase Admin SDK only once
 if (getApps().length === 0) {
-  initializeApp();
+  initializeApp({
+    credential: credential.applicationDefault(),
+  });
 }
 
 const RecognizeFaceInputSchema = z.object({
