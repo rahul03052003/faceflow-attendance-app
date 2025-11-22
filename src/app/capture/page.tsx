@@ -20,8 +20,6 @@ import {
   ScanFace,
   Smile,
   Sparkles,
-  VideoOff,
-  UserSearch,
   UserCheck,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -130,11 +128,11 @@ export default function CapturePage() {
   }
 
   const scan = async () => {
-    if (!videoRef.current?.srcObject || !firestore) {
+    if (!videoRef.current?.srcObject || !firestore || !users) {
        toast({
           variant: "destructive",
           title: "System Not Ready",
-          description: "Camera or database is not yet available. Please try again.",
+          description: "Camera, database, or user data is not yet available. Please try again.",
        });
        return;
     }
@@ -158,7 +156,8 @@ export default function CapturePage() {
     const photoDataUri = canvas.toDataURL('image/jpeg');
 
     try {
-      const { user: matchedUser, emotion, audio } = await recognizeFace({ photoDataUri });
+      // Pass the users from the client to the AI flow
+      const { user: matchedUser, emotion, audio } = await recognizeFace({ photoDataUri, users });
       
       if (!matchedUser) {
         toast({
@@ -213,14 +212,14 @@ export default function CapturePage() {
   };
   
   const getEmotionIcon = (emotion: string) => {
-    switch (emotion) {
-      case 'Happy':
+    switch (emotion?.toLowerCase()) {
+      case 'happy':
         return <Smile className="h-6 w-6 text-green-500" />;
-      case 'Sad':
+      case 'sad':
         return <Frown className="h-6 w-6 text-blue-500" />;
-      case 'Neutral':
+      case 'neutral':
         return <Meh className="h-6 w-6 text-yellow-500" />;
-      case 'Surprised':
+      case 'surprised':
         return <Sparkles className="h-6 w-6 text-purple-500" />;
       default:
         return <Meh className="h-6 w-6 text-gray-500" />;
@@ -251,6 +250,14 @@ export default function CapturePage() {
   }
 
   const renderMainContent = () => {
+    if (isLoadingUsers && !users) {
+       return (
+        <div className="flex flex-col items-center gap-4 text-center">
+          <Loader2 className="h-16 w-16 animate-spin text-primary" />
+          <p className="text-muted-foreground">Loading user data...</p>
+        </div>
+      );
+    }
     if (isScanning) {
       return (
         <div className="flex flex-col items-center gap-4 text-center">
