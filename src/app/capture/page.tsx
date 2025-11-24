@@ -28,6 +28,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import type { User } from '@/lib/types';
 import { recognizeFace } from '@/ai/flows/recognize-face';
+import { generateGreetingAudio } from '@/ai/flows/generate-greeting-audio';
 import { useFirestore, useCollection } from '@/firebase';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
@@ -156,8 +157,7 @@ export default function CapturePage() {
     const photoDataUri = canvas.toDataURL('image/jpeg');
 
     try {
-      // Pass the users from the client to the AI flow
-      const { user: matchedUser, emotion, audio } = await recognizeFace({ photoDataUri, users });
+      const { user: matchedUser, emotion } = await recognizeFace({ photoDataUri, users });
       
       if (!matchedUser) {
         toast({
@@ -169,16 +169,11 @@ export default function CapturePage() {
         return;
       }
 
+      // Set result immediately for a faster UI response
       const newResult = { user: matchedUser, emotion };
       setResult(newResult);
-
-      if (audio && audioRef.current) {
-        audioRef.current.src = audio;
-        audioRef.current.play().catch(e => console.error("Audio playback failed", e));
-      } else if (!audio) {
-        console.log("No audio returned from flow, likely due to a rate limit.");
-      }
       
+      // In parallel, create attendance record
       const attendanceRecord: NewAttendanceRecord = {
         userId: matchedUser.id,
         userName: matchedUser.name,
@@ -188,7 +183,6 @@ export default function CapturePage() {
         emotion: emotion,
         timestamp: serverTimestamp(),
       };
-      
       const collectionRef = collection(firestore, 'attendance');
       addDoc(collectionRef, attendanceRecord).catch(async (serverError) => {
         const permissionError = new FirestorePermissionError({
@@ -198,6 +192,19 @@ export default function CapturePage() {
         });
         errorEmitter.emit('permission-error', permissionError);
       });
+      
+      // And generate/play audio in the background
+      generateGreetingAudio({ name: matchedUser.name })
+        .then(({ audio }) => {
+          if (audio && audioRef.current) {
+            audioRef.current.src = audio;
+            audioRef.current.play().catch(e => console.error("Audio playback failed", e));
+          } else {
+             console.log("No audio returned from flow, likely due to a rate limit or other issue.");
+          }
+        })
+        .catch(e => console.error("Audio generation failed:", e));
+
 
     } catch (error: any) {
       console.error('Face recognition flow failed.', error);
@@ -374,3 +381,5 @@ export default function CapturePage() {
     </div>
   );
 }
+
+    
