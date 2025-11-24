@@ -54,62 +54,47 @@ const recognizeFaceFlow = ai.defineFlow(
     inputSchema: RecognizeFaceInputSchema,
     outputSchema: RecognizeFaceOutputSchema,
   },
-  async (input) => {
+  async ({ photoDataUri, users }) => {
     
-    if (!input.users || input.users.length === 0) {
+    if (!users || users.length === 0) {
         throw new Error("No users provided to compare against.");
     }
     
-    const liveImageAnalysisResult = await ai.generate({
-        prompt: `You are an expert facial recognition system. Analyze the person in this photo. Describe their facial features in JSON format and determine their primary emotion.
+    const result = await ai.generate({
+        prompt: `You are an expert facial recognition system. Your task is to identify a person in an image and determine their emotion.
         
-        Photo: {{media url=photoDataUri}}`,
-        output: {
-          schema: z.object({
-            liveFeatures: z.object({
-                eyes: z.string(),
-                nose: z.string(),
-                mouth: z.string(),
-                faceShape: z.string(),
-            }).describe("The facial features of the person in the live photo."),
-            emotion: z.string().describe('Primary emotion detected in the photo (e.g., Happy, Sad, Neutral, Surprised).'),
-          }),
-        },
-        input: { photoDataUri: input.photoDataUri },
-      });
+        1.  Analyze the person in the provided photo.
+        2.  Compare their features against the list of registered users. Each user has a 'facialFeatures' field with their stored data.
+        3.  Determine the single best match from the list.
+        4.  Also determine the primary emotion of the person in the photo (e.g., Happy, Sad, Neutral).
 
-    const liveImageAnalysis = liveImageAnalysisResult.output;
-    if (!liveImageAnalysis) {
-      throw new Error("Failed to analyze the live camera image.");
-    }
-
-    const comparisonResult = await ai.generate({
-        prompt: `You are an expert facial recognition system. Your task is to find the best match for a person from a list of registered users.
-
-        Here are the facial features from the live photo:
-        ${JSON.stringify(liveImageAnalysis.liveFeatures, null, 2)}
+        Registered Users:
+        ${JSON.stringify(users.map(u => ({ id: u.id, name: u.name, features: u.facialFeatures })), null, 2)}
         
-        Here is the list of registered users and their stored facial features:
-        ${JSON.stringify(input.users.map(u => ({ id: u.id, name: u.name, features: u.facialFeatures })), null, 2)}
-
-        Based on a careful comparison, respond with the user ID of the single best match.
-        `,
+        Photo to analyze:
+        {{media url=photoDataUri}}`,
         output: {
           schema: z.object({
             bestMatch: z.object({
                 userId: z.string().describe("The ID of the best matching user from the provided list."),
             }).optional(),
+            emotion: z.string().describe('Primary emotion detected in the photo (e.g., Happy, Sad, Neutral, Surprised).'),
           }),
         },
-    });
+        input: { photoDataUri },
+      });
 
-    const bestMatch = comparisonResult.output?.bestMatch;
-    
-    const matchedUser = input.users.find(u => u.id === bestMatch?.userId);
+    const output = result.output;
+    if (!output) {
+      throw new Error("Failed to get a response from the AI model.");
+    }
+
+    const matchedUser = users.find(u => u.id === output.bestMatch?.userId);
 
     return {
       user: matchedUser,
-      emotion: liveImageAnalysis.emotion || 'Neutral',
+      emotion: output.emotion || 'Neutral',
     };
   }
 );
+

@@ -125,11 +125,14 @@ export default function CapturePage() {
           startCamera();
           return;
       }
+      if (result) {
+        setResult(null);
+      }
       scan();
   }
 
   const scan = async () => {
-    if (!videoRef.current?.srcObject || !firestore || !users) {
+    if (!videoRef.current?.srcObject || !firestore || !users || users.length === 0) {
        toast({
           variant: "destructive",
           title: "System Not Ready",
