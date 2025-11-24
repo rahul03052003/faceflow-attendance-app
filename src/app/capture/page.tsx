@@ -160,23 +160,40 @@ export default function CapturePage() {
     const photoDataUri = canvas.toDataURL('image/jpeg');
 
     try {
+      // Step 1: Recognize the face. This is the main blocking call.
       const { user: matchedUser, emotion } = await recognizeFace({ photoDataUri, users });
       
+      // Stop scanning spinner immediately and update UI
+      setIsScanning(false);
+
       if (!matchedUser) {
         toast({
           variant: "destructive",
           title: "Recognition Failed",
           description: "Could not identify a registered user in the photo. Please try again.",
         });
-        setIsScanning(false);
         return;
       }
 
-      // Set result immediately for a faster UI response
+      // Step 2: Show result in UI immediately.
       const newResult = { user: matchedUser, emotion };
       setResult(newResult);
       
-      // In parallel, create attendance record
+      // Step 3: Kick off background tasks (audio and database write) without awaiting them.
+      
+      // Generate and play audio in the background
+      generateGreetingAudio({ name: matchedUser.name })
+        .then(({ audio }) => {
+          if (audio && audioRef.current) {
+            audioRef.current.src = audio;
+            audioRef.current.play().catch(e => console.error("Audio playback failed", e));
+          } else {
+             console.log("No audio returned from flow, likely due to a timeout or other issue.");
+          }
+        })
+        .catch(e => console.error("Audio generation failed:", e));
+
+      // Create attendance record in the background
       const attendanceRecord: NewAttendanceRecord = {
         userId: matchedUser.id,
         userName: matchedUser.name,
@@ -195,29 +212,15 @@ export default function CapturePage() {
         });
         errorEmitter.emit('permission-error', permissionError);
       });
-      
-      // And generate/play audio in the background
-      generateGreetingAudio({ name: matchedUser.name })
-        .then(({ audio }) => {
-          if (audio && audioRef.current) {
-            audioRef.current.src = audio;
-            audioRef.current.play().catch(e => console.error("Audio playback failed", e));
-          } else {
-             console.log("No audio returned from flow, likely due to a rate limit or other issue.");
-          }
-        })
-        .catch(e => console.error("Audio generation failed:", e));
-
 
     } catch (error: any) {
       console.error('Face recognition flow failed.', error);
+      setIsScanning(false);
       toast({
         variant: "destructive",
         title: "AI Scan Failed",
         description: error.message || "The AI could not process the image. Please try again.",
       });
-    } finally {
-      setIsScanning(false);
     }
   };
   
