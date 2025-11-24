@@ -61,17 +61,17 @@ const recognizeFaceFlow = ai.defineFlow(
     }
     
     const liveImageAnalysisResult = await ai.generate({
-        prompt: `You are an expert facial recognition system. Analyze the person in this photo. Determine their primary emotion and compare their facial features to the following list of registered users to identify the best match.
-        
-        Registered Users (with their stored features):
-        ${JSON.stringify(input.users.map(u => ({ id: u.id, name: u.name, features: u.facialFeatures })), null, 2)}
+        prompt: `You are an expert facial recognition system. Analyze the person in this photo. Describe their facial features in JSON format and determine their primary emotion.
         
         Photo: {{media url=photoDataUri}}`,
         output: {
           schema: z.object({
-            bestMatch: z.object({
-                userId: z.string().describe("The ID of the best matching user from the provided list."),
-            }).optional(),
+            liveFeatures: z.object({
+                eyes: z.string(),
+                nose: z.string(),
+                mouth: z.string(),
+                faceShape: z.string(),
+            }).describe("The facial features of the person in the live photo."),
             emotion: z.string().describe('Primary emotion detected in the photo (e.g., Happy, Sad, Neutral, Surprised).'),
           }),
         },
@@ -82,8 +82,30 @@ const recognizeFaceFlow = ai.defineFlow(
     if (!liveImageAnalysis) {
       throw new Error("Failed to analyze the live camera image.");
     }
+
+    const comparisonResult = await ai.generate({
+        prompt: `You are an expert facial recognition system. Your task is to find the best match for a person from a list of registered users.
+
+        Here are the facial features from the live photo:
+        ${JSON.stringify(liveImageAnalysis.liveFeatures, null, 2)}
+        
+        Here is the list of registered users and their stored facial features:
+        ${JSON.stringify(input.users.map(u => ({ id: u.id, name: u.name, features: u.facialFeatures })), null, 2)}
+
+        Based on a careful comparison, respond with the user ID of the single best match.
+        `,
+        output: {
+          schema: z.object({
+            bestMatch: z.object({
+                userId: z.string().describe("The ID of the best matching user from the provided list."),
+            }).optional(),
+          }),
+        },
+    });
+
+    const bestMatch = comparisonResult.output?.bestMatch;
     
-    const matchedUser = input.users.find(u => u.id === liveImageAnalysis.bestMatch?.userId);
+    const matchedUser = input.users.find(u => u.id === bestMatch?.userId);
 
     return {
       user: matchedUser,
@@ -91,5 +113,3 @@ const recognizeFaceFlow = ai.defineFlow(
     };
   }
 );
-
-    
