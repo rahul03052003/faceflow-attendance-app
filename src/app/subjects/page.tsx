@@ -17,26 +17,18 @@ import { useFirestore } from '@/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-import { DEMO_SUBJECTS } from '@/lib/types';
 
 export default function SubjectsPage() {
   const firestore = useFirestore();
   const {
-    data: subjectsData,
+    data: subjects,
     isLoading,
     error,
   } = useCollection<Subject>('subjects');
 
-  const useDemoData = (!subjectsData || subjectsData.length === 0) && !isLoading;
-  const subjects = useDemoData ? DEMO_SUBJECTS : subjectsData;
-
   const handleAddSubject = (
     newSubject: Omit<Subject, 'id'>
   ) => {
-    if (useDemoData) {
-      alert("Cannot add subjects when in demo mode. Please connect to Firebase to add real data.");
-      return;
-    }
     const collectionRef = collection(firestore, 'subjects');
     addDoc(collectionRef, newSubject).catch(async (serverError) => {
       const permissionError = new FirestorePermissionError({
@@ -49,10 +41,6 @@ export default function SubjectsPage() {
   };
 
   const handleDeleteSubject = (subjectId: string) => {
-    if (useDemoData) {
-      alert("Cannot delete subjects when in demo mode. Please connect to Firebase to add real data.");
-      return;
-    }
     const docRef = doc(firestore, 'subjects', subjectId);
     deleteDoc(docRef).catch(async (serverError) => {
       const permissionError = new FirestorePermissionError({
@@ -64,7 +52,7 @@ export default function SubjectsPage() {
   };
 
   const renderContent = () => {
-    if (isLoading && !useDemoData) {
+    if (isLoading) {
       return (
         <div className="space-y-4">
           <Skeleton className="h-12 w-full" />
@@ -78,7 +66,7 @@ export default function SubjectsPage() {
       return <p className="text-destructive">Error loading subjects: {error.message}</p>;
     }
 
-    return <SubjectsTable subjects={subjects || []} onDeleteSubject={handleDeleteSubject} isDemo={useDemoData} />;
+    return <SubjectsTable subjects={subjects || []} onDeleteSubject={handleDeleteSubject} />;
   };
 
   return (
@@ -98,7 +86,6 @@ export default function SubjectsPage() {
           <CardTitle>Subject List</CardTitle>
           <CardDescription>
             A list of all subjects in the system.
-             {useDemoData && <span className="text-yellow-600 dark:text-yellow-400 font-semibold"> (Demo Data)</span>}
           </CardDescription>
         </CardHeader>
         <CardContent>{renderContent()}</CardContent>

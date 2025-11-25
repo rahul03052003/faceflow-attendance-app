@@ -1,3 +1,4 @@
+
 'use client';
 import type { User } from '@/lib/types';
 import {
@@ -10,7 +11,7 @@ import {
 } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { MoreHorizontal, Ban } from 'lucide-react';
+import { MoreHorizontal } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,36 +37,19 @@ import { useToast } from '@/hooks/use-toast';
 type UsersTableProps = {
   users: User[];
   onDeleteUser: (userId: string) => void;
-  isDemo?: boolean;
 };
 
-export function UsersTable({ users, onDeleteUser, isDemo = false }: UsersTableProps) {
+export function UsersTable({ users, onDeleteUser }: UsersTableProps) {
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const { toast } = useToast();
 
   const handleDeleteClick = (user: User) => {
-    if (isDemo) {
-        toast({
-            variant: "destructive",
-            title: "Demo Mode",
-            description: "Deleting users is disabled in demo mode.",
-        });
-        return;
-    }
     setUserToDelete(user);
     setIsAlertOpen(true);
   };
   
   const handleEditClick = () => {
-    if (isDemo) {
-        toast({
-            variant: "destructive",
-            title: "Demo Mode",
-            description: "Editing users is disabled in demo mode.",
-        });
-        return;
-    }
     // In a real app, this would open an edit dialog.
      toast({
         title: "Coming Soon!",
@@ -130,16 +114,13 @@ export function UsersTable({ users, onDeleteUser, isDemo = false }: UsersTablePr
                   <DropdownMenuContent align="end">
                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleEditClick} disabled={isDemo}>
-                      {isDemo && <Ban className="mr-2 h-4 w-4" />}
+                    <DropdownMenuItem onClick={handleEditClick}>
                       Edit
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       className="text-destructive"
                       onClick={() => handleDeleteClick(user)}
-                       disabled={isDemo}
                     >
-                     {isDemo && <Ban className="mr-2 h-4 w-4" />}
                       Delete
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -147,6 +128,13 @@ export function UsersTable({ users, onDeleteUser, isDemo = false }: UsersTablePr
               </TableCell>
             </TableRow>
           ))}
+          {users.length === 0 && (
+            <TableRow>
+              <TableCell colSpan={4} className="h-24 text-center">
+                No users found. Add a new user to get started.
+              </TableCell>
+            </TableRow>
+          )}
         </TableBody>
       </Table>
       <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>

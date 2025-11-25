@@ -35,36 +35,19 @@ import { useToast } from '@/hooks/use-toast';
 type SubjectsTableProps = {
   subjects: Subject[];
   onDeleteSubject: (subjectId: string) => void;
-  isDemo?: boolean;
 };
 
-export function SubjectsTable({ subjects, onDeleteSubject, isDemo = false }: SubjectsTableProps) {
+export function SubjectsTable({ subjects, onDeleteSubject }: SubjectsTableProps) {
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [subjectToDelete, setSubjectToDelete] = useState<Subject | null>(null);
   const { toast } = useToast();
 
   const handleDeleteClick = (subject: Subject) => {
-    if (isDemo) {
-        toast({
-            variant: "destructive",
-            title: "Demo Mode",
-            description: "Deleting subjects is disabled in demo mode.",
-        });
-        return;
-    }
     setSubjectToDelete(subject);
     setIsAlertOpen(true);
   };
   
   const handleEditClick = () => {
-    if (isDemo) {
-        toast({
-            variant: "destructive",
-            title: "Demo Mode",
-            description: "Editing subjects is disabled in demo mode.",
-        });
-        return;
-    }
     // In a real app, this would open an edit dialog.
      toast({
         title: "Coming Soon!",
@@ -112,16 +95,13 @@ export function SubjectsTable({ subjects, onDeleteSubject, isDemo = false }: Sub
                   <DropdownMenuContent align="end">
                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleEditClick} disabled={isDemo}>
-                       {isDemo && <Ban className="mr-2 h-4 w-4" />}
+                    <DropdownMenuItem onClick={handleEditClick}>
                       Edit
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       className="text-destructive"
                       onClick={() => handleDeleteClick(subject)}
-                       disabled={isDemo}
                     >
-                       {isDemo && <Ban className="mr-2 h-4 w-4" />}
                       Delete
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -129,6 +109,13 @@ export function SubjectsTable({ subjects, onDeleteSubject, isDemo = false }: Sub
               </TableCell>
             </TableRow>
           ))}
+           {subjects.length === 0 && (
+            <TableRow>
+              <TableCell colSpan={3} className="h-24 text-center">
+                No subjects found. Add a new one to get started.
+              </TableCell>
+            </TableRow>
+          )}
         </TableBody>
       </Table>
       <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>

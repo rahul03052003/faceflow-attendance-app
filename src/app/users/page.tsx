@@ -17,30 +17,21 @@ import { useFirestore } from '@/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-import { DEMO_USERS } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { generateFacialFeatures } from '@/ai/flows/generate-facial-features';
 
 export default function UsersPage() {
   const firestore = useFirestore();
   const {
-    data: usersData,
+    data: users,
     isLoading,
     error,
   } = useCollection<User>('users');
   const { toast } = useToast();
 
-  const useDemoData = (!usersData || usersData.length === 0) && !isLoading;
-  const users = useDemoData ? DEMO_USERS : usersData;
-
-
   const handleAddUser = async (
     newUser: Omit<User, 'id' | 'avatar' | 'role' | 'subjects' | 'facialFeatures'> & { photo?: File, photoPreview?: string }
   ) => {
-    if (useDemoData) {
-      alert("Cannot add users when in demo mode. Please connect to Firebase to add real data.");
-      return;
-    }
     
     // Add user without facial features first
     const userToAdd = {
@@ -61,6 +52,9 @@ export default function UsersPage() {
         if (newUser.photoPreview) {
             try {
                 const result = await generateFacialFeatures({ photoDataUri: newUser.photoPreview });
+                if (!result || !result.features) {
+                    throw new Error("Facial feature generation returned an invalid result.");
+                }
                 await updateDoc(docRef, { facialFeatures: result.features });
             } catch (e) {
                 console.error("Failed to generate facial features:", e);
@@ -82,10 +76,6 @@ export default function UsersPage() {
   };
 
   const handleDeleteUser = (userId: string) => {
-    if (useDemoData) {
-      alert("Cannot delete users when in demo mode. Please connect to Firebase to add real data.");
-      return;
-    }
     const docRef = doc(firestore, 'users', userId);
     deleteDoc(docRef).catch(async (serverError) => {
       const permissionError = new FirestorePermissionError({
@@ -97,7 +87,7 @@ export default function UsersPage() {
   };
 
   const renderContent = () => {
-    if (isLoading && !useDemoData) {
+    if (isLoading) {
       return (
         <div className="space-y-4">
           <Skeleton className="h-12 w-full" />
@@ -111,7 +101,7 @@ export default function UsersPage() {
       return <p className="text-destructive">Error loading users: {error.message}</p>;
     }
 
-    return <UsersTable users={users || []} onDeleteUser={handleDeleteUser} isDemo={useDemoData} />;
+    return <UsersTable users={users || []} onDeleteUser={handleDeleteUser} />;
   };
 
   return (
@@ -131,7 +121,6 @@ export default function UsersPage() {
           <CardTitle>User List</CardTitle>
           <CardDescription>
             A list of all users in the system.
-            {useDemoData && <span className="text-yellow-600 dark:text-yellow-400 font-semibold"> (Demo Data)</span>}
           </CardDescription>
         </CardHeader>
         <CardContent>{renderContent()}</CardContent>

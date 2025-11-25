@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -11,7 +12,6 @@ import { EmotionChart } from '@/components/reports/emotion-chart';
 import { useCollection } from '@/firebase';
 import type { AttendanceRecord, User } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
-import { DEMO_USERS, DEMO_ATTENDANCE } from '@/lib/types';
 
 function EmotionIcon({ emotion }: { emotion: string }) {
   switch (emotion) {
@@ -27,15 +27,10 @@ function EmotionIcon({ emotion }: { emotion: string }) {
 }
 
 export default function Home() {
-  const { data: usersData, isLoading: isLoadingUsers, error: usersError } = useCollection<User>('users');
-  const { data: attendanceData, isLoading: isLoadingRecords, error: attendanceError } =
+  const { data: users, isLoading: isLoadingUsers, error: usersError } = useCollection<User>('users');
+  const { data: attendanceRecords, isLoading: isLoadingRecords, error: attendanceError } =
     useCollection<AttendanceRecord>('attendance');
-
-  const useDemoData = (!usersData || usersData.length === 0) && !isLoadingUsers && (!attendanceData || attendanceData.length === 0) && !isLoadingRecords;
   
-  const users = useDemoData ? DEMO_USERS : usersData;
-  const attendanceRecords = useDemoData ? DEMO_ATTENDANCE : attendanceData;
-
   const getTodaysAttendance = () => {
     if (!attendanceRecords) return 0;
     const today = new Date().toISOString().split('T')[0];
@@ -47,7 +42,11 @@ export default function Home() {
   const totalUsers = users?.length || 0;
   const presentToday = getTodaysAttendance();
   const recentRecords = attendanceRecords
-    ?.sort((a, b) => (b.timestamp as any)?.seconds || (b.timestamp as Date).getTime() - (a.timestamp as any)?.seconds || (a.timestamp as Date).getTime())
+    ?.sort((a, b) => {
+        const timeA = a.timestamp ? ('seconds' in a.timestamp ? a.timestamp.seconds : new Date(a.timestamp as any).getTime()) : 0;
+        const timeB = b.timestamp ? ('seconds' in b.timestamp ? b.timestamp.seconds : new Date(b.timestamp as any).getTime()) : 0;
+        return timeB - timeA;
+    })
     .slice(0, 5) || [];
 
 
@@ -58,7 +57,7 @@ export default function Home() {
         {icon}
       </CardHeader>
       <CardContent>
-        {isLoading && !useDemoData ? (
+        {isLoading ? (
           <Skeleton className="h-8 w-1/4" />
         ) : (
           <div className="text-2xl font-bold">{value}</div>
@@ -89,13 +88,15 @@ export default function Home() {
             <Smile className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {isLoadingRecords && !useDemoData ? <Skeleton className="h-8 w-full" /> : (
+            {isLoadingRecords ? <Skeleton className="h-8 w-full" /> : (
               <div className="flex -space-x-2 overflow-hidden">
-                  {recentRecords.map((record, index) => (
-                      <div key={index} className="inline-block h-8 w-8 rounded-full ring-2 ring-white flex items-center justify-center bg-background">
+                  {(recentRecords.length > 0) ? recentRecords.map((record, index) => (
+                      <div key={record.id || index} className="inline-block h-8 w-8 rounded-full ring-2 ring-white flex items-center justify-center bg-background">
                           <EmotionIcon emotion={record.emotion} />
                       </div>
-                  ))}
+                  )) : (
+                    <p className="text-xs text-muted-foreground">No recent activity.</p>
+                  )}
               </div>
             )}
              <p className="text-xs text-muted-foreground mt-2">
@@ -109,7 +110,7 @@ export default function Home() {
           <CardTitle>Emotion Distribution</CardTitle>
         </CardHeader>
         <CardContent>
-          {isLoadingRecords && !useDemoData ? (
+          {isLoadingRecords ? (
             <div className="h-64 w-full flex items-center justify-center">
               <Skeleton className="h-full w-full" />
             </div>

@@ -28,7 +28,7 @@ export type AttendanceRecord = {
   date: string;
   status: 'Present' | 'Absent' | 'Late';
   emotion: 'Happy' | 'Sad' | 'Neutral' | 'Surprised' | 'N/A';
-  timestamp: Timestamp | FieldValue;
+  timestamp: Timestamp | FieldValue | Date;
 };
 
 export type NavItem = {
@@ -37,9 +37,3 @@ export type NavItem = {
   icon: React.ComponentType<{ className?: string }>;
   active?: boolean;
 };
-
-export const DEMO_USERS: User[] = [];
-
-export const DEMO_ATTENDANCE: AttendanceRecord[] = [];
-
-export const DEMO_SUBJECTS: Subject[] = [];

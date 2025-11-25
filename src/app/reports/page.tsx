@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -13,15 +14,11 @@ import { AiSummary } from '@/components/reports/ai-summary';
 import { useCollection } from '@/firebase';
 import type { AttendanceRecord } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
-import { DEMO_ATTENDANCE } from '@/lib/types';
 
 
 export default function ReportsPage() {
-  const { data: attendanceData, isLoading, error } =
+  const { data: attendanceRecords, isLoading, error } =
     useCollection<AttendanceRecord>('attendance');
-
-  const useDemoData = (!attendanceData || attendanceData.length === 0) && !isLoading;
-  const attendanceRecords = useDemoData ? DEMO_ATTENDANCE : attendanceData;
 
   return (
     <div className="flex flex-col gap-8">
@@ -44,7 +41,7 @@ export default function ReportsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {isLoading && !useDemoData ? (
+              {isLoading ? (
                 <div className="space-y-2">
                   <Skeleton className="h-12 w-full" />
                   <Skeleton className="h-12 w-full" />
@@ -67,14 +64,14 @@ export default function ReportsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {isLoading && !useDemoData ? (
+              {isLoading ? (
                 <Skeleton className="h-64 w-full" />
               ) : (
                 <EmotionChart attendanceRecords={attendanceRecords || []} />
               )}
             </CardContent>
           </Card>
-          <AiSummary attendanceRecords={attendanceRecords || []} isLoading={isLoading && !useDemoData}/>
+          <AiSummary attendanceRecords={attendanceRecords || []} isLoading={isLoading}/>
         </div>
       </div>
     </div>
