@@ -1,11 +1,11 @@
-// This is a placeholder for your Firebase config.
-// The real config will be populated by the Firebase tooling.
-export const firebaseConfig = {
-  apiKey: "your-api-key",
-  authDomain: "your-auth-domain",
-  projectId: "your-project-id",
-  storageBucket: "your-storage-bucket",
-  messagingSenderId: "your-messaging-sender-id",
-  appId: "your-app-id",
-};
 
+// This file is automatically populated by Firebase Studio.
+// Do not edit manually.
+export const firebaseConfig = {
+  apiKey: "API_KEY",
+  authDomain: "PROJECT_ID.firebaseapp.com",
+  projectId: "PROJECT_ID",
+  storageBucket: "PROJECT_ID.appspot.com",
+  messagingSenderId: "SENDER_ID",
+  appId: "APP_ID",
+};
