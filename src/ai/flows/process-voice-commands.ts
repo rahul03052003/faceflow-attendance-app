@@ -11,7 +11,7 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import {z} from 'zod';
 
 const ProcessVoiceCommandInputSchema = z.object({
   command: z.string().describe('The voice command to process.'),
@@ -20,7 +20,13 @@ export type ProcessVoiceCommandInput = z.infer<typeof ProcessVoiceCommandInputSc
 
 const ProcessVoiceCommandOutputSchema = z.object({
   action: z.string().describe('The action to be performed. Should be one of: "navigate", "addUser", "markPresent", "showReport", "unknown".'),
-  parameters: z.union([z.record(z.string()), z.string()]).optional().describe('Parameters for the action, if any. For navigation, include a "page" parameter (e.g., "/", "/reports", "/users", "/capture"). For adding a user, include "name" and "email".'),
+  parameters: z.union([
+    z.object({ page: z.string().describe("The page to navigate to (e.g., '/', '/reports').") }),
+    z.object({ name: z.string().describe("The user's full name."), email: z.string().email().optional().describe("The user's email address.") }),
+    z.object({ name: z.string().describe("The name of the user to mark as present.") }),
+    z.object({ date: z.string().describe("The date for the report (e.g., 'today').") }),
+    z.string(),
+  ]).optional().describe('Parameters for the action, if any. For navigation, include a "page" parameter. For adding a user, include "name" and "email".'),
 });
 export type ProcessVoiceCommandOutput = z.infer<typeof ProcessVoiceCommandOutputSchema>;
 
