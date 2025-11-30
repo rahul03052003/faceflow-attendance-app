@@ -5,7 +5,7 @@ import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/layout/app-sidebar';
 import { AppHeader } from '@/components/layout/app-header';
 import { Toaster } from '@/components/ui/toaster';
-import { FirebaseProvider } from '@/firebase/provider';
+import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { FirebaseErrorListener } from '@/components/firebase-error-listener';
 import { ThemeProvider } from '@/components/theme-provider';
 import { AuthGuard } from '@/components/auth-guard';
@@ -43,7 +43,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <FirebaseProvider>
+          <FirebaseClientProvider>
             <FirebaseErrorListener>
               <AuthGuard>
                   <SidebarProvider>
@@ -60,7 +60,7 @@ export default function RootLayout({
                   <Toaster />
               </AuthGuard>
             </FirebaseErrorListener>
-          </FirebaseProvider>
+          </FirebaseClientProvider>
         </ThemeProvider>
       </body>
     </html>

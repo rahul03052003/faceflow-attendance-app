@@ -1,10 +1,9 @@
 
 'use client';
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { FirebaseApp, initializeApp } from 'firebase/app';
-import { Auth, getAuth } from 'firebase/auth';
-import { Firestore, getFirestore } from 'firebase/firestore';
-import { firebaseConfig } from './config';
+import React, { createContext, useContext, ReactNode } from 'react';
+import { FirebaseApp } from 'firebase/app';
+import { Auth } from 'firebase/auth';
+import { Firestore } from 'firebase/firestore';
 
 interface FirebaseContextType {
   firebaseApp: FirebaseApp;
@@ -16,26 +15,20 @@ const FirebaseContext = createContext<FirebaseContextType | undefined>(
   undefined
 );
 
-export const FirebaseProvider = ({ children }: { children: ReactNode }) => {
-  const [services, setServices] = useState<{
-    firebaseApp: FirebaseApp;
-    firestore: Firestore;
-    auth: Auth;
-  } | null>(null);
+interface FirebaseProviderProps {
+  children: ReactNode;
+  firebaseApp: FirebaseApp;
+  auth: Auth;
+  firestore: Firestore;
+}
 
-  useEffect(() => {
-    // This effect runs only on the client, after the initial render.
-    const app = initializeApp(firebaseConfig);
-    const firestore = getFirestore(app);
-    const auth = getAuth(app);
-    setServices({ firebaseApp: app, firestore, auth });
-  }, []);
-
-  // We wait until the services are initialized on the client to render the children.
-  // This prevents hydration errors and ensures Firebase is ready.
-  if (!services) {
-    return null; 
-  }
+export const FirebaseProvider = ({
+  children,
+  firebaseApp,
+  auth,
+  firestore,
+}: FirebaseProviderProps) => {
+  const services = { firebaseApp, auth, firestore };
 
   return (
     <FirebaseContext.Provider value={services}>
@@ -64,5 +57,3 @@ export const useAuth = () => {
     const context = useFirebase();
     return context.auth;
 };
-
-    
