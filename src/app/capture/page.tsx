@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -11,6 +11,13 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Camera,
   CameraOff,
@@ -26,23 +33,17 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import type { User, AttendanceRecord as AttendanceRecordType } from '@/lib/types';
+import type { User, AttendanceRecord, Subject } from '@/lib/types';
 import { recognizeFace } from '@/ai/flows/recognize-face';
 import { generateGreetingAudio } from '@/ai/flows/generate-greeting-audio';
-import { useFirestore, useCollection } from '@/firebase';
+import { useFirestore, useCollection, useUser } from '@/firebase';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { Skeleton } from '@/components/ui/skeleton';
 
-// Define a new type for the attendance record to be created
-type NewAttendanceRecord = {
-    userId: string;
-    userName: string;
-    userAvatar: string;
-    date: string;
-    status: 'Present';
-    emotion: string;
-    timestamp: any; // serverTimestamp
+type NewAttendanceRecord = Omit<AttendanceRecord, 'id' | 'timestamp'> & {
+  timestamp: any;
 };
 
 type ScanResult = {
@@ -54,6 +55,7 @@ export default function CapturePage() {
   const [isScanning, setIsScanning] = useState(false);
   const [result, setResult] = useState<ScanResult | null>(null);
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
+  const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -61,10 +63,21 @@ export default function CapturePage() {
   
   const { toast } = useToast();
   const firestore = useFirestore();
+  const { user: teacher } = useUser();
   
-  const { data: users, isLoading: isLoadingUsers } = useCollection<User>('users');
-  const { data: attendanceRecords, isLoading: isLoadingAttendance } = useCollection<AttendanceRecordType>('attendance');
+  const { data: allUsers, isLoading: isLoadingUsers } = useCollection<User>('users');
+  const { data: attendanceRecords, isLoading: isLoadingAttendance } = useCollection<AttendanceRecord>('attendance');
+  const { data: subjects, isLoading: isLoadingSubjects } = useCollection<Subject>('subjects');
 
+  const teacherSubjects = useMemo(() => {
+    if (!subjects || !teacher) return [];
+    return subjects.filter(s => s.teacherId === teacher.uid);
+  }, [subjects, teacher]);
+
+  const studentsInSelectedSubject = useMemo(() => {
+    if (!selectedSubjectId || !allUsers) return [];
+    return allUsers.filter(u => u.subjects?.includes(selectedSubjectId));
+  }, [selectedSubjectId, allUsers]);
 
   const stopCamera = useCallback(() => {
     if (streamRef.current) {
@@ -79,25 +92,11 @@ export default function CapturePage() {
 
   const startCamera = useCallback(async () => {
     if (streamRef.current) return;
-
     setHasCameraPermission(null);
-
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      console.error('Camera API not supported.');
-      setHasCameraPermission(false);
-      toast({
-        variant: 'destructive',
-        title: 'Unsupported Browser',
-        description: 'Your browser does not support camera access.',
-      });
-      return;
-    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
       streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
+      if (videoRef.current) videoRef.current.srcObject = stream;
       setHasCameraPermission(true);
     } catch (error) {
       console.error('Error accessing camera:', error);
@@ -112,10 +111,7 @@ export default function CapturePage() {
   
   useEffect(() => {
     startCamera();
-    
-    return () => {
-      stopCamera();
-    };
+    return () => stopCamera();
   }, [startCamera, stopCamera]);
   
   const handleScanClick = () => {
@@ -130,11 +126,11 @@ export default function CapturePage() {
   }
 
   const scan = async () => {
-    if (!videoRef.current?.srcObject || !firestore || !users || users.length === 0) {
+    if (!videoRef.current?.srcObject || !firestore || studentsInSelectedSubject.length === 0) {
        toast({
           variant: "destructive",
           title: "System Not Ready",
-          description: "Camera, database, or user data is not yet available. Please try again.",
+          description: "Camera is not ready or no students are enrolled in the selected subject.",
        });
        return;
     }
@@ -143,22 +139,16 @@ export default function CapturePage() {
     setResult(null);
 
     const canvas = document.createElement('canvas');
-    if (!videoRef.current) {
-        setIsScanning(false);
-        return;
-    }
+    if (!videoRef.current) { setIsScanning(false); return; }
     canvas.width = videoRef.current.videoWidth;
     canvas.height = videoRef.current.videoHeight;
     const context = canvas.getContext('2d');
-    if (!context) {
-      setIsScanning(false);
-      return;
-    }
+    if (!context) { setIsScanning(false); return; }
     context.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
     const photoDataUri = canvas.toDataURL('image/jpeg');
 
     try {
-      const { user: matchedUser, emotion } = await recognizeFace({ photoDataUri, users });
+      const { user: matchedUser, emotion } = await recognizeFace({ photoDataUri, users: studentsInSelectedSubject });
       
       setIsScanning(false);
 
@@ -166,20 +156,21 @@ export default function CapturePage() {
         toast({
           variant: "destructive",
           title: "Recognition Failed",
-          description: "Could not identify a registered user in the photo. Please try again.",
+          description: "Could not identify a student from this subject in the photo. Please try again.",
         });
         return;
       }
 
       const today = new Date().toISOString().split('T')[0];
+      const selectedSubject = teacherSubjects.find(s => s.id === selectedSubjectId);
       const isAlreadyPresent = attendanceRecords?.some(
-        record => record.userId === matchedUser.id && record.date === today && record.status === 'Present'
+        record => record.userId === matchedUser.id && record.date === today && record.subjectId === selectedSubjectId
       );
 
       if (isAlreadyPresent) {
         toast({
           title: "Already Marked Present",
-          description: `${matchedUser.name}, you are already marked as present today.`,
+          description: `${matchedUser.name}, you are already marked as present for this subject today.`,
         });
         setResult({ user: matchedUser, emotion });
         return;
@@ -193,8 +184,6 @@ export default function CapturePage() {
           if (audio && audioRef.current) {
             audioRef.current.src = audio;
             audioRef.current.play().catch(e => console.error("Audio playback failed", e));
-          } else {
-             console.log("No audio returned from flow, likely due to a timeout or other issue.");
           }
         })
         .catch(e => console.error("Audio generation failed:", e));
@@ -203,9 +192,11 @@ export default function CapturePage() {
         userId: matchedUser.id,
         userName: matchedUser.name,
         userAvatar: matchedUser.avatar,
+        subjectId: selectedSubjectId!,
+        subjectName: selectedSubject?.title || 'Unknown Subject',
         date: today,
         status: 'Present',
-        emotion: emotion,
+        emotion: emotion as any,
         timestamp: serverTimestamp(),
       };
       const collectionRef = collection(firestore, 'attendance');
@@ -231,16 +222,11 @@ export default function CapturePage() {
   
   const getEmotionIcon = (emotion: string) => {
     switch (emotion?.toLowerCase()) {
-      case 'happy':
-        return <Smile className="h-6 w-6 text-green-500" />;
-      case 'sad':
-        return <Frown className="h-6 w-6 text-blue-500" />;
-      case 'neutral':
-        return <Meh className="h-6 w-6 text-yellow-500" />;
-      case 'surprised':
-        return <Sparkles className="h-6 w-6 text-purple-500" />;
-      default:
-        return <Meh className="h-6 w-6 text-gray-500" />;
+      case 'happy': return <Smile className="h-6 w-6 text-green-500" />;
+      case 'sad': return <Frown className="h-6 w-6 text-blue-500" />;
+      case 'neutral': return <Meh className="h-6 w-6 text-yellow-500" />;
+      case 'surprised': return <Sparkles className="h-6 w-6 text-purple-500" />;
+      default: return <Meh className="h-6 w-6 text-gray-500" />;
     }
   };
 
@@ -250,9 +236,7 @@ export default function CapturePage() {
             <Alert variant="destructive" className="m-4">
               <CameraOff className="h-4 w-4" />
               <AlertTitle>Camera Access Denied</AlertTitle>
-              <AlertDescription>
-                Please allow camera access in your browser settings to use this feature.
-              </AlertDescription>
+              <AlertDescription>Allow camera access to use this feature.</AlertDescription>
             </Alert>
           );
       }
@@ -264,24 +248,18 @@ export default function CapturePage() {
             </div>
           )
       }
-      return null; // Video will be visible if hasCameraPermission is true
+      return null;
   }
 
   const renderMainContent = () => {
-    if (isLoadingUsers && !users) {
-       return (
-        <div className="flex flex-col items-center gap-4 text-center">
-          <Loader2 className="h-16 w-16 animate-spin text-primary" />
-          <p className="text-muted-foreground">Loading user data...</p>
-        </div>
-      );
+    if (isLoadingUsers && !allUsers) {
+       return <Skeleton className="h-24 w-full" />;
     }
     if (isScanning) {
       return (
         <div className="flex flex-col items-center gap-4 text-center">
           <Loader2 className="h-16 w-16 animate-spin text-primary" />
-          <p className="text-muted-foreground">Scanning for a registered user...</p>
-          <p className="text-sm text-muted-foreground">(This may take a moment)</p>
+          <p className="text-muted-foreground">Scanning for a registered student...</p>
         </div>
       );
     }
@@ -289,10 +267,7 @@ export default function CapturePage() {
       return (
         <div className="flex flex-col items-center gap-4 text-center animate-in fade-in zoom-in-95">
           <Avatar className="h-40 w-40 border-4 border-primary shadow-lg">
-            <AvatarImage
-              src={result.user.avatar}
-              alt={result.user.name}
-            />
+            <AvatarImage src={result.user.avatar} alt={result.user.name} />
             <AvatarFallback>{result.user.name.charAt(0)}</AvatarFallback>
           </Avatar>
           <div className="flex items-center gap-2">
@@ -300,11 +275,6 @@ export default function CapturePage() {
             <h3 className="text-2xl font-semibold">{result.user.name}</h3>
           </div>
           <Badge variant="secondary">Status: Marked Present</Badge>
-          <div className="flex items-center gap-2">
-            <p className="font-medium">Emotion:</p>
-            {getEmotionIcon(result.emotion)}
-            <p>{result.emotion}</p>
-          </div>
         </div>
       );
     }
@@ -327,31 +297,32 @@ export default function CapturePage() {
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">Capture Attendance</CardTitle>
           <CardDescription>
-            The system will capture your photo and recognize you automatically.
+            Select a subject and the system will capture and recognize students.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col items-center justify-center gap-6 p-6 min-h-[400px]">
           <div className="w-full aspect-video rounded-md bg-muted overflow-hidden flex items-center justify-center relative">
             {hasCameraPermission && (
-              <Button
-                variant="destructive"
-                size="icon"
-                className="absolute top-2 right-2 rounded-full h-8 w-8 z-10"
-                onClick={stopCamera}
-              >
+              <Button variant="destructive" size="icon" className="absolute top-2 right-2 z-10" onClick={stopCamera}>
                 <CameraOff className="h-4 w-4" />
-                <span className="sr-only">Close Camera</span>
               </Button>
             )}
-            <video
-              ref={videoRef}
-              className={`w-full h-full object-cover ${!hasCameraPermission ? 'hidden' : ''}`}
-              autoPlay
-              muted
-              playsInline
-            />
+            <video ref={videoRef} className={`w-full h-full object-cover ${!hasCameraPermission ? 'hidden' : ''}`} autoPlay muted playsInline />
             {!hasCameraPermission && renderVideoContent()}
           </div>
+
+          {isLoadingSubjects ? <Skeleton className="h-10 w-full" /> : (
+            <Select onValueChange={setSelectedSubjectId} value={selectedSubjectId || ''}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select a subject to begin..." />
+              </SelectTrigger>
+              <SelectContent>
+                {teacherSubjects.map(subject => (
+                  <SelectItem key={subject.id} value={subject.id}>{subject.title}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           
           <div className="w-full">
             {renderMainContent()}
@@ -360,31 +331,14 @@ export default function CapturePage() {
         <CardFooter>
           <Button
             onClick={handleScanClick}
-            disabled={isScanning || hasCameraPermission === null || isLoadingUsers}
+            disabled={isScanning || hasCameraPermission === null || isLoadingUsers || !selectedSubjectId}
             className="w-full"
             size="lg"
           >
-            {isScanning ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Scanning...
-              </>
-            ) : result ? (
-              <>
-                <ScanFace className="mr-2 h-4 w-4" />
-                Scan Another
-              </>
-            ) : hasCameraPermission ? (
-              <>
-                <ScanFace className="mr-2 h-4 w-4" />
-                Start Scan
-              </>
-            ) : (
-               <>
-                <Camera className="mr-2 h-4 w-4" />
-                Enable Camera
-              </>
-            )}
+            {isScanning ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Scanning...</>
+             : result ? <><ScanFace className="mr-2 h-4 w-4" />Scan Another</>
+             : hasCameraPermission ? <><ScanFace className="mr-2 h-4 w-4" />Start Scan</>
+             : <><Camera className="mr-2 h-4 w-4" />Enable Camera</>}
           </Button>
         </CardFooter>
       </Card>

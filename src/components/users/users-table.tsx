@@ -74,9 +74,8 @@ export function UsersTable({ users, onDeleteUser }: UsersTableProps) {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>User</TableHead>
+            <TableHead>Student</TableHead>
             <TableHead>Register No.</TableHead>
-            <TableHead>Role</TableHead>
             <TableHead>
               <span className="sr-only">Actions</span>
             </TableHead>
@@ -98,11 +97,6 @@ export function UsersTable({ users, onDeleteUser }: UsersTableProps) {
                 </div>
               </TableCell>
               <TableCell>{user.registerNo}</TableCell>
-              <TableCell>
-                <Badge variant={user.role === 'Admin' ? 'default' : 'secondary'}>
-                  {user.role}
-                </Badge>
-              </TableCell>
               <TableCell className="text-right">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -130,8 +124,8 @@ export function UsersTable({ users, onDeleteUser }: UsersTableProps) {
           ))}
           {users.length === 0 && (
             <TableRow>
-              <TableCell colSpan={4} className="h-24 text-center">
-                No users found. Add a new user to get started.
+              <TableCell colSpan={3} className="h-24 text-center">
+                No students found for your subjects.
               </TableCell>
             </TableRow>
           )}
@@ -143,7 +137,7 @@ export function UsersTable({ users, onDeleteUser }: UsersTableProps) {
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription>
               This action cannot be undone. This will permanently delete the
-              user account of {userToDelete?.name}.
+              student account of {userToDelete?.name}.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

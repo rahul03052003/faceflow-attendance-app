@@ -1,3 +1,4 @@
+
 'use client';
 import type { AttendanceRecord } from '@/lib/types';
 import {
@@ -17,6 +18,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '../ui/tooltip';
+import { format } from 'date-fns';
 
 function EmotionIcon({ emotion }: { emotion: string }) {
   const iconMap: { [key: string]: React.ReactNode } = {
@@ -46,11 +48,9 @@ type AttendanceTableProps = {
 export function AttendanceTable({ attendanceRecords }: AttendanceTableProps) {
 
   const sortedRecords = [...attendanceRecords].sort((a, b) => {
-    const dateA = new Date(a.date).getTime();
-    const dateB = new Date(b.date).getTime();
-    if (dateB !== dateA) return dateB - dateA;
-    // @ts-ignore
-    return (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0);
+    const timeA = a.timestamp ? a.timestamp.toMillis() : 0;
+    const timeB = b.timestamp ? b.timestamp.toMillis() : 0;
+    return timeB - timeA;
   });
   
   return (
@@ -58,7 +58,9 @@ export function AttendanceTable({ attendanceRecords }: AttendanceTableProps) {
       <TableHeader>
         <TableRow>
           <TableHead>User</TableHead>
+          <TableHead>Subject</TableHead>
           <TableHead>Date</TableHead>
+          <TableHead>Time</TableHead>
           <TableHead>Status</TableHead>
           <TableHead className="text-right">Emotion</TableHead>
         </TableRow>
@@ -75,7 +77,11 @@ export function AttendanceTable({ attendanceRecords }: AttendanceTableProps) {
                 <span className="font-medium">{record.userName}</span>
               </div>
             </TableCell>
+            <TableCell>{record.subjectName}</TableCell>
             <TableCell>{record.date}</TableCell>
+            <TableCell>
+              {record.timestamp ? format(record.timestamp.toDate(), 'p') : 'N/A'}
+            </TableCell>
             <TableCell>
               <Badge
                 variant={record.status === 'Present' ? 'default' : 'destructive'}
@@ -89,6 +95,13 @@ export function AttendanceTable({ attendanceRecords }: AttendanceTableProps) {
             </TableCell>
           </TableRow>
         ))}
+        {sortedRecords.length === 0 && (
+          <TableRow>
+            <TableCell colSpan={6} className="h-24 text-center">
+              No attendance records found for your subjects.
+            </TableCell>
+          </TableRow>
+        )}
       </TableBody>
     </Table>
   );

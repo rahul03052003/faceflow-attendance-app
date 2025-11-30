@@ -8,7 +8,7 @@ export type User = {
   registerNo: string;
   avatar: string;
   role: 'Admin' | 'User' | 'Student' | 'Teacher';
-  subjects?: string[];
+  subjects?: string[]; // For students: array of subject IDs
   facialFeatures?: any;
 };
 
@@ -25,10 +25,12 @@ export type AttendanceRecord = {
   userId: string;
   userName: string;
   userAvatar: string;
+  subjectId: string;
+  subjectName: string;
   date: string;
   status: 'Present' | 'Absent' | 'Late';
   emotion: 'Happy' | 'Sad' | 'Neutral' | 'Surprised' | 'N/A';
-  timestamp: Timestamp | FieldValue | Date;
+  timestamp: Timestamp | FieldValue;
 };
 
 export type NavItem = {

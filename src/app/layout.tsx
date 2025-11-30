@@ -1,3 +1,4 @@
+
 import type { Metadata } from 'next';
 import './globals.css';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
@@ -7,6 +8,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { FirebaseProvider } from '@/firebase/provider';
 import { FirebaseErrorListener } from '@/components/firebase-error-listener';
 import { ThemeProvider } from '@/components/theme-provider';
+import { AuthGuard } from '@/components/auth-guard';
 
 export const metadata: Metadata = {
   title:
@@ -43,18 +45,20 @@ export default function RootLayout({
         >
           <FirebaseProvider>
             <FirebaseErrorListener>
-              <SidebarProvider>
-                <div className="flex min-h-screen w-full">
-                  <AppSidebar />
-                  <SidebarInset className="flex min-h-0 flex-1 flex-col !p-0">
-                    <AppHeader />
-                    <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
-                      {children}
-                    </main>
-                  </SidebarInset>
-                </div>
-              </SidebarProvider>
-              <Toaster />
+              <AuthGuard>
+                  <SidebarProvider>
+                    <div className="flex min-h-screen w-full">
+                      <AppSidebar />
+                      <SidebarInset className="flex min-h-0 flex-1 flex-col !p-0">
+                        <AppHeader />
+                        <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
+                          {children}
+                        </main>
+                      </SidebarInset>
+                    </div>
+                  </SidebarProvider>
+                  <Toaster />
+              </AuthGuard>
             </FirebaseErrorListener>
           </FirebaseProvider>
         </ThemeProvider>

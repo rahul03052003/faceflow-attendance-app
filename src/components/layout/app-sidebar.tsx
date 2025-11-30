@@ -1,3 +1,4 @@
+
 'use client';
 
 import { usePathname } from 'next/navigation';
@@ -36,12 +37,16 @@ export const NAV_ITEMS: NavItem[] = [
 export function AppSidebar() {
   const pathname = usePathname();
 
+  if (pathname === '/login') {
+    return null; // Don't show sidebar on login page
+  }
+
   return (
     <Sidebar>
       <SidebarHeader>
         <div className="flex items-center gap-2 p-2">
           <Bot className="h-8 w-8 text-primary" />
-          <span className="text-lg font-semibold">FaceFlow</span>
+          <span className="text-lg font-semibold">SentientAttend</span>
         </div>
       </SidebarHeader>
       <SidebarContent className="p-2">

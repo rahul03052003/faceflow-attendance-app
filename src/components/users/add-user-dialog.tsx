@@ -17,25 +17,28 @@ import { Label } from '@/components/ui/label';
 import { UserPlus, Upload } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import type { User } from '@/lib/types';
-import { useForm, FormProvider, Controller } from 'react-hook-form';
+import type { User, Subject } from '@/lib/types';
+import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { ai } from '@/ai/genkit';
+import { Checkbox } from '../ui/checkbox';
+
 
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
   email: z.string().email({ message: 'Please enter a valid email.' }),
   registerNo: z.string().min(1, { message: 'Register number is required.' }),
+  subjects: z.array(z.string()).refine(value => value.some(item => item), {
+    message: 'You have to select at least one subject.',
+  }),
   photo: z.any().optional(),
 });
 
@@ -43,11 +46,12 @@ type FormValues = z.infer<typeof formSchema>;
 
 
 type AddUserDialogProps = {
-  onAddUser: (user: Omit<User, 'id' | 'avatar' | 'role' | 'subjects' | 'facialFeatures'> & { photo?: File, photoPreview?: string }) => void;
+  onAddUser: (user: Omit<User, 'id' | 'avatar' | 'role' | 'facialFeatures'> & { photo?: File, photoPreview?: string, subjects?: string[] }) => void;
+  subjects: Subject[];
 };
 
 
-export function AddUserDialog({ onAddUser }: AddUserDialogProps) {
+export function AddUserDialog({ onAddUser, subjects }: AddUserDialogProps) {
   const [open, setOpen] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
@@ -60,6 +64,7 @@ export function AddUserDialog({ onAddUser }: AddUserDialogProps) {
       name: '',
       email: '',
       registerNo: '',
+      subjects: [],
     },
   });
 
@@ -76,8 +81,6 @@ export function AddUserDialog({ onAddUser }: AddUserDialogProps) {
   };
 
   const onSubmit = (values: FormValues) => {
-      // The photo functionality is for presentation. In a real app, you'd upload this file
-      // to a service like Firebase Storage and save the URL.
       onAddUser({ ...values, photo: photoFile || undefined, photoPreview: photoPreview || undefined });
       toast({
         title: 'User Added',
@@ -100,80 +103,127 @@ export function AddUserDialog({ onAddUser }: AddUserDialogProps) {
       <DialogTrigger asChild>
         <Button>
           <UserPlus className="mr-2 h-4 w-4" />
-          Add New User
+          Add New Student
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-md">
         <FormProvider {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <DialogHeader>
-              <DialogTitle>Add New User</DialogTitle>
+              <DialogTitle>Add New Student</DialogTitle>
               <DialogDescription>
-                Enter the details for the new user. Click save when you're done.
+                Enter the details for the new student.
               </DialogDescription>
             </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="flex flex-col items-center gap-4">
-                  <Avatar className="h-24 w-24">
-                    <AvatarImage src={photoPreview || undefined} alt="User photo" />
-                    <AvatarFallback>
-                      <UserPlus className="h-10 w-10 text-muted-foreground" />
-                    </AvatarFallback>
-                  </Avatar>
-                   <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handlePhotoChange}
-                    className="hidden"
-                    accept="image/png, image/jpeg, image/jpg"
-                  />
-                  <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>
-                      <Upload className="mr-2 h-4 w-4" />
-                      Upload Photo
-                  </Button>
-              </div>
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem className="grid grid-cols-4 items-center gap-4">
-                    <FormLabel className="text-right">Name</FormLabel>
-                    <FormControl className="col-span-3">
-                      <Input placeholder="John Doe" {...field} />
-                    </FormControl>
-                    <FormMessage className="col-span-4 text-right" />
-                  </FormItem>
-                )}
-              />
-               <FormField
-                control={form.control}
-                name="registerNo"
-                render={({ field }) => (
-                  <FormItem className="grid grid-cols-4 items-center gap-4">
-                    <FormLabel className="text-right">Register No.</FormLabel>
-                    <FormControl className="col-span-3">
-                       <Input placeholder="R001" {...field} />
-                    </FormControl>
-                     <FormMessage className="col-span-4 text-right" />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem className="grid grid-cols-4 items-center gap-4">
-                    <FormLabel className="text-right">Email</FormLabel>
-                    <FormControl className="col-span-3">
-                      <Input placeholder="john.doe@example.com" {...field} />
-                    </FormControl>
-                    <FormMessage className="col-span-4 text-right" />
-                  </FormItem>
-                )}
-              />
+            
+            <div className="flex flex-col items-center gap-4">
+                <Avatar className="h-24 w-24">
+                  <AvatarImage src={photoPreview || undefined} alt="User photo" />
+                  <AvatarFallback>
+                    <UserPlus className="h-10 w-10 text-muted-foreground" />
+                  </AvatarFallback>
+                </Avatar>
+                  <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handlePhotoChange}
+                  className="hidden"
+                  accept="image/png, image/jpeg, image/jpg"
+                />
+                <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>
+                    <Upload className="mr-2 h-4 w-4" />
+                    Upload Photo for Recognition
+                </Button>
             </div>
+            
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Name</FormLabel>
+                  <FormControl>
+                    <Input placeholder="John Doe" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+              <FormField
+              control={form.control}
+              name="registerNo"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Register No.</FormLabel>
+                  <FormControl>
+                      <Input placeholder="R001" {...field} />
+                  </FormControl>
+                    <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email</FormLabel>
+                  <FormControl>
+                    <Input placeholder="john.doe@example.com" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="subjects"
+              render={() => (
+                <FormItem>
+                  <div className="mb-4">
+                    <FormLabel className="text-base">Assign Subjects</FormLabel>
+                  </div>
+                  {subjects.map((item) => (
+                    <FormField
+                      key={item.id}
+                      control={form.control}
+                      name="subjects"
+                      render={({ field }) => {
+                        return (
+                          <FormItem
+                            key={item.id}
+                            className="flex flex-row items-start space-x-3 space-y-0"
+                          >
+                            <FormControl>
+                              <Checkbox
+                                checked={field.value?.includes(item.id)}
+                                onCheckedChange={(checked) => {
+                                  return checked
+                                    ? field.onChange([...(field.value || []), item.id])
+                                    : field.onChange(
+                                        field.value?.filter(
+                                          (value) => value !== item.id
+                                        )
+                                      )
+                                }}
+                              />
+                            </FormControl>
+                            <FormLabel className="font-normal">
+                              {item.title} ({item.code})
+                            </FormLabel>
+                          </FormItem>
+                        )
+                      }}
+                    />
+                  ))}
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <DialogFooter>
-              <Button type="submit">Save User</Button>
+              <Button type="submit">Save Student</Button>
             </DialogFooter>
           </form>
         </FormProvider>

@@ -11,30 +11,41 @@ import {
 import { SubjectsTable } from '@/components/subjects/subjects-table';
 import { AddSubjectDialog } from '@/components/subjects/add-subject-dialog';
 import type { Subject } from '@/lib/types';
-import { useCollection } from '@/firebase';
+import { useCollection, useUser } from '@/firebase';
 import { addDoc, collection, deleteDoc, doc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { useMemo } from 'react';
 
 export default function SubjectsPage() {
   const firestore = useFirestore();
+  const { user: teacher } = useUser();
+
   const {
     data: subjects,
     isLoading,
     error,
   } = useCollection<Subject>('subjects');
 
+  const teacherSubjects = useMemo(() => {
+    if (!subjects || !teacher) return [];
+    return subjects.filter(subject => subject.teacherId === teacher.uid);
+  }, [subjects, teacher]);
+
+
   const handleAddSubject = (
-    newSubject: Omit<Subject, 'id'>
+    newSubject: Omit<Subject, 'id' | 'teacherId'>
   ) => {
+    if (!teacher) return;
+    const subjectWithTeacher = { ...newSubject, teacherId: teacher.uid };
     const collectionRef = collection(firestore, 'subjects');
-    addDoc(collectionRef, newSubject).catch(async (serverError) => {
+    addDoc(collectionRef, subjectWithTeacher).catch(async (serverError) => {
       const permissionError = new FirestorePermissionError({
         path: collectionRef.path,
         operation: 'create',
-        requestResourceData: newSubject,
+        requestResourceData: subjectWithTeacher,
       });
       errorEmitter.emit('permission-error', permissionError);
     });
@@ -66,7 +77,7 @@ export default function SubjectsPage() {
       return <p className="text-destructive">Error loading subjects: {error.message}</p>;
     }
 
-    return <SubjectsTable subjects={subjects || []} onDeleteSubject={handleDeleteSubject} />;
+    return <SubjectsTable subjects={teacherSubjects} onDeleteSubject={handleDeleteSubject} />;
   };
 
   return (
@@ -75,7 +86,7 @@ export default function SubjectsPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Subject Management</h1>
           <p className="text-muted-foreground">
-            View, add, and manage subjects for attendance.
+            View, add, and manage subjects you teach.
           </p>
         </div>
         <AddSubjectDialog onAddSubject={handleAddSubject} />
@@ -83,9 +94,9 @@ export default function SubjectsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Subject List</CardTitle>
+          <CardTitle>Your Subject List</CardTitle>
           <CardDescription>
-            A list of all subjects in the system.
+            A list of all subjects you are assigned to.
           </CardDescription>
         </CardHeader>
         <CardContent>{renderContent()}</CardContent>

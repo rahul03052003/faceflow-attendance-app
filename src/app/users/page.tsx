@@ -10,8 +10,8 @@ import {
 } from '@/components/ui/card';
 import { UsersTable } from '@/components/users/users-table';
 import { AddUserDialog } from '@/components/users/add-user-dialog';
-import type { User } from '@/lib/types';
-import { useCollection } from '@/firebase';
+import type { User, Subject } from '@/lib/types';
+import { useCollection, useUser } from '@/firebase';
 import { addDoc, collection, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -19,27 +19,55 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { useToast } from '@/hooks/use-toast';
 import { generateFacialFeatures } from '@/ai/flows/generate-facial-features';
+import { useMemo } from 'react';
 
 export default function UsersPage() {
   const firestore = useFirestore();
+  const { user: teacher } = useUser();
   const {
-    data: users,
-    isLoading,
-    error,
+    data: allUsers,
+    isLoading: isLoadingUsers,
+    error: usersError,
   } = useCollection<User>('users');
+  const { 
+    data: subjects, 
+    isLoading: isLoadingSubjects 
+  } = useCollection<Subject>('subjects');
   const { toast } = useToast();
 
+  const teacherSubjects = useMemo(() => {
+    if (!subjects || !teacher) return [];
+    return subjects.filter(s => s.teacherId === teacher.uid);
+  }, [subjects, teacher]);
+
+  const teacherSubjectIds = useMemo(() => teacherSubjects.map(s => s.id), [teacherSubjects]);
+
+  const filteredUsers = useMemo(() => {
+    if (!allUsers || !teacher) return [];
+    // Admins see all users. Teachers see students in their subjects.
+    const teacherUser = allUsers.find(u => u.id === teacher.uid);
+    if (teacherUser?.role === 'Admin') {
+      return allUsers.filter(u => u.role !== 'Admin' && u.role !== 'Teacher');
+    }
+    
+    return allUsers.filter(u => 
+      u.role === 'Student' &&
+      u.subjects?.some(subId => teacherSubjectIds.includes(subId))
+    );
+  }, [allUsers, teacher, teacherSubjectIds]);
+
+
   const handleAddUser = async (
-    newUser: Omit<User, 'id' | 'avatar' | 'role' | 'subjects' | 'facialFeatures'> & { photo?: File, photoPreview?: string }
+    newUser: Omit<User, 'id' | 'avatar' | 'role' | 'facialFeatures'> & { photo?: File, photoPreview?: string, subjects?: string[] }
   ) => {
     
-    // Add user without facial features first
     const userToAdd = {
       name: newUser.name,
       email: newUser.email,
       registerNo: newUser.registerNo,
       avatar: newUser.photoPreview || `https://i.pravatar.cc/150?u=${newUser.email}`,
-      role: 'Student' as const, // Default role
+      role: 'Student' as const,
+      subjects: newUser.subjects || [],
       facialFeatures: null,
     };
 
@@ -48,20 +76,19 @@ export default function UsersPage() {
     try {
         const docRef = await addDoc(collectionRef, userToAdd);
 
-        // Now, if there is a photo, generate features and update the document
         if (newUser.photoPreview) {
             try {
-                const result = await generateFacialFeatures({ photoDataUri: newUser.photoPreview });
-                if (!result || !result.features) {
+                const { vector } = await generateFacialFeatures({ photoDataUri: newUser.photoPreview });
+                if (!vector) {
                     throw new Error("Facial feature generation returned an invalid result.");
                 }
-                await updateDoc(docRef, { facialFeatures: result.features });
+                await updateDoc(docRef, { facialFeatures: vector });
             } catch (e) {
                 console.error("Failed to generate facial features:", e);
                 toast({
                     variant: "destructive",
                     title: "AI Analysis Failed",
-                    description: "Could not analyze the user's photo for facial recognition. The user has been added, but recognition may fail."
+                    description: "Could not analyze the user's photo. The user has been added, but recognition may fail."
                 })
             }
         }
@@ -87,7 +114,7 @@ export default function UsersPage() {
   };
 
   const renderContent = () => {
-    if (isLoading) {
+    if (isLoadingUsers || isLoadingSubjects) {
       return (
         <div className="space-y-4">
           <Skeleton className="h-12 w-full" />
@@ -97,30 +124,30 @@ export default function UsersPage() {
       );
     }
 
-    if (error) {
-      return <p className="text-destructive">Error loading users: {error.message}</p>;
+    if (usersError) {
+      return <p className="text-destructive">Error loading users: {usersError.message}</p>;
     }
 
-    return <UsersTable users={users || []} onDeleteUser={handleDeleteUser} />;
+    return <UsersTable users={filteredUsers} onDeleteUser={handleDeleteUser} />;
   };
 
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">User Management</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Student Management</h1>
           <p className="text-muted-foreground">
-            View, add, and manage user profiles from your Firestore database.
+            View, add, and manage students assigned to your subjects.
           </p>
         </div>
-        <AddUserDialog onAddUser={handleAddUser} />
+        <AddUserDialog onAddUser={handleAddUser} subjects={teacherSubjects} />
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>User List</CardTitle>
+          <CardTitle>Student List</CardTitle>
           <CardDescription>
-            A list of all users in the system.
+            A list of all students assigned to your subjects.
           </CardDescription>
         </CardHeader>
         <CardContent>{renderContent()}</CardContent>
