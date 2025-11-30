@@ -26,7 +26,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import type { User } from '@/lib/types';
+import type { User, AttendanceRecord as AttendanceRecordType } from '@/lib/types';
 import { recognizeFace } from '@/ai/flows/recognize-face';
 import { generateGreetingAudio } from '@/ai/flows/generate-greeting-audio';
 import { useFirestore, useCollection } from '@/firebase';
@@ -62,8 +62,8 @@ export default function CapturePage() {
   const { toast } = useToast();
   const firestore = useFirestore();
   
-  // Fetch users on the client-side
   const { data: users, isLoading: isLoadingUsers } = useCollection<User>('users');
+  const { data: attendanceRecords, isLoading: isLoadingAttendance } = useCollection<AttendanceRecordType>('attendance');
 
 
   const stopCamera = useCallback(() => {
@@ -110,11 +110,9 @@ export default function CapturePage() {
     }
   }, [toast]);
   
-  // Effect to request camera permission on component mount
   useEffect(() => {
     startCamera();
     
-    // Cleanup on unmount
     return () => {
       stopCamera();
     };
@@ -160,10 +158,8 @@ export default function CapturePage() {
     const photoDataUri = canvas.toDataURL('image/jpeg');
 
     try {
-      // Step 1: Recognize the face. This is the main blocking call.
       const { user: matchedUser, emotion } = await recognizeFace({ photoDataUri, users });
       
-      // Stop scanning spinner immediately and update UI
       setIsScanning(false);
 
       if (!matchedUser) {
@@ -175,13 +171,23 @@ export default function CapturePage() {
         return;
       }
 
-      // Step 2: Show result in UI immediately.
+      const today = new Date().toISOString().split('T')[0];
+      const isAlreadyPresent = attendanceRecords?.some(
+        record => record.userId === matchedUser.id && record.date === today && record.status === 'Present'
+      );
+
+      if (isAlreadyPresent) {
+        toast({
+          title: "Already Marked Present",
+          description: `${matchedUser.name}, you are already marked as present today.`,
+        });
+        setResult({ user: matchedUser, emotion });
+        return;
+      }
+
       const newResult = { user: matchedUser, emotion };
       setResult(newResult);
       
-      // Step 3: Kick off background tasks (audio and database write) without awaiting them.
-      
-      // Generate and play audio in the background
       generateGreetingAudio({ name: matchedUser.name })
         .then(({ audio }) => {
           if (audio && audioRef.current) {
@@ -193,12 +199,11 @@ export default function CapturePage() {
         })
         .catch(e => console.error("Audio generation failed:", e));
 
-      // Create attendance record in the background
       const attendanceRecord: NewAttendanceRecord = {
         userId: matchedUser.id,
         userName: matchedUser.name,
         userAvatar: matchedUser.avatar,
-        date: new Date().toISOString().split('T')[0],
+        date: today,
         status: 'Present',
         emotion: emotion,
         timestamp: serverTimestamp(),
@@ -355,7 +360,7 @@ export default function CapturePage() {
         <CardFooter>
           <Button
             onClick={handleScanClick}
-            disabled={isScanning || hasCameraPermission === null || isLoadingUsers}
+            disabled={isScanning || hasCameraPermission === null || isLoadingUsers || isLoadingAttendance}
             className="w-full"
             size="lg"
           >
@@ -387,5 +392,3 @@ export default function CapturePage() {
     </div>
   );
 }
-
-    
