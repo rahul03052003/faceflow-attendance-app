@@ -20,7 +20,7 @@ export type ProcessVoiceCommandInput = z.infer<typeof ProcessVoiceCommandInputSc
 
 const ProcessVoiceCommandOutputSchema = z.object({
   action: z.string().describe('The action to be performed. Should be one of: "navigate", "addUser", "markPresent", "showReport", "unknown".'),
-  parameters: z.record(z.any()).describe('Parameters for the action, if any. For navigation, include a "page" parameter (e.g., "/", "/reports", "/users", "/capture"). For adding a user, include "name" and "email".'),
+  parameters: z.union([z.record(z.string()), z.string()]).optional().describe('Parameters for the action, if any. For navigation, include a "page" parameter (e.g., "/", "/reports", "/users", "/capture"). For adding a user, include "name" and "email".'),
 });
 export type ProcessVoiceCommandOutput = z.infer<typeof ProcessVoiceCommandOutputSchema>;
 
