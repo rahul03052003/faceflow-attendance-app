@@ -360,7 +360,7 @@ export default function CapturePage() {
         <CardFooter>
           <Button
             onClick={handleScanClick}
-            disabled={isScanning || hasCameraPermission === null || isLoadingUsers || isLoadingAttendance}
+            disabled={isScanning || hasCameraPermission === null || isLoadingUsers}
             className="w-full"
             size="lg"
           >
