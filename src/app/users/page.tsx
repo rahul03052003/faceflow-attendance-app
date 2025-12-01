@@ -10,9 +10,10 @@ import {
 } from '@/components/ui/card';
 import { UsersTable } from '@/components/users/users-table';
 import { AddUserDialog } from '@/components/users/add-user-dialog';
+import { AddTeacherDialog } from '@/components/users/add-teacher-dialog';
 import type { User, Subject } from '@/lib/types';
 import { useCollection, useUser } from '@/firebase';
-import { addDoc, collection, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, updateDoc, setDoc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
 import { errorEmitter } from '@/firebase/error-emitter';
@@ -20,10 +21,11 @@ import { FirestorePermissionError } from '@/firebase/errors';
 import { useToast } from '@/hooks/use-toast';
 import { generateFacialFeatures } from '@/ai/flows/generate-facial-features';
 import { useMemo } from 'react';
+import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
 
 export default function UsersPage() {
   const firestore = useFirestore();
-  const { user: teacher } = useUser();
+  const { user: currentUser } = useUser();
   const {
     data: allUsers,
     isLoading: isLoadingUsers,
@@ -34,27 +36,30 @@ export default function UsersPage() {
     isLoading: isLoadingSubjects 
   } = useCollection<Subject>('subjects');
   const { toast } = useToast();
+  
+  const isAdmin = currentUser?.role === 'Admin';
 
   const teacherSubjects = useMemo(() => {
-    if (!subjects || !teacher) return [];
-    return subjects.filter(s => s.teacherId === teacher.uid);
-  }, [subjects, teacher]);
+    if (isAdmin || !subjects || !currentUser) return subjects || [];
+    return subjects.filter(s => s.teacherId === currentUser.uid);
+  }, [subjects, currentUser, isAdmin]);
 
   const teacherSubjectIds = useMemo(() => teacherSubjects.map(s => s.id), [teacherSubjects]);
 
   const filteredUsers = useMemo(() => {
-    if (!allUsers || !teacher) return [];
-    // Admins see all users. Teachers see students in their subjects.
-    const teacherUser = allUsers.find(u => u.id === teacher.uid);
-    if (teacherUser?.role === 'Admin') {
-      return allUsers.filter(u => u.role !== 'Admin' && u.role !== 'Teacher');
+    if (!allUsers || !currentUser) return [];
+    
+    if (isAdmin) {
+      // Admins see all teachers and students
+      return allUsers.filter(u => u.role === 'Teacher' || u.role === 'Student');
     }
     
+    // Teachers see students in their subjects
     return allUsers.filter(u => 
       u.role === 'Student' &&
       u.subjects?.some(subId => teacherSubjectIds.includes(subId))
     );
-  }, [allUsers, teacher, teacherSubjectIds]);
+  }, [allUsers, currentUser, teacherSubjectIds, isAdmin]);
 
 
   const handleAddUser = async (
@@ -102,7 +107,56 @@ export default function UsersPage() {
     }
   };
 
+  const handleAddTeacher = async (
+    newTeacher: Omit<User, 'id' | 'avatar' | 'role' | 'facialFeatures' | 'registerNo'> & { email: string, name: string, subjects?: string[] }
+  ) => {
+    const auth = getAuth();
+    try {
+      // NOTE: This uses a hardcoded password. In a real app, this should be handled securely
+      // (e.g., by sending a password reset email or a temporary password).
+      const userCredential = await createUserWithEmailAndPassword(auth, newTeacher.email, 'teacher123');
+      const teacherId = userCredential.user.uid;
+
+      const teacherToAdd = {
+        name: newTeacher.name,
+        email: newTeacher.email,
+        avatar: `https://i.pravatar.cc/150?u=${newTeacher.email}`,
+        role: 'Teacher' as const,
+        subjects: newTeacher.subjects || [],
+        registerNo: '', // Not applicable to teachers
+      };
+      
+      const userDocRef = doc(firestore, 'users', teacherId);
+      await setDoc(userDocRef, teacherToAdd);
+
+      toast({
+        title: 'Teacher Added',
+        description: `${newTeacher.name} has been created and assigned to subjects.`,
+      });
+
+    } catch (error: any) {
+       console.error("Error creating teacher:", error);
+       if (error.code === 'auth/email-already-in-use') {
+         toast({
+            variant: "destructive",
+            title: "Failed to Add Teacher",
+            description: "This email address is already in use by another account.",
+          });
+       } else if (error.name === 'FirestorePermissionError') {
+          errorEmitter.emit('permission-error', error);
+       } else {
+          toast({
+            variant: "destructive",
+            title: "An Error Occurred",
+            description: "Could not create the teacher account. See the console for details.",
+          });
+       }
+    }
+  };
+
   const handleDeleteUser = (userId: string) => {
+    // Note: This only deletes the Firestore record, not the Auth user.
+    // In a real app, you would need a Cloud Function to handle this.
     const docRef = doc(firestore, 'users', userId);
     deleteDoc(docRef).catch(async (serverError) => {
       const permissionError = new FirestorePermissionError({
@@ -135,19 +189,22 @@ export default function UsersPage() {
     <div className="flex flex-col gap-8">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Student Management</h1>
+          <h1 className="text-3xl font-bold tracking-tight">User Management</h1>
           <p className="text-muted-foreground">
-            View, add, and manage students assigned to your subjects.
+            {isAdmin ? "View, add, and manage all teachers and students." : "View students assigned to your subjects."}
           </p>
         </div>
-        <AddUserDialog onAddUser={handleAddUser} subjects={teacherSubjects} />
+        <div className="flex gap-2">
+          {isAdmin && <AddTeacherDialog onAddTeacher={handleAddTeacher} subjects={subjects || []} />}
+          <AddUserDialog onAddUser={handleAddUser} subjects={teacherSubjects} />
+        </div>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Student List</CardTitle>
+          <CardTitle>{isAdmin ? "User List" : "Student List"}</CardTitle>
           <CardDescription>
-            A list of all students assigned to your subjects.
+            {isAdmin ? "A list of all teachers and students in the system." : "A list of all students assigned to your subjects."}
           </CardDescription>
         </CardHeader>
         <CardContent>{renderContent()}</CardContent>

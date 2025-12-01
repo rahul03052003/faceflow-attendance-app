@@ -7,8 +7,8 @@ export type User = {
   email: string;
   registerNo: string;
   avatar: string;
-  role: 'Admin' | 'User' | 'Student' | 'Teacher';
-  subjects?: string[]; // For students: array of subject IDs
+  role: 'Admin' | 'Teacher' | 'Student';
+  subjects?: string[]; // For students/teachers: array of subject IDs
   facialFeatures?: any;
 };
 
@@ -38,4 +38,5 @@ export type NavItem = {
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   active?: boolean;
+  roles: Array<'Admin' | 'Teacher'>;
 };

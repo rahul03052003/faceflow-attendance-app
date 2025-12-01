@@ -23,23 +23,28 @@ import {
   Book,
 } from 'lucide-react';
 import type { NavItem } from '@/lib/types';
-import { Button } from '../ui/button';
+import { useUser } from '@/firebase';
 
-export const NAV_ITEMS: NavItem[] = [
-  { href: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/capture', label: 'Capture Attendance', icon: ScanFace },
-  { href: '/reports', label: 'Attendance Reports', icon: BarChart3 },
-  { href: '/users', label: 'User Management', icon: Users },
-  { href: '/subjects', label: 'Subjects', icon: Book },
-  { href: '/settings', label: 'Settings', icon: Settings },
+export const ALL_NAV_ITEMS: NavItem[] = [
+  { href: '/', label: 'Dashboard', icon: LayoutDashboard, roles: ['Teacher'] },
+  { href: '/capture', label: 'Capture Attendance', icon: ScanFace, roles: ['Teacher'] },
+  { href: '/reports', label: 'Attendance Reports', icon: BarChart3, roles: ['Admin', 'Teacher'] },
+  { href: '/users', label: 'User Management', icon: Users, roles: ['Admin', 'Teacher'] },
+  { href: '/subjects', label: 'Subjects', icon: Book, roles: ['Teacher'] },
+  { href: '/settings', label: 'Settings', icon: Settings, roles: ['Teacher'] },
 ];
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const { user } = useUser();
 
   if (pathname === '/login') {
     return null; // Don't show sidebar on login page
   }
+  
+  const userRole = user?.role || 'Teacher';
+
+  const navItems = ALL_NAV_ITEMS.filter(item => item.roles.includes(userRole));
 
   return (
     <Sidebar>
@@ -51,7 +56,7 @@ export function AppSidebar() {
       </SidebarHeader>
       <SidebarContent className="p-2">
         <SidebarMenu>
-          {NAV_ITEMS.map((item) => (
+          {navItems.map((item) => (
             <SidebarMenuItem key={item.href}>
               <SidebarMenuButton
                 asChild

@@ -18,19 +18,22 @@ import { useMemo } from 'react';
 
 
 export default function ReportsPage() {
-  const { user: teacher } = useUser();
+  const { user: currentUser } = useUser();
   const { data: allAttendance, isLoading: isLoadingRecords } = useCollection<AttendanceRecord>('attendance');
   const { data: allSubjects, isLoading: isLoadingSubjects } = useCollection<Subject>('subjects');
 
-  const teacherSubjectIds = useMemo(() => {
-    if (!allSubjects || !teacher) return [];
-    return allSubjects.filter(s => s.teacherId === teacher.uid).map(s => s.id);
-  }, [allSubjects, teacher]);
+  const isAdmin = currentUser?.role === 'Admin';
 
-  const teacherAttendance = useMemo(() => {
+  const teacherSubjectIds = useMemo(() => {
+    if (isAdmin || !allSubjects || !currentUser) return [];
+    return allSubjects.filter(s => s.teacherId === currentUser.uid).map(s => s.id);
+  }, [allSubjects, currentUser, isAdmin]);
+
+  const filteredAttendance = useMemo(() => {
+    if (isAdmin) return allAttendance || [];
     if (!allAttendance || teacherSubjectIds.length === 0) return [];
     return allAttendance.filter(att => teacherSubjectIds.includes(att.subjectId));
-  }, [allAttendance, teacherSubjectIds]);
+  }, [allAttendance, teacherSubjectIds, isAdmin]);
 
   const isLoading = isLoadingRecords || isLoadingSubjects;
 
@@ -41,7 +44,7 @@ export default function ReportsPage() {
           Attendance Reports
         </h1>
         <p className="text-muted-foreground">
-          View detailed attendance records for your subjects.
+          {isAdmin ? "View detailed attendance records for all classes." : "View detailed attendance records for your subjects."}
         </p>
       </div>
 
@@ -51,7 +54,7 @@ export default function ReportsPage() {
             <CardHeader>
               <CardTitle>Attendance Log</CardTitle>
               <CardDescription>
-                A detailed log of all attendance records for your classes.
+                {isAdmin ? "A detailed log of all attendance records across the system." : "A detailed log of all attendance records for your classes."}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -63,7 +66,7 @@ export default function ReportsPage() {
                   <Skeleton className="h-12 w-full" />
                 </div>
               ) : (
-                <AttendanceTable attendanceRecords={teacherAttendance} />
+                <AttendanceTable attendanceRecords={filteredAttendance} />
               )}
             </CardContent>
           </Card>
@@ -74,18 +77,18 @@ export default function ReportsPage() {
             <CardHeader>
               <CardTitle>Emotion Distribution</CardTitle>
               <CardDescription>
-                Breakdown of detected emotions in your classes.
+                {isAdmin ? "Breakdown of detected emotions across all classes." : "Breakdown of detected emotions in your classes."}
               </CardDescription>
             </CardHeader>
             <CardContent>
               {isLoading ? (
                 <Skeleton className="h-64 w-full" />
               ) : (
-                <EmotionChart attendanceRecords={teacherAttendance} />
+                <EmotionChart attendanceRecords={filteredAttendance} />
               )}
             </CardContent>
           </Card>
-          <AiSummary attendanceRecords={teacherAttendance} isLoading={isLoading}/>
+          <AiSummary attendanceRecords={filteredAttendance} isLoading={isLoading}/>
         </div>
       </div>
     </div>

@@ -16,7 +16,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { NAV_ITEMS } from './app-sidebar';
+import { ALL_NAV_ITEMS } from './app-sidebar';
 import { VoiceCommandButton } from '../voice-command-button';
 import { useAuth, useUser } from '@/firebase';
 import { signOut } from 'firebase/auth';
@@ -32,7 +32,7 @@ export function AppHeader() {
     router.push('/login');
   };
 
-  const pageTitle = NAV_ITEMS.find((item) => item.href === pathname)?.label || 'Dashboard';
+  const pageTitle = ALL_NAV_ITEMS.find((item) => item.href === pathname)?.label || 'Dashboard';
   
   if (pathname === '/login') {
     return null; // Don't show header on login page
