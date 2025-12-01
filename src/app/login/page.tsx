@@ -51,7 +51,7 @@ export default function LoginPage() {
            <div className="flex justify-center mb-4">
              <Bot className="h-12 w-12 text-primary" />
            </div>
-          <CardTitle className="text-2xl">SentientAttend</CardTitle>
+          <CardTitle className="text-2xl">faceflow</CardTitle>
           <CardDescription>Teacher Login</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">

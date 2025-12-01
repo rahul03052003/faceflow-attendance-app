@@ -51,7 +51,7 @@ export function AppSidebar() {
       <SidebarHeader>
         <div className="flex items-center gap-2 p-2">
           <Bot className="h-8 w-8 text-primary" />
-          <span className="text-lg font-semibold">SentientAttend</span>
+          <span className="text-lg font-semibold">faceflow</span>
         </div>
       </SidebarHeader>
       <SidebarContent className="p-2">
