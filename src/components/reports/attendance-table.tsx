@@ -48,8 +48,8 @@ type AttendanceTableProps = {
 export function AttendanceTable({ attendanceRecords }: AttendanceTableProps) {
 
   const sortedRecords = [...attendanceRecords].sort((a, b) => {
-    const timeA = a.timestamp ? a.timestamp.toMillis() : 0;
-    const timeB = b.timestamp ? b.timestamp.toMillis() : 0;
+    const timeA = a.timestamp && a.timestamp.toMillis ? a.timestamp.toMillis() : 0;
+    const timeB = b.timestamp && b.timestamp.toMillis ? b.timestamp.toMillis() : 0;
     return timeB - timeA;
   });
   
@@ -80,7 +80,9 @@ export function AttendanceTable({ attendanceRecords }: AttendanceTableProps) {
             <TableCell>{record.subjectName}</TableCell>
             <TableCell>{record.date}</TableCell>
             <TableCell>
-              {record.timestamp ? format(record.timestamp.toDate(), 'p') : 'N/A'}
+              {record.timestamp && typeof record.timestamp.toDate === 'function' 
+                ? format(record.timestamp.toDate(), 'p') 
+                : 'N/A'}
             </TableCell>
             <TableCell>
               <Badge
