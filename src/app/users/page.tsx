@@ -107,6 +107,51 @@ export default function UsersPage() {
     }
   };
 
+  const handleEditUser = async (
+    userId: string,
+    updatedUser: Omit<User, 'id' | 'avatar' | 'role' | 'facialFeatures'> & { photo?: File, photoPreview?: string, subjects?: string[] }
+  ) => {
+    const docRef = doc(firestore, 'users', userId);
+    const userToUpdate: any = {
+      name: updatedUser.name,
+      email: updatedUser.email,
+      registerNo: updatedUser.registerNo,
+      subjects: updatedUser.subjects || [],
+    };
+    
+    if (updatedUser.photoPreview) {
+        userToUpdate.avatar = updatedUser.photoPreview;
+    }
+
+    try {
+        await updateDoc(docRef, userToUpdate);
+
+        if (updatedUser.photoPreview) {
+            try {
+                const { vector } = await generateFacialFeatures({ photoDataUri: updatedUser.photoPreview });
+                 if (!vector) {
+                    throw new Error("Facial feature generation returned an invalid result.");
+                }
+                await updateDoc(docRef, { facialFeatures: vector });
+            } catch(e) {
+                 console.error("Failed to re-generate facial features:", e);
+                 toast({
+                    variant: "destructive",
+                    title: "AI Analysis Failed",
+                    description: "Could not analyze the new photo. User details were updated, but recognition may fail with the new image."
+                })
+            }
+        }
+    } catch (serverError) {
+        const permissionError = new FirestorePermissionError({
+            path: docRef.path,
+            operation: 'update',
+            requestResourceData: userToUpdate,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+    }
+  };
+
   const handleAddTeacher = async (
     newTeacher: Omit<User, 'id' | 'avatar' | 'role' | 'facialFeatures' | 'registerNo'> & { email: string, name: string, subjects?: string[] }
   ) => {
@@ -182,13 +227,13 @@ export default function UsersPage() {
       return <p className="text-destructive">Error loading users: {usersError.message}</p>;
     }
 
-    return <UsersTable users={filteredUsers} isAdmin={isAdmin} onDeleteUser={handleDeleteUser} />;
+    return <UsersTable users={filteredUsers} isAdmin={isAdmin} onEditUser={handleEditUser} onDeleteUser={handleDeleteUser} subjects={teacherSubjects} />;
   };
 
   const pageTitle = isAdmin ? "Teacher Management" : "Student Management";
   const pageDescription = isAdmin
     ? "Add and manage all teachers in the system."
-    : "View students assigned to your subjects.";
+    : "View and manage students assigned to your subjects.";
   const cardTitle = isAdmin ? "Teacher List" : "Student List";
   const cardDescription = isAdmin
     ? "A list of all teachers in the system."

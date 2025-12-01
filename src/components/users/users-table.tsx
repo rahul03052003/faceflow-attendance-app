@@ -1,6 +1,6 @@
 
 'use client';
-import type { User } from '@/lib/types';
+import type { User, Subject } from '@/lib/types';
 import {
   Table,
   TableBody,
@@ -33,14 +33,17 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { EditUserDialog } from './edit-user-dialog';
 
 type UsersTableProps = {
   users: User[];
+  subjects: Subject[];
+  onEditUser: (userId: string, updatedUser: Omit<User, 'id' | 'avatar' | 'role' | 'facialFeatures'> & { photo?: File, photoPreview?: string, subjects?: string[] }) => void;
   onDeleteUser: (userId: string) => void;
   isAdmin?: boolean;
 };
 
-export function UsersTable({ users, onDeleteUser, isAdmin = false }: UsersTableProps) {
+export function UsersTable({ users, subjects, onEditUser, onDeleteUser, isAdmin = false }: UsersTableProps) {
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const { toast } = useToast();
@@ -48,14 +51,6 @@ export function UsersTable({ users, onDeleteUser, isAdmin = false }: UsersTableP
   const handleDeleteClick = (user: User) => {
     setUserToDelete(user);
     setIsAlertOpen(true);
-  };
-  
-  const handleEditClick = () => {
-    // In a real app, this would open an edit dialog.
-     toast({
-        title: "Coming Soon!",
-        description: "Editing functionality is not yet implemented.",
-    });
   };
 
   const handleConfirmDelete = () => {
@@ -115,9 +110,11 @@ export function UsersTable({ users, onDeleteUser, isAdmin = false }: UsersTableP
                   <DropdownMenuContent align="end">
                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleEditClick}>
-                      Edit
-                    </DropdownMenuItem>
+                    <EditUserDialog user={user} subjects={subjects} onEditUser={onEditUser}>
+                       <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                         Edit
+                       </DropdownMenuItem>
+                    </EditUserDialog>
                     <DropdownMenuItem
                       className="text-destructive"
                       onClick={() => handleDeleteClick(user)}
