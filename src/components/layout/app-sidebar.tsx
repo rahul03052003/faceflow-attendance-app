@@ -28,10 +28,10 @@ import { useUser } from '@/firebase';
 export const ALL_NAV_ITEMS: NavItem[] = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard, roles: ['Teacher'] },
   { href: '/capture', label: 'Capture Attendance', icon: ScanFace, roles: ['Teacher'] },
-  { href: '/reports', label: 'Attendance Reports', icon: BarChart3, roles: ['Admin', 'Teacher'] },
+  { href: '/reports', label: 'Attendance Reports', icon: BarChart3, roles: ['Teacher'] },
   { href: '/users', label: 'User Management', icon: Users, roles: ['Admin', 'Teacher'] },
   { href: '/subjects', label: 'Subjects', icon: Book, roles: ['Teacher'] },
-  { href: '/settings', label: 'Settings', icon: Settings, roles: ['Teacher'] },
+  { href: '/settings', label: 'Settings', icon: Settings, roles: ['Admin', 'Teacher'] },
 ];
 
 export function AppSidebar() {

@@ -37,9 +37,10 @@ import { useToast } from '@/hooks/use-toast';
 type UsersTableProps = {
   users: User[];
   onDeleteUser: (userId: string) => void;
+  isAdmin?: boolean;
 };
 
-export function UsersTable({ users, onDeleteUser }: UsersTableProps) {
+export function UsersTable({ users, onDeleteUser, isAdmin = false }: UsersTableProps) {
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const { toast } = useToast();
@@ -75,7 +76,7 @@ export function UsersTable({ users, onDeleteUser }: UsersTableProps) {
         <TableHeader>
           <TableRow>
             <TableHead>User</TableHead>
-            <TableHead>Register No.</TableHead>
+            {!isAdmin && <TableHead>Register No.</TableHead>}
             <TableHead>Role</TableHead>
             <TableHead>
               <span className="sr-only">Actions</span>
@@ -97,7 +98,7 @@ export function UsersTable({ users, onDeleteUser }: UsersTableProps) {
                   </div>
                 </div>
               </TableCell>
-              <TableCell>{user.registerNo || 'N/A'}</TableCell>
+              {!isAdmin && <TableCell>{user.registerNo || 'N/A'}</TableCell>}
               <TableCell>
                 <Badge variant={user.role === 'Admin' ? 'destructive' : user.role === 'Teacher' ? 'secondary' : 'outline'}>
                   {user.role}
@@ -130,7 +131,7 @@ export function UsersTable({ users, onDeleteUser }: UsersTableProps) {
           ))}
           {users.length === 0 && (
             <TableRow>
-              <TableCell colSpan={4} className="h-24 text-center">
+              <TableCell colSpan={isAdmin ? 3 : 4} className="h-24 text-center">
                 No users found.
               </TableCell>
             </TableRow>

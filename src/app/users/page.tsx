@@ -50,8 +50,8 @@ export default function UsersPage() {
     if (!allUsers || !currentUser) return [];
     
     if (isAdmin) {
-      // Admins see all teachers and students
-      return allUsers.filter(u => u.role === 'Teacher' || u.role === 'Student');
+      // Admins see all teachers
+      return allUsers.filter(u => u.role === 'Teacher');
     }
     
     // Teachers see students in their subjects
@@ -182,29 +182,41 @@ export default function UsersPage() {
       return <p className="text-destructive">Error loading users: {usersError.message}</p>;
     }
 
-    return <UsersTable users={filteredUsers} onDeleteUser={handleDeleteUser} />;
+    return <UsersTable users={filteredUsers} isAdmin={isAdmin} onDeleteUser={handleDeleteUser} />;
   };
+
+  const pageTitle = isAdmin ? "Teacher Management" : "Student Management";
+  const pageDescription = isAdmin
+    ? "View, add, and manage all teachers in the system."
+    : "View students assigned to your subjects.";
+  const cardTitle = isAdmin ? "Teacher List" : "Student List";
+  const cardDescription = isAdmin
+    ? "A list of all teachers in the system."
+    : "A list of all students assigned to your subjects.";
 
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">User Management</h1>
+          <h1 className="text-3xl font-bold tracking-tight">{pageTitle}</h1>
           <p className="text-muted-foreground">
-            {isAdmin ? "View, add, and manage all teachers and students." : "View students assigned to your subjects."}
+            {pageDescription}
           </p>
         </div>
         <div className="flex gap-2">
-          {isAdmin && <AddTeacherDialog onAddTeacher={handleAddTeacher} subjects={subjects || []} />}
-          <AddUserDialog onAddUser={handleAddUser} subjects={teacherSubjects} />
+          {isAdmin ? (
+            <AddTeacherDialog onAddTeacher={handleAddTeacher} subjects={subjects || []} />
+          ) : (
+            <AddUserDialog onAddUser={handleAddUser} subjects={teacherSubjects} />
+          )}
         </div>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>{isAdmin ? "User List" : "Student List"}</CardTitle>
+          <CardTitle>{cardTitle}</CardTitle>
           <CardDescription>
-            {isAdmin ? "A list of all teachers and students in the system." : "A list of all students assigned to your subjects."}
+            {cardDescription}
           </CardDescription>
         </CardHeader>
         <CardContent>{renderContent()}</CardContent>
