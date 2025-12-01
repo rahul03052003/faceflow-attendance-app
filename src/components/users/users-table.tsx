@@ -132,7 +132,7 @@ export function UsersTable({ users, onDeleteUser, isAdmin = false }: UsersTableP
           {users.length === 0 && (
             <TableRow>
               <TableCell colSpan={isAdmin ? 3 : 4} className="h-24 text-center">
-                No users found.
+                {isAdmin ? "No teachers found. Add one to get started." : "No students found."}
               </TableCell>
             </TableRow>
           )}

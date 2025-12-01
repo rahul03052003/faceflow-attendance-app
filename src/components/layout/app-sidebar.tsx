@@ -65,7 +65,7 @@ export function AppSidebar() {
               >
                 <Link href={item.href} prefetch={true}>
                   <item.icon />
-                  <span>{item.label}</span>
+                  <span>{item.href === '/users' && userRole === 'Admin' ? 'Teacher Management' : item.label}</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>

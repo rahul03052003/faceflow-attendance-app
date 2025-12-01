@@ -187,7 +187,7 @@ export default function UsersPage() {
 
   const pageTitle = isAdmin ? "Teacher Management" : "Student Management";
   const pageDescription = isAdmin
-    ? "View, add, and manage all teachers in the system."
+    ? "Add and manage all teachers in the system."
     : "View students assigned to your subjects.";
   const cardTitle = isAdmin ? "Teacher List" : "Student List";
   const cardDescription = isAdmin
