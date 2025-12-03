@@ -25,7 +25,7 @@ import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
 
 export default function UsersPage() {
   const firestore = useFirestore();
-  const { user: currentUser } = useUser();
+  const { user: currentUser, isLoading: isLoadingUser } = useUser();
   const {
     data: allUsers,
     isLoading: isLoadingUsers,
@@ -37,21 +37,25 @@ export default function UsersPage() {
   } = useCollection<Subject>('subjects');
   const { toast } = useToast();
   
-  const isAdmin = currentUser?.role === 'Admin';
+  const isLoading = isLoadingUser || isLoadingUsers || isLoadingSubjects;
+
+  const isAdmin = useMemo(() => !isLoading && currentUser?.role === 'Admin', [currentUser, isLoading]);
 
   const teacherSubjects = useMemo(() => {
-    if (isAdmin || !subjects || !currentUser) return subjects || [];
+    if (isLoading || !subjects) return [];
+    if (isAdmin) return subjects;
+    if (!currentUser) return [];
     return subjects.filter(s => s.teacherId === currentUser.uid);
-  }, [subjects, currentUser, isAdmin]);
+  }, [subjects, currentUser, isAdmin, isLoading]);
 
   const teacherSubjectIds = useMemo(() => teacherSubjects.map(s => s.id), [teacherSubjects]);
 
   const filteredUsers = useMemo(() => {
-    if (!allUsers || !currentUser) return [];
+    if (isLoading || !allUsers || !currentUser) return [];
     
     if (isAdmin) {
-      // Admins see all teachers
-      return allUsers.filter(u => u.role === 'Teacher');
+      // Admins see all users except themselves for safety
+      return allUsers.filter(u => u.id !== currentUser.uid);
     }
     
     // Teachers see students in their subjects
@@ -59,7 +63,7 @@ export default function UsersPage() {
       u.role === 'Student' &&
       u.subjects?.some(subId => teacherSubjectIds.includes(subId))
     );
-  }, [allUsers, currentUser, teacherSubjectIds, isAdmin]);
+  }, [allUsers, currentUser, teacherSubjectIds, isAdmin, isLoading]);
 
 
   const handleAddUser = async (
@@ -81,13 +85,23 @@ export default function UsersPage() {
     try {
         const docRef = await addDoc(collectionRef, userToAdd);
 
+        toast({
+          title: 'User Added',
+          description: `${newUser.name} has been added to the database.`,
+        });
+
         if (newUser.photoPreview) {
+            toast({
+              title: 'Analyzing Photo...',
+              description: 'Generating facial features for recognition. This may take a moment.',
+            });
             try {
                 const { vector } = await generateFacialFeatures({ photoDataUri: newUser.photoPreview });
-                if (!vector) {
-                    throw new Error("Facial feature generation returned an invalid result.");
-                }
                 await updateDoc(docRef, { facialFeatures: vector });
+                 toast({
+                    title: 'AI Analysis Complete',
+                    description: `Facial features for ${newUser.name} have been saved.`,
+                });
             } catch (e) {
                 console.error("Failed to generate facial features:", e);
                 toast({
@@ -119,20 +133,31 @@ export default function UsersPage() {
       subjects: updatedUser.subjects || [],
     };
     
+    let photoChanged = false;
     if (updatedUser.photoPreview) {
         userToUpdate.avatar = updatedUser.photoPreview;
+        photoChanged = true;
     }
 
     try {
         await updateDoc(docRef, userToUpdate);
+         toast({
+            title: 'User Updated',
+            description: `${updatedUser.name}'s details have been updated.`,
+        });
 
-        if (updatedUser.photoPreview) {
+        if (photoChanged) {
+            toast({
+              title: 'Re-analyzing Photo...',
+              description: 'Generating new facial features for recognition.',
+            });
             try {
-                const { vector } = await generateFacialFeatures({ photoDataUri: updatedUser.photoPreview });
-                 if (!vector) {
-                    throw new Error("Facial feature generation returned an invalid result.");
-                }
+                const { vector } = await generateFacialFeatures({ photoDataUri: updatedUser.photoPreview! });
                 await updateDoc(docRef, { facialFeatures: vector });
+                toast({
+                    title: 'AI Analysis Complete',
+                    description: `New facial features for ${updatedUser.name} have been saved.`,
+                });
             } catch(e) {
                  console.error("Failed to re-generate facial features:", e);
                  toast({
@@ -213,7 +238,7 @@ export default function UsersPage() {
   };
 
   const renderContent = () => {
-    if (isLoadingUsers || isLoadingSubjects) {
+    if (isLoading) {
       return (
         <div className="space-y-4">
           <Skeleton className="h-12 w-full" />
@@ -227,16 +252,16 @@ export default function UsersPage() {
       return <p className="text-destructive">Error loading users: {usersError.message}</p>;
     }
 
-    return <UsersTable users={filteredUsers} isAdmin={isAdmin} onEditUser={handleEditUser} onDeleteUser={handleDeleteUser} subjects={teacherSubjects} />;
+    return <UsersTable users={filteredUsers} isAdmin={isAdmin} onEditUser={handleEditUser} onDeleteUser={handleDeleteUser} subjects={subjects || []} />;
   };
 
-  const pageTitle = isAdmin ? "Teacher Management" : "Student Management";
+  const pageTitle = isAdmin ? "User Management" : "Student Management";
   const pageDescription = isAdmin
-    ? "Add and manage all teachers in the system."
+    ? "Add and manage all teachers and students in the system."
     : "View and manage students assigned to your subjects.";
-  const cardTitle = isAdmin ? "Teacher List" : "Student List";
+  const cardTitle = isAdmin ? "User List" : "Student List";
   const cardDescription = isAdmin
-    ? "A list of all teachers in the system."
+    ? "A list of all teachers and students in the system."
     : "A list of all students assigned to your subjects.";
 
   return (
@@ -250,7 +275,10 @@ export default function UsersPage() {
         </div>
         <div className="flex gap-2">
           {isAdmin ? (
-            <AddTeacherDialog onAddTeacher={handleAddTeacher} subjects={subjects || []} />
+            <>
+              <AddTeacherDialog onAddTeacher={handleAddTeacher} subjects={subjects || []} />
+              <AddUserDialog onAddUser={handleAddUser} subjects={subjects || []} />
+            </>
           ) : (
             <AddUserDialog onAddUser={handleAddUser} subjects={teacherSubjects} />
           )}

@@ -28,25 +28,27 @@ function EmotionIcon({ emotion }: { emotion: string }) {
 }
 
 export default function Home() {
-  const { user: teacher } = useUser();
+  const { user: teacher, isLoading: isLoadingUser } = useUser();
   const { data: allUsers, isLoading: isLoadingUsers } = useCollection<User>('users');
   const { data: allAttendance, isLoading: isLoadingRecords } = useCollection<AttendanceRecord>('attendance');
   const { data: allSubjects, isLoading: isLoadingSubjects } = useCollection<Subject>('subjects');
 
+  const isLoading = isLoadingUser || isLoadingUsers || isLoadingRecords || isLoadingSubjects;
+
   const teacherSubjectIds = useMemo(() => {
-    if (!allSubjects || !teacher) return [];
+    if (isLoading || !allSubjects || !teacher) return [];
     return allSubjects.filter(s => s.teacherId === teacher.uid).map(s => s.id);
-  }, [allSubjects, teacher]);
+  }, [allSubjects, teacher, isLoading]);
 
   const teacherStudents = useMemo(() => {
-    if (!allUsers || teacherSubjectIds.length === 0) return [];
+    if (isLoading || !allUsers || teacherSubjectIds.length === 0) return [];
     return allUsers.filter(u => u.role === 'Student' && u.subjects?.some(subId => teacherSubjectIds.includes(subId)));
-  }, [allUsers, teacherSubjectIds]);
+  }, [allUsers, teacherSubjectIds, isLoading]);
 
   const teacherAttendance = useMemo(() => {
-    if (!allAttendance || teacherSubjectIds.length === 0) return [];
+    if (isLoading || !allAttendance || teacherSubjectIds.length === 0) return [];
     return allAttendance.filter(att => teacherSubjectIds.includes(att.subjectId));
-  }, [allAttendance, teacherSubjectIds]);
+  }, [allAttendance, teacherSubjectIds, isLoading]);
   
   const getTodaysAttendance = () => {
     if (!teacherAttendance) return 0;
@@ -63,10 +65,8 @@ export default function Home() {
   const totalStudents = teacherStudents?.length || 0;
   const presentToday = getTodaysAttendance();
   const recentRecords = teacherAttendance
-    ?.sort((a, b) => (b.timestamp.toMillis() - a.timestamp.toMillis()))
+    ?.sort((a, b) => (b.timestamp?.toMillis() || 0) - (a.timestamp?.toMillis() || 0))
     .slice(0, 5) || [];
-
-  const isLoading = isLoadingUsers || isLoadingRecords || isLoadingSubjects;
 
   const renderStatCard = (title: string, value: number | string, description: string, icon: React.ReactNode, isLoading: boolean) => (
      <Card>
