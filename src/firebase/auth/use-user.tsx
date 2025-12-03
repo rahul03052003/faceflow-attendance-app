@@ -17,8 +17,11 @@ export function useUser() {
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
-      setAuthUser(user);
-      if (!user) {
+      setIsLoading(true);
+      if (user) {
+        setAuthUser(user);
+      } else {
+        setAuthUser(null);
         setAppUser(null);
         setIsLoading(false);
       }
@@ -33,11 +36,12 @@ export function useUser() {
     const userDocRef = doc(firestore, 'users', authUser.uid);
     const unsubscribeFirestore = onSnapshot(userDocRef, (doc) => {
       if (doc.exists()) {
-        setAppUser({ id: doc.id, ...doc.data() } as AppUser);
+        const firestoreData = doc.data() as Omit<AppUser, 'id'>;
+        setAppUser({ id: doc.id, ...firestoreData });
       } else {
-        // This might happen if a user exists in Auth but not in Firestore
-        // For this app's logic, we can assume the user profile might be created later
-        setAppUser(null); 
+        // User exists in Auth but not in Firestore. This is a valid state
+        // for users who might not have a profile yet. We set appUser to null.
+        setAppUser(null);
       }
       setIsLoading(false);
     }, (error) => {
@@ -51,11 +55,16 @@ export function useUser() {
 
   const user = useMemo(() => {
     if (!authUser) return null;
+    
+    // Combine auth data with firestore data.
+    // The id from authUser (which is the uid) is canonical.
+    // The role and other details from appUser are merged in.
     return {
       ...authUser,
-      ...appUser, // Firestore data overwrites auth data if keys are same (e.g. email)
-      id: authUser.uid, // Ensure the UID from auth is the canonical ID
+      ...appUser,
+      id: authUser.uid,
     } as EnrichedUser;
+
   }, [authUser, appUser]);
 
 
