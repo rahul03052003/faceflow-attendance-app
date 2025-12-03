@@ -16,6 +16,7 @@ service cloud.firestore {
     }
 
     // These functions get the user's role from their document in the /users collection.
+    // NOTE: These can only be used for 'get' or 'list' rules, not 'write' rules on other collections.
     function getUserRole(userId) {
       return get(/databases/$(database)/documents/users/$(userId)).data.role;
     }
@@ -35,14 +36,13 @@ service cloud.firestore {
     match /users/{userId} {
       // Any authenticated user can read any user profile for now.
       // This is needed for the app to function (e.g. get teacher names).
-      allow read: if isAuthenticated();
+      allow read, list: if isAuthenticated();
 
       // A user can create their own document (e.g., on signup)
       // An Admin can create any user.
       // A Teacher can create a Student.
       allow create: if isAuthenticated() &&
-                    (isOwner(userId) ||
-                     isAdmin(request.auth.uid) ||
+                    (isAdmin(request.auth.uid) ||
                      (isTeacher(request.auth.uid) && request.resource.data.role == 'Student'));
 
       // Admins can update any user.
@@ -60,8 +60,10 @@ service cloud.firestore {
       // Any authenticated user can read subjects.
       allow read: if isAuthenticated();
 
-      // Only Admins and Teachers can create, update, or delete subjects.
-      allow write: if isAuthenticated() && (isAdmin(request.auth.uid) || isTeacher(request.auth.uid));
+      // Admins can write to any subject.
+      // Teachers can create/update subjects only if they are the teacher for that subject.
+      allow write: if isAuthenticated() &&
+                   (isAdmin(request.auth.uid) || request.auth.uid == request.resource.data.teacherId);
     }
 
     // =================================
