@@ -11,18 +11,18 @@ service cloud.firestore {
 
     // Helper function to check if the requesting user has the 'Admin' role
     function isAdmin() {
-      return isAuthenticated() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
+      return isAuthenticated() && request.auth.token.role == 'Admin';
     }
     
     // Helper function to check if the requesting user has the 'Teacher' role
     function isTeacher() {
-      return isAuthenticated() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Teacher';
+      return isAuthenticated() && (request.auth.token.role == 'Teacher' || request.auth.token.role == 'Admin');
     }
 
     // Rules for the 'users' collection
     match /users/{userId} {
-      // Any authenticated user can list the users collection.
-      allow list: if isAuthenticated();
+      // Admins and Teachers can list users.
+      allow list: if isTeacher() || isAdmin();
       // A user can read/write their own document. Admins and Teachers can read any user document.
       allow read: if (isAuthenticated() && request.auth.uid == userId) || isAdmin() || isTeacher();
 
