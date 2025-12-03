@@ -68,7 +68,7 @@ export default function ReportsPage() {
                   <Skeleton className="h-12 w-full" />
                 </div>
               ) : (
-                <AttendanceTable attendanceRecords={filteredAttendance} />
+                <AttendanceTable attendanceRecords={filteredAttendance || []} />
               )}
             </CardContent>
           </Card>
@@ -86,11 +86,11 @@ export default function ReportsPage() {
               {isLoading ? (
                 <Skeleton className="h-64 w-full" />
               ) : (
-                <EmotionChart attendanceRecords={filteredAttendance} />
+                <EmotionChart attendanceRecords={filteredAttendance || []} />
               )}
             </CardContent>
           </Card>
-          <AiSummary attendanceRecords={filteredAttendance} isLoading={isLoading}/>
+          <AiSummary attendanceRecords={filteredAttendance || []} isLoading={isLoading}/>
         </div>
       </div>
     </div>

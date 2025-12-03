@@ -47,7 +47,7 @@ type AttendanceTableProps = {
 
 export function AttendanceTable({ attendanceRecords }: AttendanceTableProps) {
 
-  const sortedRecords = [...attendanceRecords].sort((a, b) => {
+  const sortedRecords = [...(attendanceRecords || [])].sort((a, b) => {
     const timeA = a.timestamp && a.timestamp.toMillis ? a.timestamp.toMillis() : 0;
     const timeB = b.timestamp && b.timestamp.toMillis ? b.timestamp.toMillis() : 0;
     return timeB - timeA;

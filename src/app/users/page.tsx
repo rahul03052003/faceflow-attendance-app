@@ -59,7 +59,7 @@ export default function UsersPage() {
 
 
   const filteredUsers = useMemo(() => {
-    if (isLoadingUser || isLoadingUsers || !allUsers || !currentUser || !allSubjects) {
+    if (isLoading || !allUsers || !currentUser || !allSubjects) {
       return [];
     }
   
@@ -68,13 +68,20 @@ export default function UsersPage() {
     }
     
     if (currentUser.role === 'Teacher') {
-       const teacherSubjectIds = allSubjects.filter(s => s.teacherId === currentUser.uid).map(s => s.id);
+       const teacherSubjectIds = allSubjects
+        .filter(s => s.teacherId === currentUser.uid)
+        .map(s => s.id);
        if (teacherSubjectIds.length === 0) return [];
-       return allUsers.filter(u => u.role === 'Student' && u.subjects?.some(subId => teacherSubjectIds.includes(subId)));
+       
+       return allUsers.filter(u => 
+        u.role === 'Student' && 
+        Array.isArray(u.subjects) && 
+        u.subjects.some(subId => teacherSubjectIds.includes(subId))
+       );
     }
   
     return [];
-  }, [allUsers, currentUser, allSubjects, isLoadingUser, isLoadingUsers, isLoadingSubjects]);
+  }, [allUsers, currentUser, allSubjects, isLoading]);
 
 
   const handleAddUser = async (

@@ -1,3 +1,4 @@
+
 'use client';
 import {
   Bar,
@@ -27,7 +28,7 @@ type EmotionChartProps = {
 };
 
 export function EmotionChart({ attendanceRecords }: EmotionChartProps) {
-  const emotionData = attendanceRecords
+  const emotionData = (attendanceRecords || [])
     .filter((record) => record.emotion !== 'N/A')
     .reduce((acc: { [key: string]: number }, record) => {
       acc[record.emotion] = (acc[record.emotion] || 0) + 1;

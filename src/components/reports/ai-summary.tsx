@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -31,7 +32,7 @@ export function AiSummary({ attendanceRecords, isLoading: isLoadingRecords }: Ai
 
     try {
       // We don't need to send the full object, just the relevant parts.
-      const simplifiedRecords = attendanceRecords.map(r => ({
+      const simplifiedRecords = (attendanceRecords || []).map(r => ({
         date: r.date,
         status: r.status,
         emotion: r.emotion,
