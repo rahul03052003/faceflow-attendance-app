@@ -59,20 +59,22 @@ export default function UsersPage() {
 
 
   const filteredUsers = useMemo(() => {
-    if (isLoadingUser || isLoadingUsers || !allUsers || !currentUser) {
+    if (isLoadingUser || isLoadingUsers || !allUsers || !currentUser || !allSubjects) {
       return [];
     }
-
+  
     if (currentUser.role === 'Admin') {
       return allUsers.filter(u => u.role === 'Teacher');
     }
     
     if (currentUser.role === 'Teacher') {
-       return allUsers.filter(u => u.role === 'Student');
+       const teacherSubjectIds = allSubjects.filter(s => s.teacherId === currentUser.uid).map(s => s.id);
+       if (teacherSubjectIds.length === 0) return [];
+       return allUsers.filter(u => u.role === 'Student' && u.subjects?.some(subId => teacherSubjectIds.includes(subId)));
     }
-
+  
     return [];
-  }, [allUsers, currentUser, isLoadingUser, isLoadingUsers]);
+  }, [allUsers, currentUser, allSubjects, isLoadingUser, isLoadingUsers, isLoadingSubjects]);
 
 
   const handleAddUser = async (
@@ -268,11 +270,11 @@ export default function UsersPage() {
   const pageTitle = isAdmin ? "Teacher Management" : "Student Management";
   const pageDescription = isAdmin
     ? "Add and manage all teachers in the system."
-    : "View and manage students in the system.";
+    : "View and manage students assigned to your subjects.";
   const cardTitle = isAdmin ? "Teacher List" : "Student List";
   const cardDescription = isAdmin
     ? "A list of all teachers in the system."
-    : "A list of all students in the system.";
+    : "A list of all students assigned to your subjects.";
 
   return (
     <div className="flex flex-col gap-8">
