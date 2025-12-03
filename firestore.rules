@@ -14,9 +14,17 @@ service cloud.firestore {
     function isOwner(userId) {
       return request.auth.uid == userId;
     }
-    
-    function hasRole(role) {
-      return request.auth.token.role == role;
+
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && getUserRole() == 'Admin';
+    }
+
+    function isTeacher() {
+      return isAuthenticated() && getUserRole() == 'Teacher';
     }
 
     function incomingData() {
@@ -28,16 +36,16 @@ service cloud.firestore {
     // =================================
     match /users/{userId} {
       // Admins and Teachers can list users.
-      allow list: if hasRole('Admin') || hasRole('Teacher');
+      allow list: if isAdmin() || isTeacher();
       
       // Admins and Teachers can read any user profile. Users can read their own.
-      allow get: if hasRole('Admin') || hasRole('Teacher') || isOwner(userId);
+      allow get: if isAdmin() || isTeacher() || isOwner(userId);
 
       // Admins can create/update any user. Teachers can create/update students. Users can update their own profile.
-      allow create, update: if hasRole('Admin') || (hasRole('Teacher') && incomingData().role == 'Student') || isOwner(userId);
+      allow create, update: if isAdmin() || (isTeacher() && incomingData().role == 'Student') || isOwner(userId);
       
       // Admins can delete any user. Teachers can delete students.
-      allow delete: if hasRole('Admin') || (hasRole('Teacher') && get(/databases/$(database)/documents/users/$(userId)).data.role == 'Student');
+      allow delete: if isAdmin() || (isTeacher() && get(/databases/$(database)/documents/users/$(userId)).data.role == 'Student');
     }
 
     // =================================
@@ -48,7 +56,7 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       
       // Only Admins and Teachers can create, update, or delete subjects.
-      allow write: if hasRole('Admin') || hasRole('Teacher');
+      allow write: if isAdmin() || isTeacher();
     }
 
     // =================================
@@ -56,10 +64,10 @@ service cloud.firestore {
     // =================================
     match /attendance/{attendanceId} {
       // Admins and Teachers can read all attendance records.
-      allow read: if hasRole('Admin') || hasRole('Teacher');
+      allow read: if isAdmin() || isTeacher();
 
       // Only Teachers can create attendance records.
-      allow create: if hasRole('Teacher');
+      allow create: if isTeacher();
 
       // Records are immutable once created.
       allow update, delete: if false;
