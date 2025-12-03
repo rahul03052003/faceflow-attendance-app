@@ -49,18 +49,16 @@ export default function UsersPage() {
   const filteredUsers = useMemo(() => {
     if (isLoading || !allUsers || !currentUser) return [];
 
-    if (isAdmin) {
-      // Admins see all users with the "Teacher" role.
+    if (currentUser.role === 'Admin') {
       return allUsers.filter(u => u.role === 'Teacher');
     }
     
-    // Teachers see all users with the "Student" role.
     if (currentUser.role === 'Teacher') {
       return allUsers.filter(u => u.role === 'Student');
     }
 
     return [];
-  }, [allUsers, currentUser, isAdmin, isLoading]);
+  }, [allUsers, currentUser, isLoading]);
 
 
   const handleAddUser = async (
@@ -235,7 +233,7 @@ export default function UsersPage() {
   };
 
   const renderContent = () => {
-    if (isLoading) {
+    if (isLoading || !filteredUsers) {
       return (
         <div className="space-y-4">
           <Skeleton className="h-12 w-full" />
@@ -291,3 +289,5 @@ export default function UsersPage() {
     </div>
   );
 }
+
+    
