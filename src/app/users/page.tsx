@@ -83,12 +83,10 @@ export default function UsersPage() {
       return [];
     }
   
-    // Admins should see other Admins and all Teachers.
     if (currentUser.role === 'Admin') {
       return allUsers.filter(u => u.role === 'Teacher' || u.role === 'Admin');
     }
   
-    // Teachers should see all Students.
     if (currentUser.role === 'Teacher') {
        return allUsers.filter(u => u.role === 'Student');
     }
