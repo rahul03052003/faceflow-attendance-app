@@ -28,7 +28,7 @@ import { useUser } from '@/firebase';
 export const ALL_NAV_ITEMS: NavItem[] = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard, roles: ['Teacher'] },
   { href: '/capture', label: 'Capture Attendance', icon: ScanFace, roles: ['Teacher'] },
-  { href: '/reports', label: 'Attendance Reports', icon: BarChart3, roles: ['Teacher'] },
+  { href: '/reports', label: 'Attendance Reports', icon: BarChart3, roles: ['Teacher', 'Admin'] },
   { href: '/users', label: 'User Management', icon: Users, roles: ['Admin', 'Teacher'] },
   { href: '/subjects', label: 'Subjects', icon: Book, roles: ['Teacher'] },
   { href: '/settings', label: 'Settings', icon: Settings, roles: ['Admin', 'Teacher'] },
@@ -56,20 +56,31 @@ export function AppSidebar() {
       </SidebarHeader>
       <SidebarContent className="p-2">
         <SidebarMenu>
-          {navItems.map((item) => (
-            <SidebarMenuItem key={item.href}>
-              <SidebarMenuButton
-                asChild
-                isActive={pathname === item.href}
-                tooltip={{ children: item.label }}
-              >
-                <Link href={item.href} prefetch={true}>
-                  <item.icon />
-                  <span>{item.href === '/users' && userRole === 'Admin' ? 'Teacher Management' : item.label}</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          ))}
+          {navItems.map((item) => {
+            let label = item.label;
+            if (item.href === '/users') {
+              if (userRole === 'Admin') {
+                label = 'Teacher Management';
+              } else if (userRole === 'Teacher') {
+                label = 'Student Management';
+              }
+            }
+
+            return (
+              <SidebarMenuItem key={item.href}>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname === item.href}
+                  tooltip={{ children: label }}
+                >
+                  <Link href={item.href} prefetch={true}>
+                    <item.icon />
+                    <span>{label}</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            );
+          })}
         </SidebarMenu>
       </SidebarContent>
       <SidebarFooter className="p-2">

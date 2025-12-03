@@ -41,8 +41,6 @@ export default function UsersPage() {
 
   const isAdmin = useMemo(() => !isLoadingUser && currentUser?.role === 'Admin', [currentUser, isLoadingUser]);
 
-  // This is the list of subjects that can be assigned.
-  // Admins and Teachers should be able to see all subjects for assignment purposes.
   const assignableSubjects = useMemo(() => {
     if (isLoadingSubjects || !allSubjects) return [];
     if (isAdmin || currentUser?.role === 'Teacher') {
@@ -51,27 +49,21 @@ export default function UsersPage() {
     return [];
   }, [allSubjects, currentUser, isAdmin, isLoadingSubjects]);
 
-  // This is the list of students/users to display in the table.
   const filteredUsers = useMemo(() => {
     if (isLoading || !allUsers || !currentUser) return [];
-    
+
     if (isAdmin) {
-      // Admins see all users except themselves for safety
-      return allUsers.filter(u => u.id !== currentUser.uid && u.role !== 'Admin');
+      // Admins see all users except themselves for safety. They manage teachers.
+      return allUsers.filter(u => u.id !== currentUser.uid && u.role === 'Teacher');
     }
     
-    // Teachers see students assigned to their subjects.
-    if (currentUser.role === 'Teacher' && assignableSubjects.length > 0) {
-      const teacherSubjectIds = assignableSubjects.map(s => s.id);
-      return allUsers.filter(u => 
-        u.role === 'Student' &&
-        Array.isArray(u.subjects) &&
-        u.subjects.some(subId => teacherSubjectIds.includes(subId))
-      );
+    // Teachers see all students.
+    if (currentUser.role === 'Teacher') {
+      return allUsers.filter(u => u.role === 'Student');
     }
 
     return [];
-  }, [allUsers, currentUser, assignableSubjects, isAdmin, isLoading]);
+  }, [allUsers, currentUser, isAdmin, isLoading]);
 
 
   const handleAddUser = async (
@@ -263,14 +255,14 @@ export default function UsersPage() {
     return <UsersTable users={filteredUsers} isAdmin={isAdmin} onEditUser={handleEditUser} onDeleteUser={handleDeleteUser} subjects={allSubjects || []} />;
   };
 
-  const pageTitle = isAdmin ? "User Management" : "Student Management";
+  const pageTitle = isAdmin ? "Teacher Management" : "Student Management";
   const pageDescription = isAdmin
-    ? "Add and manage all teachers and students in the system."
-    : "View and manage students assigned to your subjects.";
-  const cardTitle = isAdmin ? "User List" : "Student List";
+    ? "Add and manage all teachers in the system."
+    : "View and manage students in the system.";
+  const cardTitle = isAdmin ? "Teacher List" : "Student List";
   const cardDescription = isAdmin
-    ? "A list of all teachers and students in the system."
-    : "A list of all students assigned to your subjects.";
+    ? "A list of all teachers in the system."
+    : "A list of all students in the system.";
 
   return (
     <div className="flex flex-col gap-8">
@@ -283,10 +275,7 @@ export default function UsersPage() {
         </div>
         <div className="flex gap-2">
           {isAdmin ? (
-            <>
-              <AddTeacherDialog onAddTeacher={handleAddTeacher} subjects={assignableSubjects} />
-              <AddUserDialog onAddUser={handleAddUser} subjects={assignableSubjects} />
-            </>
+            <AddTeacherDialog onAddTeacher={handleAddTeacher} subjects={assignableSubjects} />
           ) : (
             <AddUserDialog onAddUser={handleAddUser} subjects={assignableSubjects} />
           )}
