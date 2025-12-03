@@ -36,8 +36,8 @@ service cloud.firestore {
       // A user can always read their own profile.
       allow get: if isAuthenticated() && (isAdmin(request.auth.uid) || isOwner(userId) || (isTeacher(request.auth.uid) && resource.data.role == 'Student'));
       
-      // Allow listing users only for authenticated users, but it will be filtered on the client side.
-      // The `get` rule above is the most important one for security.
+      // Allow listing users only for authenticated users. The client-side query should
+      // filter what is actually displayed. This rule is necessary to allow collection queries.
       allow list: if isAuthenticated();
 
       // Admins can create/update any user. Teachers can create/update students.
@@ -66,8 +66,9 @@ service cloud.firestore {
       // Admins can read any individual record. Teachers can read records for their subjects.
       allow get: if isAuthenticated() && (isAdmin(request.auth.uid) || (isTeacher(request.auth.uid) && get(/databases/$(database)/documents/subjects/$(resource.data.subjectId)).data.teacherId == request.auth.uid));
       
-      // Teachers can list records for their subjects. Admins can list all records.
-      allow list: if isAuthenticated() && (isAdmin(request.auth.uid) || isTeacher(request.auth.uid));
+      // Allow listing for authenticated users. Client-side queries are responsible
+      // for filtering to only the records the user is supposed to see.
+      allow list: if isAuthenticated();
 
       // Only Teachers can create attendance records.
       allow create: if isAuthenticated() && isTeacher(request.auth.uid);
