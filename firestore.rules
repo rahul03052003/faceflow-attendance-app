@@ -9,19 +9,14 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Helper function to get user's role from their own document
-    function getUserRole(userId) {
-      return get(/databases/$(database)/documents/users/$(userId)).data.role;
-    }
-
     // Helper function to check if the requesting user is an Admin
     function isAdmin() {
-      return isAuthenticated() && getUserRole(request.auth.uid) == 'Admin';
+      return isAuthenticated() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
     }
     
     // Helper function to check if the requesting user is a Teacher
     function isTeacher() {
-      return isAuthenticated() && getUserRole(request.auth.uid) == 'Teacher';
+      return isAuthenticated() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Teacher';
     }
 
     // Rules for the 'users' collection
