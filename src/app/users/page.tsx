@@ -79,18 +79,20 @@ export default function UsersPage() {
 
 
   const filteredUsers = useMemo(() => {
-    if (isLoading || !allUsers || !currentUser || !allSubjects) {
+    if (isLoading || !allUsers || !currentUser) {
       return [];
     }
-  
+
     if (currentUser.role === 'Admin') {
       return allUsers.filter(u => u.role === 'Teacher' || u.role === 'Admin');
     }
-    
+
     if (currentUser.role === 'Teacher') {
+      if (!allSubjects) return [];
        const teacherSubjectIds = allSubjects
         .filter(s => s.teacherId === currentUser.uid)
         .map(s => s.id);
+
        if (teacherSubjectIds.length === 0) return [];
        
        return allUsers.filter(u => 
@@ -99,7 +101,7 @@ export default function UsersPage() {
         u.subjects.some(subId => teacherSubjectIds.includes(subId))
        );
     }
-  
+
     return [];
   }, [allUsers, currentUser, allSubjects, isLoading]);
 

@@ -33,9 +33,8 @@ service cloud.firestore {
     // User Collection Rules
     // =================================
     match /users/{userId} {
-      // Any authenticated user can read any user profile.
+      // Any authenticated user can read any user profile for now.
       // This is needed for the app to function (e.g. get teacher names).
-      // Sensitive data should not be stored in user profiles if this is a concern.
       allow read: if isAuthenticated();
 
       // Admins can create any user.
@@ -66,9 +65,9 @@ service cloud.firestore {
     // Attendance Collection Rules
     // =================================
     match /attendance/{attendanceId} {
-      // Teachers can list attendance for their subjects, Admins for all.
-      // Client-side queries must filter appropriately.
-      allow list: if isAuthenticated() && (isAdmin(request.auth.uid) || isTeacher(request.auth.uid));
+      // Authenticated users can list attendance records.
+      // Client-side queries are responsible for filtering to only the records the user should see.
+      allow list: if isAuthenticated();
 
       // Admins and Teachers can read any individual record.
       allow get: if isAuthenticated() && (isAdmin(request.auth.uid) || isTeacher(request.auth.uid));
