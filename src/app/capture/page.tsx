@@ -24,6 +24,7 @@ import {
   Frown,
   Loader2,
   Meh,
+  PlayCircle,
   ScanFace,
   Smile,
   Sparkles,
@@ -49,6 +50,7 @@ type NewAttendanceRecord = Omit<AttendanceRecord, 'id' | 'timestamp'> & {
 type ScanResult = {
   user: User;
   emotion: string;
+  greetingAudio: string | null;
 };
 
 export default function CapturePage() {
@@ -124,6 +126,20 @@ export default function CapturePage() {
       }
       scan();
   }
+  
+  const playGreeting = useCallback(() => {
+      if (result?.greetingAudio && audioRef.current) {
+        audioRef.current.src = result.greetingAudio;
+        audioRef.current.play().catch(e => {
+            console.error("Audio playback failed", e);
+            toast({
+                variant: 'destructive',
+                title: 'Audio Playback Error',
+                description: 'Could not play audio. Please check your browser permissions.'
+            })
+        });
+      }
+  }, [result, toast]);
 
   const scan = async () => {
     if (!videoRef.current?.srcObject || !firestore || studentsInSelectedSubject.length === 0) {
@@ -166,27 +182,20 @@ export default function CapturePage() {
       const isAlreadyPresent = attendanceRecords?.some(
         record => record.userId === matchedUser.id && record.date === today && record.subjectId === selectedSubjectId
       );
+      
+      const newResult: ScanResult = { user: matchedUser, emotion, greetingAudio: null };
 
       if (isAlreadyPresent) {
         toast({
           title: "Already Marked Present",
           description: `${matchedUser.name}, you are already marked as present for this subject today.`,
         });
-        setResult({ user: matchedUser, emotion });
+        setResult(newResult); // Set result without audio
         return;
       }
-
-      const newResult = { user: matchedUser, emotion };
-      setResult(newResult);
       
-      generateGreetingAudio({ name: matchedUser.name })
-        .then(({ audio }) => {
-          if (audio && audioRef.current) {
-            audioRef.current.src = audio;
-            audioRef.current.play().catch(e => console.error("Audio playback failed", e));
-          }
-        })
-        .catch(e => console.error("Audio generation failed:", e));
+      // Mark present and generate audio
+      setResult(newResult);
 
       const attendanceRecord: NewAttendanceRecord = {
         userId: matchedUser.id,
@@ -208,6 +217,23 @@ export default function CapturePage() {
         });
         errorEmitter.emit('permission-error', permissionError);
       });
+
+      // Generate and play audio
+      try {
+        const { audio } = await generateGreetingAudio({ name: matchedUser.name });
+        if (audio) {
+          setResult(prev => prev ? { ...prev, greetingAudio: audio } : null);
+          if (audioRef.current) {
+            audioRef.current.src = audio;
+            // Use a slight delay to ensure state is set before playing
+            setTimeout(() => {
+                audioRef.current?.play().catch(e => console.warn("Auto-play failed, user may need to interact.", e));
+            }, 100);
+          }
+        }
+      } catch (e) {
+        console.error("Audio generation failed:", e);
+      }
 
     } catch (error: any) {
       console.error('Face recognition flow failed.', error);
@@ -274,7 +300,14 @@ export default function CapturePage() {
             <UserCheck className="h-6 w-6 text-green-600" />
             <h3 className="text-2xl font-semibold">{result.user.name}</h3>
           </div>
-          <Badge variant="secondary">Status: Marked Present</Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary">Status: Marked Present</Badge>
+            {result.greetingAudio && (
+                <Button variant="ghost" size="icon" onClick={playGreeting} className="h-7 w-7">
+                    <PlayCircle className="h-5 w-5 text-muted-foreground hover:text-foreground" />
+                </Button>
+            )}
+          </div>
         </div>
       );
     }
@@ -346,3 +379,5 @@ export default function CapturePage() {
     </div>
   );
 }
+
+    
