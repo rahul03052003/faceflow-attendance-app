@@ -13,7 +13,7 @@ import { AddUserDialog } from '@/components/users/add-user-dialog';
 import { AddTeacherDialog } from '@/components/users/add-teacher-dialog';
 import type { User, Subject } from '@/lib/types';
 import { useCollection, useUser } from '@/firebase';
-import { addDoc, collection, deleteDoc, doc, updateDoc, setDoc } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, updateDoc, setDoc, query, where } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
 import { errorEmitter } from '@/firebase/error-emitter';
@@ -26,15 +26,20 @@ import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
 export default function UsersPage() {
   const firestore = useFirestore();
   const { user: currentUser, isLoading: isLoadingUser } = useUser();
+  
   const {
     data: allUsers,
     isLoading: isLoadingUsers,
     error: usersError,
   } = useCollection<User>('users');
+  
   const { 
     data: allSubjects, 
     isLoading: isLoadingSubjects 
-  } = useCollection<Subject>('subjects');
+  } = useCollection<Subject>(
+    currentUser?.uid ? 'subjects' : null
+  );
+
   const { toast } = useToast();
   
   const isLoading = isLoadingUser || isLoadingUsers || isLoadingSubjects;
@@ -52,7 +57,7 @@ export default function UsersPage() {
     }
     
     if (currentUser.role === 'Teacher') {
-        return allSubjects.filter(s => s.teacherId === currentUser.id);
+        return allSubjects.filter(s => s.teacherId === currentUser.uid);
     }
     return [];
   }, [allSubjects, currentUser, isLoadingSubjects]);
@@ -69,7 +74,7 @@ export default function UsersPage() {
     
     if (currentUser.role === 'Teacher') {
        const teacherSubjectIds = allSubjects
-        .filter(s => s.teacherId === currentUser.id)
+        .filter(s => s.teacherId === currentUser.uid)
         .map(s => s.id);
        if (teacherSubjectIds.length === 0) return [];
        

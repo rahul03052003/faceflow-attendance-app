@@ -13,6 +13,7 @@ import { useCollection, useUser } from '@/firebase';
 import type { AttendanceRecord, User, Subject } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useMemo } from 'react';
+import { query, where, CollectionReference, DocumentData } from 'firebase/firestore';
 
 function EmotionIcon({ emotion }: { emotion: string }) {
   switch (emotion) {
@@ -29,16 +30,31 @@ function EmotionIcon({ emotion }: { emotion: string }) {
 
 export default function Home() {
   const { user: teacher, isLoading: isLoadingUser } = useUser();
-  const { data: allUsers, isLoading: isLoadingUsers } = useCollection<User>('users');
-  const { data: allAttendance, isLoading: isLoadingRecords } = useCollection<AttendanceRecord>('attendance');
-  const { data: allSubjects, isLoading: isLoadingSubjects } = useCollection<Subject>('subjects');
+  
+  const { data: allUsers, isLoading: isLoadingUsers } = useCollection<User>(
+    'users'
+  );
+
+  const { data: allSubjects, isLoading: isLoadingSubjects } = useCollection<Subject>(
+    teacher?.uid ? 'subjects' : null,
+    {
+      buildQuery: (ref) => query(ref, where('teacherId', '==', teacher?.uid))
+    }
+  );
+  
+  const teacherSubjectIds = useMemo(() => {
+    if (!allSubjects) return [];
+    return allSubjects.map(s => s.id);
+  }, [allSubjects]);
+
+  const { data: allAttendance, isLoading: isLoadingRecords } = useCollection<AttendanceRecord>(
+    teacher?.uid && teacherSubjectIds.length > 0 ? 'attendance' : null,
+    {
+      buildQuery: (ref) => query(ref, where('subjectId', 'in', teacherSubjectIds))
+    }
+  );
 
   const isLoading = isLoadingUser || isLoadingUsers || isLoadingRecords || isLoadingSubjects;
-
-  const teacherSubjectIds = useMemo(() => {
-    if (!allSubjects || !teacher || teacher.role !== 'Teacher') return [];
-    return allSubjects.filter(s => s.teacherId === teacher.id).map(s => s.id);
-  }, [allSubjects, teacher]);
 
   const teacherStudents = useMemo(() => {
     if (isLoading || !allUsers || !teacher) return [];
@@ -61,19 +77,9 @@ export default function Home() {
 
 
   const teacherAttendance = useMemo(() => {
-    if (isLoading || !allAttendance || !teacher) return [];
-
-    if (teacher.role === 'Admin') {
-      return allAttendance;
-    }
-
-    if (teacher.role === 'Teacher') {
-      if (teacherSubjectIds.length === 0) return [];
-      return allAttendance.filter(att => teacherSubjectIds.includes(att.subjectId));
-    }
-    
-    return [];
-  }, [allAttendance, teacherSubjectIds, teacher, isLoading]);
+    if (isLoading || !allAttendance) return [];
+    return allAttendance;
+  }, [allAttendance, isLoading]);
   
   const getTodaysAttendance = () => {
     if (!teacherAttendance) return 0;

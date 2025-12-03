@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useEffect, useMemo } from 'react';
 import {
@@ -8,17 +9,18 @@ import {
   DocumentData,
   FirestoreError,
   QuerySnapshot,
+  CollectionReference,
 } from 'firebase/firestore';
 import { useFirestore } from '../provider';
 import { errorEmitter } from '../error-emitter';
 import { FirestorePermissionError } from '../errors';
 
 interface UseCollectionOptions {
-  // You can add options like 'listen' to disable real-time updates
+  buildQuery?: (ref: CollectionReference<DocumentData>) => Query<DocumentData>;
 }
 
-export function useCollection<T>(
-  collectionName: string,
+export function useCollection<T = any>(
+  collectionName: string | null,
   options?: UseCollectionOptions
 ) {
   const firestore = useFirestore();
@@ -26,14 +28,26 @@ export function useCollection<T>(
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<FirestoreError | null>(null);
 
-  const collectionRef = useMemo(
-    () => collection(firestore, collectionName),
-    [firestore, collectionName]
-  );
+  const collectionRef = useMemo(() => {
+    if (!collectionName) return null;
+    return collection(firestore, collectionName);
+  }, [firestore, collectionName]);
+
+  const buildQuery = options?.buildQuery;
 
   useEffect(() => {
+    if (!collectionRef) {
+      setData([]);
+      setIsLoading(false);
+      return;
+    }
+
+    const q = buildQuery
+      ? buildQuery(collectionRef)
+      : collectionRef;
+
     const unsubscribe = onSnapshot(
-      collectionRef,
+      q,
       (snapshot: QuerySnapshot<DocumentData>) => {
         const result: T[] = [];
         snapshot.forEach((doc) => {
@@ -41,8 +55,10 @@ export function useCollection<T>(
         });
         setData(result);
         setIsLoading(false);
+        setError(null);
       },
       (err: FirestoreError) => {
+        console.error(`Error fetching collection ${collectionRef.path}:`, err);
         const permissionError = new FirestorePermissionError({
           path: collectionRef.path,
           operation: 'list',
@@ -50,11 +66,12 @@ export function useCollection<T>(
         errorEmitter.emit('permission-error', permissionError);
         setError(err);
         setIsLoading(false);
+        setData(null);
       }
     );
 
     return () => unsubscribe();
-  }, [collectionRef]);
+  }, [collectionRef, buildQuery]);
 
   return { data, isLoading, error };
 }

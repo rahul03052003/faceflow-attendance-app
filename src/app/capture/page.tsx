@@ -38,7 +38,7 @@ import type { User, AttendanceRecord, Subject } from '@/lib/types';
 import { recognizeFace } from '@/ai/flows/recognize-face';
 import { generateGreetingAudio } from '@/ai/flows/generate-greeting-audio';
 import { useFirestore, useCollection, useUser } from '@/firebase';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { addDoc, collection, serverTimestamp, query, where } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -68,13 +68,30 @@ export default function CapturePage() {
   const { user: teacher } = useUser();
   
   const { data: allUsers, isLoading: isLoadingUsers } = useCollection<User>('users');
-  const { data: attendanceRecords, isLoading: isLoadingAttendance } = useCollection<AttendanceRecord>('attendance');
-  const { data: subjects, isLoading: isLoadingSubjects } = useCollection<Subject>('subjects');
+
+  const { data: subjects, isLoading: isLoadingSubjects } = useCollection<Subject>(
+    teacher?.uid ? 'subjects' : null,
+    {
+      buildQuery: (ref) => query(ref, where('teacherId', '==', teacher?.uid))
+    }
+  );
 
   const teacherSubjects = useMemo(() => {
-    if (!subjects || !teacher) return [];
-    return subjects.filter(s => s.teacherId === teacher.uid);
-  }, [subjects, teacher]);
+    if (!subjects) return [];
+    return subjects;
+  }, [subjects]);
+  
+  const teacherSubjectIds = useMemo(() => {
+    if (!teacherSubjects) return [];
+    return teacherSubjects.map(s => s.id);
+  }, [teacherSubjects]);
+
+  const { data: attendanceRecords, isLoading: isLoadingAttendance } = useCollection<AttendanceRecord>(
+    teacher?.uid && teacherSubjectIds.length > 0 ? 'attendance' : null,
+    {
+      buildQuery: (ref) => query(ref, where('subjectId', 'in', teacherSubjectIds))
+    }
+  );
 
   const studentsInSelectedSubject = useMemo(() => {
     if (!selectedSubjectId || !allUsers) return [];
@@ -379,5 +396,3 @@ export default function CapturePage() {
     </div>
   );
 }
-
-    

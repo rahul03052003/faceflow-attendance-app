@@ -12,7 +12,7 @@ import { SubjectsTable } from '@/components/subjects/subjects-table';
 import { AddSubjectDialog } from '@/components/subjects/add-subject-dialog';
 import type { Subject, User } from '@/lib/types';
 import { useCollection, useUser } from '@/firebase';
-import { addDoc, collection, deleteDoc, doc } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, query, where } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
 import { errorEmitter } from '@/firebase/error-emitter';
@@ -28,7 +28,9 @@ export default function SubjectsPage() {
     data: allSubjects,
     isLoading: isLoadingSubjects,
     error,
-  } = useCollection<Subject>('subjects');
+  } = useCollection<Subject>(
+    currentUser?.uid ? 'subjects' : null
+  );
 
   const isLoading = isLoadingUser || isLoadingSubjects || isLoadingUsers;
 
@@ -45,7 +47,7 @@ export default function SubjectsPage() {
 
 
   const handleAddSubject = (
-    newSubject: Omit<Subject, 'id' | 'teacherId'>
+    newSubject: Omit<Subject, 'id'> & {teacherId?: string}
   ) => {
     if (!currentUser) return;
     const subjectWithTeacher = { ...newSubject, teacherId: currentUser.uid };
@@ -98,7 +100,7 @@ export default function SubjectsPage() {
             {isAdmin ? "View, add, and manage all subjects." : "View, add, and manage subjects you teach."}
           </p>
         </div>
-        {!isAdmin && <AddSubjectDialog onAddSubject={handleAddSubject} />}
+        <AddSubjectDialog onAddSubject={handleAddSubject} />
       </div>
 
       <Card>

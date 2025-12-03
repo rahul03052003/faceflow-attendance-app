@@ -15,32 +15,42 @@ import { useCollection, useUser } from '@/firebase';
 import type { AttendanceRecord, Subject } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useMemo } from 'react';
+import { query, where } from 'firebase/firestore';
 
 
 export default function ReportsPage() {
   const { user: currentUser, isLoading: isLoadingUser } = useUser();
-  const { data: allAttendance, isLoading: isLoadingRecords } = useCollection<AttendanceRecord>('attendance');
-  const { data: allSubjects, isLoading: isLoadingSubjects } = useCollection<Subject>('subjects');
+
+  const { data: teacherSubjects, isLoading: isLoadingSubjects } = useCollection<Subject>(
+    currentUser?.role === 'Teacher' ? 'subjects' : null,
+    {
+      buildQuery: (ref) => query(ref, where('teacherId', '==', currentUser?.uid))
+    }
+  );
+  
+  const teacherSubjectIds = useMemo(() => {
+    if (!teacherSubjects) return [];
+    return teacherSubjects.map(s => s.id);
+  }, [teacherSubjects]);
+
+  const { data: allAttendance, isLoading: isLoadingRecords } = useCollection<AttendanceRecord>(
+    currentUser?.role === 'Admin' ? 'attendance' : (teacherSubjectIds.length > 0 ? 'attendance' : null),
+    {
+      buildQuery: (ref) => {
+        if (currentUser?.role === 'Admin') return ref;
+        return query(ref, where('subjectId', 'in', teacherSubjectIds));
+      }
+    }
+  );
 
   const isLoading = isLoadingUser || isLoadingRecords || isLoadingSubjects;
   
   const isAdmin = useMemo(() => !isLoadingUser && currentUser?.role === 'Admin', [currentUser, isLoadingUser]);
 
-  const teacherSubjectIds = useMemo(() => {
-    if (isLoadingSubjects || !allSubjects || !currentUser || currentUser.role !== 'Teacher') return [];
-    return allSubjects.filter(s => s.teacherId === currentUser.id).map(s => s.id);
-  }, [allSubjects, currentUser, isLoadingSubjects]);
-
-
   const filteredAttendance = useMemo(() => {
     if (isLoading || !allAttendance) return [];
-    if (isAdmin) return allAttendance;
-    if (currentUser?.role === 'Teacher') {
-        if (teacherSubjectIds.length === 0) return [];
-        return allAttendance.filter(att => teacherSubjectIds.includes(att.subjectId));
-    }
-    return [];
-  }, [allAttendance, teacherSubjectIds, isAdmin, isLoading, currentUser]);
+    return allAttendance;
+  }, [allAttendance, isLoading]);
 
 
   return (
