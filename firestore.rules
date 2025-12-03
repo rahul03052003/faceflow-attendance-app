@@ -72,8 +72,9 @@ service cloud.firestore {
       // Admins and Teachers can read any individual record.
       allow get: if isAuthenticated() && (isAdmin(request.auth.uid) || isTeacher(request.auth.uid));
       
-      // Only Teachers can create attendance records.
-      allow create: if isAuthenticated() && isTeacher(request.auth.uid);
+      // Only a teacher assigned to the subject can create an attendance record.
+      allow create: if isAuthenticated() && isTeacher(request.auth.uid) &&
+                    get(/databases/$(database)/documents/subjects/$(request.resource.data.subjectId)).data.teacherId == request.auth.uid;
 
       // Records are immutable once created.
       allow update, delete: if false;
