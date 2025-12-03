@@ -29,8 +29,9 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      // Admins and teachers can list users.
-      allow list: if isAdmin() || isTeacher();
+      // Any authenticated user can see the list of users.
+      // Specific document access is controlled by 'get' and 'write' rules.
+      allow list: if isAuthenticated();
       
       // Admins and teachers can read any user profile. Users can read their own.
       allow get: if isAdmin() || isTeacher() || isOwner(userId);
