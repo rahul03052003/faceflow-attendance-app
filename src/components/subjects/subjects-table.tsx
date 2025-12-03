@@ -31,15 +31,18 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { EditSubjectDialog } from './edit-subject-dialog';
+
 
 type SubjectsTableProps = {
   subjects: Subject[];
   users: User[];
   isAdmin?: boolean;
+  onEditSubject: (subjectId: string, updatedData: Omit<Subject, 'id' | 'teacherId'>) => void;
   onDeleteSubject: (subjectId: string) => void;
 };
 
-export function SubjectsTable({ subjects, users, isAdmin = false, onDeleteSubject }: SubjectsTableProps) {
+export function SubjectsTable({ subjects, users, isAdmin = false, onEditSubject, onDeleteSubject }: SubjectsTableProps) {
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [subjectToDelete, setSubjectToDelete] = useState<Subject | null>(null);
   const { toast } = useToast();
@@ -53,14 +56,6 @@ export function SubjectsTable({ subjects, users, isAdmin = false, onDeleteSubjec
   const handleDeleteClick = (subject: Subject) => {
     setSubjectToDelete(subject);
     setIsAlertOpen(true);
-  };
-  
-  const handleEditClick = () => {
-    // In a real app, this would open an edit dialog.
-     toast({
-        title: "Coming Soon!",
-        description: "Editing functionality is not yet implemented.",
-    });
   };
 
   const handleConfirmDelete = () => {
@@ -105,9 +100,11 @@ export function SubjectsTable({ subjects, users, isAdmin = false, onDeleteSubjec
                   <DropdownMenuContent align="end">
                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleEditClick}>
-                      Edit
-                    </DropdownMenuItem>
+                    <EditSubjectDialog subject={subject} onEditSubject={onEditSubject}>
+                      <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                        Edit
+                      </DropdownMenuItem>
+                    </EditSubjectDialog>
                     <DropdownMenuItem
                       className="text-destructive"
                       onClick={() => handleDeleteClick(subject)}

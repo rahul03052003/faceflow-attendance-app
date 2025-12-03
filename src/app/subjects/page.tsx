@@ -12,7 +12,7 @@ import { SubjectsTable } from '@/components/subjects/subjects-table';
 import { AddSubjectDialog } from '@/components/subjects/add-subject-dialog';
 import type { Subject, User } from '@/lib/types';
 import { useCollection, useUser } from '@/firebase';
-import { addDoc, collection, deleteDoc, doc, query, where } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, query, where, updateDoc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
 import { errorEmitter } from '@/firebase/error-emitter';
@@ -65,6 +65,21 @@ export default function SubjectsPage() {
     });
   };
 
+  const handleEditSubject = (
+    subjectId: string,
+    updatedData: Omit<Subject, 'id' | 'teacherId'>
+  ) => {
+    const docRef = doc(firestore, 'subjects', subjectId);
+    updateDoc(docRef, updatedData).catch(async (serverError) => {
+      const permissionError = new FirestorePermissionError({
+        path: docRef.path,
+        operation: 'update',
+        requestResourceData: updatedData,
+      });
+      errorEmitter.emit('permission-error', permissionError);
+    });
+  };
+
   const handleDeleteSubject = (subjectId: string) => {
     const docRef = doc(firestore, 'subjects', subjectId);
     deleteDoc(docRef).catch(async (serverError) => {
@@ -91,7 +106,7 @@ export default function SubjectsPage() {
       return <p className="text-destructive">Error loading subjects: {error.message}</p>;
     }
 
-    return <SubjectsTable subjects={subjectsToDisplay} users={allUsers || []} isAdmin={isAdmin} onDeleteSubject={handleDeleteSubject} />;
+    return <SubjectsTable subjects={subjectsToDisplay} users={allUsers || []} isAdmin={isAdmin} onEditSubject={handleEditSubject} onDeleteSubject={handleDeleteSubject} />;
   };
 
   return (
@@ -120,5 +135,3 @@ export default function SubjectsPage() {
     </div>
   );
 }
-
-    
