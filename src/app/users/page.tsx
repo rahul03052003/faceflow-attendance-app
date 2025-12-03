@@ -44,8 +44,11 @@ export default function UsersPage() {
   const teacherSubjects = useMemo(() => {
     if (isLoadingUser || !subjects || !currentUser) return [];
     if (isAdmin) return subjects;
+    
+    // If a teacher, show all subjects if teacherId is not being used to filter.
+    // This ensures teachers can see and assign students to any subject.
     if (currentUser.role === 'Teacher') {
-       return subjects.filter(s => s.teacherId === currentUser.uid);
+       return subjects;
     }
     return [];
   }, [subjects, currentUser, isAdmin, isLoadingUser]);
@@ -304,3 +307,5 @@ export default function UsersPage() {
     </div>
   );
 }
+
+    
