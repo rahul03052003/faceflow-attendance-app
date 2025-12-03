@@ -44,7 +44,7 @@ export function useCollection<T = any>(
 
     const q = buildQuery
       ? buildQuery(collectionRef)
-      : collectionRef;
+      : query(collectionRef);
 
     const unsubscribe = onSnapshot(
       q,
@@ -59,6 +59,7 @@ export function useCollection<T = any>(
       },
       (err: FirestoreError) => {
         console.error(`Error fetching collection ${collectionRef.path}:`, err);
+        // Ensure all errors are treated as potential permission errors for debugging.
         const permissionError = new FirestorePermissionError({
           path: collectionRef.path,
           operation: 'list',
