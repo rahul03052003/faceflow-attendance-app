@@ -37,7 +37,7 @@ export default function Home() {
 
   const teacherSubjectIds = useMemo(() => {
     if (!allSubjects || !teacher || teacher.role !== 'Teacher') return [];
-    return allSubjects.filter(s => s.teacherId === teacher.uid).map(s => s.id);
+    return allSubjects.filter(s => s.teacherId === teacher.id).map(s => s.id);
   }, [allSubjects, teacher]);
 
   const teacherStudents = useMemo(() => {

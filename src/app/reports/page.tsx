@@ -28,7 +28,7 @@ export default function ReportsPage() {
 
   const teacherSubjectIds = useMemo(() => {
     if (isLoadingUser || isAdmin || !allSubjects || !currentUser) return [];
-    return allSubjects.filter(s => s.teacherId === currentUser.uid).map(s => s.id);
+    return allSubjects.filter(s => s.teacherId === currentUser.id).map(s => s.id);
   }, [allSubjects, currentUser, isAdmin, isLoadingUser]);
 
   const filteredAttendance = useMemo(() => {
