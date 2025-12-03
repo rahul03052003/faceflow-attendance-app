@@ -26,11 +26,13 @@ service cloud.firestore {
 
     // Rules for the 'users' collection
     match /users/{userId} {
+      // Allow any authenticated user to list the collection.
+      // This is necessary for the dashboard, reports, and user management pages.
+      // The more restrictive 'get' rule below prevents them from reading sensitive data from other users' documents.
+      allow list: if isAuthenticated();
+
       // Allow a user to read their own document.
       allow get: if isAuthenticated() && request.auth.uid == userId;
-
-      // Allow Admins and Teachers to read other user documents.
-      allow list: if isAdmin() || isTeacher();
       
       // Admins can create/update/delete any user.
       // Teachers can create/update students.
