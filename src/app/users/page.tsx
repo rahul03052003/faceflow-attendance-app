@@ -42,8 +42,19 @@ export default function UsersPage() {
   const isAdmin = useMemo(() => !isLoadingUser && currentUser?.role === 'Admin', [currentUser, isLoadingUser]);
 
   const assignableSubjects = useMemo(() => {
-    return allSubjects || [];
-  }, [allSubjects]);
+    if (isLoadingUser || isLoadingSubjects || !currentUser || !allSubjects) return [];
+  
+    if (currentUser.role === 'Admin') {
+      return allSubjects;
+    }
+  
+    if (currentUser.role === 'Teacher') {
+      // Teachers should only be able to assign subjects they teach.
+      return allSubjects.filter(subject => subject.teacherId === currentUser.uid);
+    }
+    
+    return [];
+  }, [allSubjects, currentUser, isLoadingUser, isLoadingSubjects]);
 
 
   const filteredUsers = useMemo(() => {
@@ -54,7 +65,7 @@ export default function UsersPage() {
     }
     
     if (currentUser.role === 'Teacher') {
-      return allUsers.filter(u => u.role === 'Student');
+       return allUsers.filter(u => u.role === 'Student');
     }
 
     return [];
@@ -257,7 +268,7 @@ export default function UsersPage() {
   const cardTitle = isAdmin ? "Teacher List" : "Student List";
   const cardDescription = isAdmin
     ? "A list of all teachers in the system."
-    : "A list of all students in the system.";
+    : "A list of all students assigned to your subjects.";
 
   return (
     <div className="flex flex-col gap-8">
@@ -289,5 +300,3 @@ export default function UsersPage() {
     </div>
   );
 }
-
-    
