@@ -101,66 +101,49 @@ export default function UsersPage() {
     newUser: Omit<User, 'id' | 'avatar' | 'role' | 'facialFeatures'> & { photo?: File, photoPreview?: string, subjects?: string[] }
   ) => {
     
-    // Use a generic placeholder unless a photo is provided
-    const avatarUrl = newUser.photoPreview || `https://i.pravatar.cc/150?u=${newUser.email}`;
+    toast({
+      title: 'Adding User...',
+      description: `Analyzing photo and preparing to add ${newUser.name}.`,
+    });
 
-    const userToAdd: any = {
-      name: newUser.name,
-      email: newUser.email,
-      registerNo: newUser.registerNo,
-      role: 'Student' as const,
-      subjects: newUser.subjects || [],
-      facialFeatures: null, // Initialize as null
-    };
-
-    if (newUser.photoPreview) {
-      userToAdd.avatar = newUser.photoPreview;
-    } else {
-      userToAdd.avatar = `https://picsum.photos/seed/${newUser.email}/150/150`;
-    }
-
-    const collectionRef = collection(firestore, 'users');
-    
     try {
-        const docRef = await addDoc(collectionRef, userToAdd);
+      // Step 1: Generate facial features first
+      const { vector } = await generateFacialFeatures({ photoDataUri: newUser.photoPreview });
 
-        toast({
-          title: 'User Added',
-          description: `${newUser.name} has been added. Generating facial features...`,
+      // Step 2: Prepare user document with facial features included
+      const userToAdd: Omit<User, 'id'> = {
+        name: newUser.name,
+        email: newUser.email,
+        registerNo: newUser.registerNo,
+        role: 'Student' as const,
+        subjects: newUser.subjects || [],
+        avatar: newUser.photoPreview || `https://picsum.photos/seed/${newUser.email}/150/150`,
+        facialFeatures: vector,
+      };
+
+      // Step 3: Add the complete document to Firestore in one go
+      const collectionRef = collection(firestore, 'users');
+      addDoc(collectionRef, userToAdd).catch(async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+          path: collectionRef.path,
+          operation: 'create',
+          requestResourceData: userToAdd,
         });
+        errorEmitter.emit('permission-error', permissionError);
+      });
+      
+       toast({
+        title: 'User Added Successfully',
+        description: `${newUser.name} has been added with facial recognition data.`,
+      });
 
-        // Always generate facial features. Pass the data URI if it exists.
-        try {
-            const { vector } = await generateFacialFeatures({ photoDataUri: userToAdd.avatar });
-            const updateRef = doc(firestore, 'users', docRef.id);
-            updateDoc(updateRef, { facialFeatures: vector }).catch(async (serverError) => {
-                 const permissionError = new FirestorePermissionError({
-                    path: updateRef.path,
-                    operation: 'update',
-                    requestResourceData: { facialFeatures: vector },
-                 });
-                 errorEmitter.emit('permission-error', permissionError);
-            });
-             toast({
-                title: 'AI Analysis Complete',
-                description: `Facial features for ${newUser.name} have been saved.`,
-            });
-        } catch (e: any) {
-            console.error("Failed to generate facial features:", e);
-            toast({
-                variant: "destructive",
-                title: "AI Analysis Failed",
-                description: e.message || "Could not analyze the user's photo. The user has been added, but recognition may fail."
-            })
-        }
-
-    } catch (serverError) {
-         const permissionError = new FirestorePermissionError({
-            path: collectionRef.path,
-            operation: 'create',
-            requestResourceData: userToAdd,
-          });
-         errorEmitter.emit('permission-error', permissionError);
+    } catch (e: any) {
+        console.error("Failed to add user:", e);
+        toast({
+            variant: "destructive",
+            title: "Failed to Add User",
+            description: e.message || "An error occurred during AI analysis or database writing."
+        })
     }
   };
 

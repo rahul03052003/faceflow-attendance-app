@@ -40,16 +40,7 @@ const generateFacialFeaturesFlow = ai.defineFlow(
     outputSchema: GenerateFacialFeaturesOutputSchema,
   },
   async ({ photoDataUri }) => {
-    // Return a mock vector to avoid hitting API rate limits during development/demo.
-    // This simulates the vector generation process.
-    console.log("SIMULATING facial feature generation to avoid rate limits.");
-    const mockVector = Array.from({ length: 768 }, () => Math.random() * 2 - 1);
     
-    return { vector: mockVector };
-
-    /*
-    // Original code that calls the AI model.
-    // It's disabled here to prevent rate-limiting during demos.
     // If no photo is provided, it uses a placeholder.
     const imageToProcess = photoDataUri || 'https://picsum.photos/seed/face/400/400';
 
@@ -70,6 +61,5 @@ const generateFacialFeaturesFlow = ai.defineFlow(
     }
 
     return output;
-    */
   }
 );
