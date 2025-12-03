@@ -41,7 +41,6 @@ export default function UsersPage() {
 
   const isAdmin = useMemo(() => !isLoadingUser && currentUser?.role === 'Admin', [currentUser, isLoadingUser]);
 
-  // Corrected logic: Admins and Teachers should be able to assign any subject.
   const assignableSubjects = useMemo(() => {
     return allSubjects || [];
   }, [allSubjects]);
@@ -51,11 +50,11 @@ export default function UsersPage() {
     if (isLoading || !allUsers || !currentUser) return [];
 
     if (isAdmin) {
-      // Admins see all users except themselves for safety. They manage teachers.
-      return allUsers.filter(u => u.id !== currentUser.uid && u.role === 'Teacher');
+      // Admins see all users with the "Teacher" role.
+      return allUsers.filter(u => u.role === 'Teacher');
     }
     
-    // Teachers see all students.
+    // Teachers see all users with the "Student" role.
     if (currentUser.role === 'Teacher') {
       return allUsers.filter(u => u.role === 'Student');
     }
