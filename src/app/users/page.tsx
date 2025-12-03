@@ -45,7 +45,7 @@ export default function UsersPage() {
   }, [currentUser, isLoadingUser]);
 
   const assignableSubjects = useMemo(() => {
-    if (isLoading || !allSubjects || !currentUser) return [];
+    if (isLoadingUser || isLoadingSubjects || !allSubjects || !currentUser) return [];
   
     if (currentUser.role === 'Admin') {
       return allSubjects;
@@ -56,11 +56,11 @@ export default function UsersPage() {
     }
     
     return [];
-  }, [allSubjects, currentUser, isLoading]);
+  }, [allSubjects, currentUser, isLoadingUser, isLoadingSubjects]);
 
 
   const filteredUsers = useMemo(() => {
-    if (isLoading || !allUsers || !currentUser) return [];
+    if (isLoadingUser || isLoadingUsers || !allUsers || !currentUser) return [];
 
     if (currentUser.role === 'Admin') {
       return allUsers.filter(u => u.role === 'Teacher');
@@ -71,7 +71,7 @@ export default function UsersPage() {
     }
 
     return [];
-  }, [allUsers, currentUser, isLoading]);
+  }, [allUsers, currentUser, isLoadingUser, isLoadingUsers]);
 
 
   const handleAddUser = async (
@@ -201,6 +201,7 @@ export default function UsersPage() {
         avatar: `https://i.pravatar.cc/150?u=${newTeacher.email}`,
         role: 'Teacher' as const,
         subjects: newTeacher.subjects || [],
+        teacherId: teacherId,
         registerNo: '', // Not applicable to teachers
       };
       
@@ -246,7 +247,7 @@ export default function UsersPage() {
   };
 
   const renderContent = () => {
-    if (isLoading || !filteredUsers) {
+    if (isLoading) {
       return (
         <div className="space-y-4">
           <Skeleton className="h-12 w-full" />
