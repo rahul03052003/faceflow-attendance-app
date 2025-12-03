@@ -116,7 +116,7 @@ export default function UsersPage() {
     if (newUser.photoPreview) {
       userToAdd.avatar = newUser.photoPreview;
     } else {
-      userToAdd.avatar = `https://i.pravatar.cc/150?u=${newUser.email}`;
+      userToAdd.avatar = `https://picsum.photos/seed/${newUser.email}/150/150`;
     }
 
     const collectionRef = collection(firestore, 'users');
@@ -131,8 +131,16 @@ export default function UsersPage() {
 
         // Always generate facial features. Pass the data URI if it exists.
         try {
-            const { vector } = await generateFacialFeatures({ photoDataUri: newUser.photoPreview });
-            await updateDoc(docRef, { facialFeatures: vector });
+            const { vector } = await generateFacialFeatures({ photoDataUri: userToAdd.avatar });
+            const updateRef = doc(firestore, 'users', docRef.id);
+            updateDoc(updateRef, { facialFeatures: vector }).catch(async (serverError) => {
+                 const permissionError = new FirestorePermissionError({
+                    path: updateRef.path,
+                    operation: 'update',
+                    requestResourceData: { facialFeatures: vector },
+                 });
+                 errorEmitter.emit('permission-error', permissionError);
+            });
              toast({
                 title: 'AI Analysis Complete',
                 description: `Facial features for ${newUser.name} have been saved.`,
@@ -219,12 +227,11 @@ export default function UsersPage() {
   ) => {
     const auth = getAuth();
     try {
-      // NOTE: This uses a hardcoded password. In a real app, this should be handled securely
-      // (e.g., by sending a password reset email or a temporary password).
+      // Create the Firebase Auth user first
       const userCredential = await createUserWithEmailAndPassword(auth, newTeacher.email, 'teacher123');
       const teacherId = userCredential.user.uid;
-
-      // In a real app, this would be a backend operation.
+      
+      // Simulate setting custom claims (in a real app, this is a backend operation)
       await setCustomUserClaims(teacherId, { role: 'Teacher' });
 
       const teacherToAdd = {
@@ -237,31 +244,40 @@ export default function UsersPage() {
       };
       
       const userDocRef = doc(firestore, 'users', teacherId);
-      // Use setDoc with the known UID as the document ID
-      await setDoc(userDocRef, teacherToAdd);
 
-      toast({
-        title: 'Teacher Added',
-        description: `${newTeacher.name} has been created and assigned to subjects.`,
-      });
-
-    } catch (error: any) {
-       console.error("Error creating teacher:", error);
-       if (error.code === 'auth/email-already-in-use') {
-         toast({
-            variant: "destructive",
-            title: "Failed to Add Teacher",
-            description: "This email address is already in use by another account.",
-          });
-       } else if (error.name === 'FirestorePermissionError') {
-          errorEmitter.emit('permission-error', error);
-       } else {
+      // Now create the Firestore document, with proper error handling
+      setDoc(userDocRef, teacherToAdd)
+        .then(() => {
           toast({
-            variant: "destructive",
-            title: "An Error Occurred",
-            description: "Could not create the teacher account. See the console for details.",
+            title: 'Teacher Added',
+            description: `${newTeacher.name} has been created and assigned to subjects.`,
           });
-       }
+        })
+        .catch(async (serverError) => {
+          // This is the new, specific error handling
+          const permissionError = new FirestorePermissionError({
+            path: userDocRef.path,
+            operation: 'create',
+            requestResourceData: teacherToAdd,
+          });
+          errorEmitter.emit('permission-error', permissionError);
+        });
+
+    } catch (authError: any) {
+      // Handle errors from createUserWithEmailAndPassword
+      if (authError.code === 'auth/email-already-in-use') {
+        toast({
+          variant: "destructive",
+          title: "Failed to Add Teacher",
+          description: "This email address is already in use by another account.",
+        });
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Authentication Error",
+          description: authError.message || "Could not create the teacher's auth account.",
+        });
+      }
     }
   };
 
