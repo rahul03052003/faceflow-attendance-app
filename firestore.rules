@@ -36,9 +36,12 @@ service cloud.firestore {
       
       allow create: if isAuthenticated() && 
                     (isAdmin(request.auth.uid) || 
-                     (request.resource.data.role == 'Student'));
+                     (isTeacher(request.auth.uid) && request.resource.data.role == 'Student'));
 
-      allow update: if isAuthenticated() && (isAdmin(request.auth.uid) || isOwner(userId));
+      allow update: if isAuthenticated() && 
+                    (isAdmin(request.auth.uid) || 
+                     isOwner(userId) || 
+                     (isTeacher(request.auth.uid) && resource.data.role == 'Student'));
 
       allow delete: if isAuthenticated() && isAdmin(request.auth.uid);
     }
@@ -90,3 +93,4 @@ service cloud.firestore {
     }
   }
 }
+
