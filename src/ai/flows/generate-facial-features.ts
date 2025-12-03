@@ -41,7 +41,16 @@ const generateFacialFeaturesFlow = ai.defineFlow(
   },
   async ({ photoDataUri }) => {
     
-    // If no photo is provided, it uses a placeholder.
+    // SIMULATION: To avoid API quota issues, we'll generate a random vector.
+    // In a production app, you would use the commented-out code below.
+    const randomVector = Array.from({ length: 768 }, () => Math.random() * 2 - 1);
+
+    return {
+      vector: randomVector,
+    };
+
+    /*
+    // REAL API CALL (currently disabled due to quota limits)
     const imageToProcess = photoDataUri || 'https://picsum.photos/seed/face/400/400';
 
     const result = await ai.generate({
@@ -61,5 +70,6 @@ const generateFacialFeaturesFlow = ai.defineFlow(
     }
 
     return output;
+    */
   }
 );
