@@ -9,21 +9,26 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // Helper function to get the user's role from their profile document
+    function getUserRole(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data.role;
+    }
+
     // Helper function to check if the requesting user has the 'Admin' role
     function isAdmin() {
-      return isAuthenticated() && request.auth.token.role == 'Admin';
+      return isAuthenticated() && getUserRole(request.auth.uid) == 'Admin';
     }
     
     // Helper function to check if the requesting user has the 'Teacher' role
     function isTeacher() {
-      return isAuthenticated() && (request.auth.token.role == 'Teacher' || request.auth.token.role == 'Admin');
+      return isAuthenticated() && getUserRole(request.auth.uid) == 'Teacher';
     }
 
     // Rules for the 'users' collection
     match /users/{userId} {
       // Admins and Teachers can list users.
       allow list: if isTeacher() || isAdmin();
-      // A user can read/write their own document. Admins and Teachers can read any user document.
+      // A user can read their own document. Admins and Teachers can read any user document.
       allow read: if (isAuthenticated() && request.auth.uid == userId) || isAdmin() || isTeacher();
 
       // Admins can write to any user.
