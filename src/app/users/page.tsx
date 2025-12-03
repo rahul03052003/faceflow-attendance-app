@@ -52,7 +52,7 @@ export default function UsersPage() {
     }
     
     if (currentUser.role === 'Teacher') {
-        return allSubjects.filter(s => s.teacherId === currentUser.uid);
+        return allSubjects.filter(s => s.teacherId === currentUser.id);
     }
     return [];
   }, [allSubjects, currentUser, isLoadingSubjects]);
@@ -69,7 +69,7 @@ export default function UsersPage() {
     
     if (currentUser.role === 'Teacher') {
        const teacherSubjectIds = allSubjects
-        .filter(s => s.teacherId === currentUser.uid)
+        .filter(s => s.teacherId === currentUser.id)
         .map(s => s.id);
        if (teacherSubjectIds.length === 0) return [];
        
