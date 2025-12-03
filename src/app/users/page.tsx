@@ -32,7 +32,7 @@ export default function UsersPage() {
     error: usersError,
   } = useCollection<User>('users');
   const { 
-    data: subjects, 
+    data: allSubjects, 
     isLoading: isLoadingSubjects 
   } = useCollection<Subject>('subjects');
   const { toast } = useToast();
@@ -41,19 +41,17 @@ export default function UsersPage() {
 
   const isAdmin = useMemo(() => !isLoadingUser && currentUser?.role === 'Admin', [currentUser, isLoadingUser]);
 
-  const teacherSubjects = useMemo(() => {
-    if (isLoadingUser || !subjects || !currentUser) return [];
-    if (isAdmin) return subjects;
-    
-    // A teacher should be able to see all subjects to assign them.
-    if (currentUser.role === 'Teacher') {
-       return subjects;
+  // This is the list of subjects that can be assigned.
+  // Admins and Teachers should be able to see all subjects for assignment purposes.
+  const assignableSubjects = useMemo(() => {
+    if (isLoadingSubjects || !allSubjects) return [];
+    if (isAdmin || currentUser?.role === 'Teacher') {
+      return allSubjects;
     }
     return [];
-  }, [subjects, currentUser, isAdmin, isLoadingUser]);
+  }, [allSubjects, currentUser, isAdmin, isLoadingSubjects]);
 
-  const teacherSubjectIds = useMemo(() => teacherSubjects.map(s => s.id), [teacherSubjects]);
-
+  // This is the list of students/users to display in the table.
   const filteredUsers = useMemo(() => {
     if (isLoading || !allUsers || !currentUser) return [];
     
@@ -62,8 +60,9 @@ export default function UsersPage() {
       return allUsers.filter(u => u.id !== currentUser.uid && u.role !== 'Admin');
     }
     
-    // Teachers see students in their subjects
-    if (currentUser.role === 'Teacher') {
+    // Teachers see students assigned to their subjects.
+    if (currentUser.role === 'Teacher' && assignableSubjects.length > 0) {
+      const teacherSubjectIds = assignableSubjects.map(s => s.id);
       return allUsers.filter(u => 
         u.role === 'Student' &&
         Array.isArray(u.subjects) &&
@@ -72,7 +71,7 @@ export default function UsersPage() {
     }
 
     return [];
-  }, [allUsers, currentUser, teacherSubjectIds, isAdmin, isLoading]);
+  }, [allUsers, currentUser, assignableSubjects, isAdmin, isLoading]);
 
 
   const handleAddUser = async (
@@ -261,7 +260,7 @@ export default function UsersPage() {
       return <p className="text-destructive">Error loading users: {usersError.message}</p>;
     }
 
-    return <UsersTable users={filteredUsers} isAdmin={isAdmin} onEditUser={handleEditUser} onDeleteUser={handleDeleteUser} subjects={subjects || []} />;
+    return <UsersTable users={filteredUsers} isAdmin={isAdmin} onEditUser={handleEditUser} onDeleteUser={handleDeleteUser} subjects={allSubjects || []} />;
   };
 
   const pageTitle = isAdmin ? "User Management" : "Student Management";
@@ -285,11 +284,11 @@ export default function UsersPage() {
         <div className="flex gap-2">
           {isAdmin ? (
             <>
-              <AddTeacherDialog onAddTeacher={handleAddTeacher} subjects={subjects || []} />
-              <AddUserDialog onAddUser={handleAddUser} subjects={subjects || []} />
+              <AddTeacherDialog onAddTeacher={handleAddTeacher} subjects={assignableSubjects} />
+              <AddUserDialog onAddUser={handleAddUser} subjects={assignableSubjects} />
             </>
           ) : (
-            <AddUserDialog onAddUser={handleAddUser} subjects={teacherSubjects} />
+            <AddUserDialog onAddUser={handleAddUser} subjects={assignableSubjects} />
           )}
         </div>
       </div>
