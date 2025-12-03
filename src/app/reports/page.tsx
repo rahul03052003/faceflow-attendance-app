@@ -45,9 +45,9 @@ export default function ReportsPage() {
         <h1 className="text-3xl font-bold tracking-tight">
           Attendance Reports
         </h1>
-        <p className="text-muted-foreground">
-          {isLoading ? <Skeleton className="h-5 w-72" /> : (isAdmin ? "View detailed attendance records for all classes." : "View detailed attendance records for your subjects.")}
-        </p>
+        <div className="text-muted-foreground">
+          {isLoading ? <Skeleton className="h-5 w-72" /> : <p>{(isAdmin ? "View detailed attendance records for all classes." : "View detailed attendance records for your subjects.")}</p>}
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">

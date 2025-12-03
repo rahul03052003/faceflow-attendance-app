@@ -91,9 +91,13 @@ export default function Home() {
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground">
-          Welcome back! Here&apos;s a quick overview of your students and subjects.
-        </p>
+        <div className="text-muted-foreground">
+          {isLoading ? (
+            <Skeleton className="h-5 w-96" />
+          ) : (
+            <p>Welcome back! Here&apos;s a quick overview of your students and subjects.</p>
+          )}
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
