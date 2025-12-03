@@ -32,9 +32,9 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       
       // Admins can create any user.
-      // Teachers can create Students.
+      // Authenticated users (Teachers) can create Students.
       allow create: if isAuthenticated() && 
-                    (isAdmin() || (isTeacher() && request.resource.data.role == 'Student'));
+                    (isAdmin() || request.resource.data.role == 'Student');
 
       // Admins can update any user.
       // Teachers can update Students.
@@ -94,3 +94,4 @@ service cloud.firestore {
     }
   }
 }
+
