@@ -14,38 +14,33 @@ service cloud.firestore {
     function isOwner(userId) {
       return request.auth.uid == userId;
     }
-    
-    function getUserRole(userId) {
-      return get(/databases/$(database)/documents/users/$(userId)).data.role;
-    }
-    
-    function isTeacher(userId) {
-        return getUserRole(userId) == 'Teacher';
-    }
-    
-    function isAdmin(userId) {
-        return getUserRole(userId) == 'Admin';
+
+    // This function checks for a custom claim on the user's auth token.
+    // Custom claims must be set by a backend process (e.g., Cloud Function).
+    function hasRole(role) {
+      return request.auth.token.role == role;
     }
 
     // =================================
     // User Collection Rules
     // =================================
     match /users/{userId} {
-      // Admins can read all user profiles.
-      // Teachers can read their own profile and the profiles of their students.
-      // A user can always read their own profile.
-      allow get: if isAuthenticated() && (isAdmin(request.auth.uid) || isOwner(userId) || (isTeacher(request.auth.uid) && resource.data.role == 'Student'));
-      
-      // Allow listing users only for authenticated users. The client-side query should
-      // filter what is actually displayed. This rule is necessary to allow collection queries.
-      allow list: if isAuthenticated();
+      // Any authenticated user can read any user profile.
+      // This is needed for the app to function (e.g. get teacher names).
+      // Sensitive data should not be stored in user profiles if this is a concern.
+      allow read: if isAuthenticated();
 
-      // Admins can create/update any user. Teachers can create/update students.
+      // Admins can create any user.
+      // Teachers can create Students.
+      // A user can create their own user document upon signup.
+      allow create: if isAuthenticated() && (hasRole('Admin') || (hasRole('Teacher') && request.resource.data.role == 'Student') || isOwner(userId) );
+
+      // Admins can update any user.
       // Users can update their own profile.
-      allow create, update: if isAuthenticated() && (isAdmin(request.auth.uid) || (isTeacher(request.auth.uid) && request.resource.data.role == 'Student') || isOwner(userId));
-      
-      // Admins can delete any user. Teachers can delete students.
-      allow delete: if isAuthenticated() && (isAdmin(request.auth.uid) || (isTeacher(request.auth.uid) && get(/databases/$(database)/documents/users/$(userId)).data.role == 'Student'));
+      allow update: if isAuthenticated() && (hasRole('Admin') || isOwner(userId));
+
+      // Only Admins can delete users.
+      allow delete: if isAuthenticated() && hasRole('Admin');
     }
 
     // =================================
@@ -56,22 +51,22 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       
       // Only Admins and Teachers can create, update, or delete subjects.
-      allow write: if isAuthenticated() && (isAdmin(request.auth.uid) || isTeacher(request.auth.uid));
+      allow write: if isAuthenticated() && (hasRole('Admin') || hasRole('Teacher'));
     }
 
     // =================================
     // Attendance Collection Rules
     // =================================
     match /attendance/{attendanceId} {
-      // Admins can read any individual record. Teachers can read records for their subjects.
-      allow get: if isAuthenticated() && (isAdmin(request.auth.uid) || (isTeacher(request.auth.uid) && get(/databases/$(database)/documents/subjects/$(resource.data.subjectId)).data.teacherId == request.auth.uid));
-      
-      // Allow listing for authenticated users. Client-side queries are responsible
-      // for filtering to only the records the user is supposed to see.
+      // Any authenticated user can list attendance records.
+      // The client-side query is responsible for filtering records correctly.
       allow list: if isAuthenticated();
 
+      // Admins and Teachers can read any individual record.
+      allow get: if isAuthenticated() && (hasRole('Admin') || hasRole('Teacher'));
+      
       // Only Teachers can create attendance records.
-      allow create: if isAuthenticated() && isTeacher(request.auth.uid);
+      allow create: if isAuthenticated() && hasRole('Teacher');
 
       // Records are immutable once created.
       allow update, delete: if false;

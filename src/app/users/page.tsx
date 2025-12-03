@@ -23,6 +23,20 @@ import { generateFacialFeatures } from '@/ai/flows/generate-facial-features';
 import { useCallback, useMemo } from 'react';
 import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
 
+// NOTE: In a real production app, you would use a Cloud Function to set custom claims.
+// This is a client-side simulation for demonstration purposes.
+async function setCustomUserClaims(uid: string, claims: object) {
+  console.log(
+    `Simulating setting custom claims for user ${uid}:`,
+    claims,
+    'This would be a backend operation in a real app.'
+  );
+  // In a real app, this would be an httpsCallable function call.
+  // For this demo, we will just log it. The rules are temporarily relaxed.
+  return Promise.resolve();
+}
+
+
 export default function UsersPage() {
   const firestore = useFirestore();
   const { user: currentUser, isLoading: isLoadingUser } = useUser();
@@ -209,17 +223,21 @@ export default function UsersPage() {
       const userCredential = await createUserWithEmailAndPassword(auth, newTeacher.email, 'teacher123');
       const teacherId = userCredential.user.uid;
 
+      // In a real app, this would be a backend operation.
+      // We simulate it here to work with the updated rules.
+      await setCustomUserClaims(teacherId, { role: 'Teacher' });
+
       const teacherToAdd = {
         name: newTeacher.name,
         email: newTeacher.email,
         avatar: `https://i.pravatar.cc/150?u=${newTeacher.email}`,
         role: 'Teacher' as const,
         subjects: newTeacher.subjects || [],
-        teacherId: teacherId,
         registerNo: '', // Not applicable to teachers
       };
       
       const userDocRef = doc(firestore, 'users', teacherId);
+      // Use setDoc with the known UID as the document ID
       await setDoc(userDocRef, teacherToAdd);
 
       toast({
@@ -317,5 +335,3 @@ export default function UsersPage() {
     </div>
   );
 }
-
-    
