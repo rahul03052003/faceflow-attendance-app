@@ -45,8 +45,7 @@ export default function UsersPage() {
     if (isLoadingUser || !subjects || !currentUser) return [];
     if (isAdmin) return subjects;
     
-    // If a teacher, show all subjects if teacherId is not being used to filter.
-    // This ensures teachers can see and assign students to any subject.
+    // A teacher should be able to see all subjects to assign them.
     if (currentUser.role === 'Teacher') {
        return subjects;
     }
@@ -307,5 +306,3 @@ export default function UsersPage() {
     </div>
   );
 }
-
-    
