@@ -15,16 +15,13 @@ service cloud.firestore {
       return request.auth.uid == userId;
     }
 
-    function getUserRole(userId) {
-      return get(/databases/$(database)/documents/users/$(userId)).data.role;
+    // Check for a custom claim 'role' on the user's auth token.
+    function isTeacher() {
+      return request.auth.token.role == 'Teacher';
     }
 
-    function isTeacher(userId) {
-      return getUserRole(userId) == 'Teacher';
-    }
-
-    function isAdmin(userId) {
-      return getUserRole(userId) == 'Admin';
+    function isAdmin() {
+      return request.auth.token.role == 'Admin';
     }
 
 
@@ -34,16 +31,21 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if isAuthenticated();
       
+      // Admins can create any user.
+      // Teachers can create Students.
       allow create: if isAuthenticated() && 
-                    (isAdmin(request.auth.uid) || 
-                     (isTeacher(request.auth.uid) && request.resource.data.role == 'Student'));
+                    (isAdmin() || (isTeacher() && request.resource.data.role == 'Student'));
 
+      // Admins can update any user.
+      // Teachers can update Students.
+      // Any user can update their own profile.
       allow update: if isAuthenticated() && 
-                    (isAdmin(request.auth.uid) || 
-                     isOwner(userId) || 
-                     (isTeacher(request.auth.uid) && resource.data.role == 'Student'));
+                    (isAdmin() || 
+                     isOwner(userId) ||
+                     (isTeacher() && resource.data.role == 'Student')
+                     );
 
-      allow delete: if isAuthenticated() && isAdmin(request.auth.uid);
+      allow delete: if isAuthenticated() && isAdmin();
     }
 
     // =================================
@@ -53,23 +55,23 @@ service cloud.firestore {
       // Any authenticated user can read subjects.
       allow read: if isAuthenticated();
 
-      // Admins can create any subject.
-      // Teachers can only create subjects where they are the assigned teacher.
+      // Admins and Teachers can create subjects.
+      // For teachers, the teacherId must match their own uid.
       allow create: if isAuthenticated() &&
-                    (isAdmin(request.auth.uid) ||
-                     request.auth.uid == request.resource.data.teacherId);
+                    (isAdmin() || 
+                    (isTeacher() && request.auth.uid == request.resource.data.teacherId));
       
       // Admins can update any subject.
       // Teachers can only update subjects they are assigned to.
       allow update: if isAuthenticated() &&
-                    (isAdmin(request.auth.uid) ||
-                     request.auth.uid == resource.data.teacherId);
+                    (isAdmin() || 
+                    (isTeacher() && request.auth.uid == resource.data.teacherId));
 
       // Admins can delete any subject.
       // Teachers can only delete subjects they are assigned to.
       allow delete: if isAuthenticated() &&
-                    (isAdmin(request.auth.uid) ||
-                     request.auth.uid == resource.data.teacherId);
+                    (isAdmin() || 
+                    (isTeacher() && request.auth.uid == resource.data.teacherId));
     }
 
     // =================================
@@ -77,15 +79,14 @@ service cloud.firestore {
     // =================================
     match /attendance/{attendanceId} {
       // Authenticated users can list attendance records.
-      // Client-side queries are responsible for filtering to only the records the user should see.
       allow list: if isAuthenticated();
 
       // Admins and Teachers can read any individual record.
-      allow get: if isAuthenticated() && (isAdmin(request.auth.uid) || isTeacher(request.auth.uid));
+      allow get: if isAuthenticated() && (isAdmin() || isTeacher());
 
       // A teacher can create an attendance record for one of their subjects.
       allow create: if isAuthenticated() && 
-                    isTeacher(request.auth.uid) &&
+                    isTeacher() &&
                     get(/databases/$(database)/documents/subjects/$(request.resource.data.subjectId)).data.teacherId == request.auth.uid;
       
       // Records are immutable once created.
@@ -93,4 +94,3 @@ service cloud.firestore {
     }
   }
 }
-
