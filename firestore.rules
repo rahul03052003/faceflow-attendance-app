@@ -8,29 +8,32 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Helper function to get user's role from the users collection
+    // Helper function to get user's role from their own document
     function getUserRole(userId) {
       return get(/databases/$(database)/documents/users/$(userId)).data.role;
     }
 
-    // Helper function to check if the user is an Admin
+    // Helper function to check if the requesting user is an Admin
     function isAdmin() {
       return isAuthenticated() && getUserRole(request.auth.uid) == 'Admin';
     }
     
-    // Helper function to check if the user is a Teacher
+    // Helper function to check if the requesting user is a Teacher
     function isTeacher() {
       return isAuthenticated() && getUserRole(request.auth.uid) == 'Teacher';
     }
 
     // Rules for the 'users' collection
     match /users/{userId} {
-      // Admins and Teachers can read all user profiles
-      // Students can only read their own profile
-      allow get, list: if isTeacher() || isAdmin() || request.auth.uid == userId;
+      // Allow a user to read their own document.
+      allow get: if isAuthenticated() && request.auth.uid == userId;
 
-      // Admins can create/update/delete any user
-      // Teachers can create/update students
+      // Allow Admins and Teachers to read all user documents.
+      allow list: if isAdmin() || isTeacher();
+
+      // Admins can create/update/delete any user.
+      // Teachers can create/update students.
+      // Users can update their own profile (if needed, currently not used).
       allow write: if isAdmin() || (isTeacher() && request.resource.data.role == 'Student');
     }
 
@@ -44,7 +47,8 @@ service cloud.firestore {
 
     // Rules for the 'attendance' collection
     match /attendance/{attendanceId} {
-      // Any authenticated user can read the attendance records
+      // Any authenticated user can read the attendance records.
+      // A more granular rule might be needed here in a real app (e.g., only their own or their students').
       allow read: if isAuthenticated();
       // Teachers can create new attendance records
       allow create: if isTeacher();
