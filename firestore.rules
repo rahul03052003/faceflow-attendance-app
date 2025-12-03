@@ -11,23 +11,18 @@ service cloud.firestore {
 
     // Helper function to check if the requesting user has the 'Admin' role
     function isAdmin() {
-      return isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
+      return isAuthenticated() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
     }
     
     // Helper function to check if the requesting user has the 'Teacher' role
     function isTeacher() {
-      return isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Teacher';
+      return isAuthenticated() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Teacher';
     }
 
     // Rules for the 'users' collection
     match /users/{userId} {
-      // A user can read their own document. Admins and Teachers can also read any user document.
-      allow get: if isAuthenticated() && (request.auth.uid == userId || isAdmin() || isTeacher());
-      
-      // Allow authenticated users to list the user collection.
-      // This is needed for functionality like populating user lists.
-      // The data accessible in a list query can be constrained by where clauses in the app code.
-      allow list: if isAuthenticated();
+      // A user can read/write their own document. Admins and Teachers can read any user document.
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin() || isTeacher());
 
       // Admins can write to any user.
       // Teachers can write to students.
