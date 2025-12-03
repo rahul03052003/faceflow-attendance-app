@@ -36,23 +36,44 @@ export default function Home() {
   const isLoading = isLoadingUser || isLoadingUsers || isLoadingRecords || isLoadingSubjects;
 
   const teacherSubjectIds = useMemo(() => {
-    if (!allSubjects || !teacher) return [];
+    if (!allSubjects || !teacher || teacher.role !== 'Teacher') return [];
     return allSubjects.filter(s => s.teacherId === teacher.uid).map(s => s.id);
   }, [allSubjects, teacher]);
 
   const teacherStudents = useMemo(() => {
-    if (!allUsers || teacherSubjectIds.length === 0) return [];
-    return allUsers.filter(u => 
-      u.role === 'Student' && 
-      Array.isArray(u.subjects) && 
-      u.subjects.some(subId => teacherSubjectIds.includes(subId))
-    );
-  }, [allUsers, teacherSubjectIds]);
+    if (isLoadingUser || isLoadingUsers || !allUsers || !teacher) return [];
+    
+    if (teacher.role === 'Admin') {
+      return allUsers.filter(u => u.role === 'Student');
+    }
+
+    if (teacher.role === 'Teacher') {
+        if (teacherSubjectIds.length === 0) return [];
+        return allUsers.filter(u => 
+        u.role === 'Student' && 
+        Array.isArray(u.subjects) && 
+        u.subjects.some(subId => teacherSubjectIds.includes(subId))
+      );
+    }
+    
+    return [];
+  }, [allUsers, teacherSubjectIds, teacher, isLoadingUser, isLoadingUsers]);
+
 
   const teacherAttendance = useMemo(() => {
-    if (!allAttendance || teacherSubjectIds.length === 0) return [];
-    return allAttendance.filter(att => teacherSubjectIds.includes(att.subjectId));
-  }, [allAttendance, teacherSubjectIds]);
+    if (isLoadingUser || isLoadingRecords || !allAttendance || !teacher) return [];
+
+    if (teacher.role === 'Admin') {
+      return allAttendance;
+    }
+
+    if (teacher.role === 'Teacher') {
+      if (teacherSubjectIds.length === 0) return [];
+      return allAttendance.filter(att => teacherSubjectIds.includes(att.subjectId));
+    }
+    
+    return [];
+  }, [allAttendance, teacherSubjectIds, teacher, isLoadingUser, isLoadingRecords]);
   
   const getTodaysAttendance = () => {
     if (!teacherAttendance) return 0;
@@ -141,7 +162,7 @@ export default function Home() {
               <Skeleton className="h-full w-full" />
             </div>
           ) : (
-            <EmotionChart attendanceRecords={teacherAttendance} />
+            <EmotionChart attendanceRecords={teacherAttendance || []} />
           )}
         </CardContent>
       </Card>

@@ -24,17 +24,17 @@ export default function ReportsPage() {
 
   const isLoading = isLoadingUser || isLoadingRecords || isLoadingSubjects;
   
-  const isAdmin = useMemo(() => !isLoading && currentUser?.role === 'Admin', [currentUser, isLoading]);
+  const isAdmin = useMemo(() => !isLoadingUser && currentUser?.role === 'Admin', [currentUser, isLoadingUser]);
 
   const teacherSubjectIds = useMemo(() => {
-    if (isLoading || isAdmin || !allSubjects || !currentUser) return [];
+    if (isLoadingUser || isAdmin || !allSubjects || !currentUser) return [];
     return allSubjects.filter(s => s.teacherId === currentUser.uid).map(s => s.id);
-  }, [allSubjects, currentUser, isAdmin, isLoading]);
+  }, [allSubjects, currentUser, isAdmin, isLoadingUser]);
 
   const filteredAttendance = useMemo(() => {
-    if (isLoading) return [];
-    if (isAdmin) return allAttendance || [];
-    if (!allAttendance || teacherSubjectIds.length === 0) return [];
+    if (isLoading || !allAttendance) return [];
+    if (isAdmin) return allAttendance;
+    if (teacherSubjectIds.length === 0) return [];
     return allAttendance.filter(att => teacherSubjectIds.includes(att.subjectId));
   }, [allAttendance, teacherSubjectIds, isAdmin, isLoading]);
 

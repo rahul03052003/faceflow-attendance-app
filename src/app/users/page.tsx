@@ -39,14 +39,16 @@ export default function UsersPage() {
   
   const isLoading = isLoadingUser || isLoadingUsers || isLoadingSubjects;
 
-  const isAdmin = useMemo(() => !isLoading && currentUser?.role === 'Admin', [currentUser, isLoading]);
+  const isAdmin = useMemo(() => !isLoadingUser && currentUser?.role === 'Admin', [currentUser, isLoadingUser]);
 
   const teacherSubjects = useMemo(() => {
-    if (isLoading || !subjects) return [];
+    if (isLoadingUser || !subjects || !currentUser) return [];
     if (isAdmin) return subjects;
-    if (!currentUser) return [];
-    return subjects.filter(s => s.teacherId === currentUser.uid);
-  }, [subjects, currentUser, isAdmin, isLoading]);
+    if (currentUser.role === 'Teacher') {
+       return subjects.filter(s => s.teacherId === currentUser.uid);
+    }
+    return [];
+  }, [subjects, currentUser, isAdmin, isLoadingUser]);
 
   const teacherSubjectIds = useMemo(() => teacherSubjects.map(s => s.id), [teacherSubjects]);
 
@@ -55,14 +57,19 @@ export default function UsersPage() {
     
     if (isAdmin) {
       // Admins see all users except themselves for safety
-      return allUsers.filter(u => u.id !== currentUser.uid);
+      return allUsers.filter(u => u.id !== currentUser.uid && u.role !== 'Admin');
     }
     
     // Teachers see students in their subjects
-    return allUsers.filter(u => 
-      u.role === 'Student' &&
-      u.subjects?.some(subId => teacherSubjectIds.includes(subId))
-    );
+    if (currentUser.role === 'Teacher') {
+      return allUsers.filter(u => 
+        u.role === 'Student' &&
+        Array.isArray(u.subjects) &&
+        u.subjects.some(subId => teacherSubjectIds.includes(subId))
+      );
+    }
+
+    return [];
   }, [allUsers, currentUser, teacherSubjectIds, isAdmin, isLoading]);
 
 
