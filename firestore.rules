@@ -9,48 +9,45 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Helper function to check if the requesting user is an Admin
+    // Helper function to check if the requesting user has the 'Admin' role
     function isAdmin() {
-      return isAuthenticated() && request.auth.token.role == 'Admin';
+      return isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
     }
     
-    // Helper function to check if the requesting user is a Teacher
+    // Helper function to check if the requesting user has the 'Teacher' role
     function isTeacher() {
-      return isAuthenticated() && request.auth.token.role == 'Teacher';
+      return isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Teacher';
     }
 
     // Rules for the 'users' collection
     match /users/{userId} {
-      // Allow any authenticated user to list the collection.
-      // This is necessary for the dashboard, reports, and user management pages.
-      // The more restrictive 'get' rule below prevents them from reading sensitive data from other users' documents.
+      // Any authenticated user can list the collection (but not read sensitive data from documents).
       allow list: if isAuthenticated();
-
-      // Allow a user to read their own document.
-      allow get: if isAuthenticated() && request.auth.uid == userId;
       
-      // Admins can create/update/delete any user.
-      // Teachers can create/update students.
-      // Users can update their own profile (if needed, currently not used).
-      allow write: if isAdmin() || (isTeacher() && request.resource.data.role == 'Student');
+      // A user can read their own document, and Admins/Teachers can read user documents.
+      allow get: if isAuthenticated() && (request.auth.uid == userId || isAdmin() || isTeacher());
+      
+      // Admins can write to any user.
+      // Teachers can write to students.
+      // Users can update their own profile.
+      allow write: if (isAdmin() || (isTeacher() && request.resource.data.role == 'Student') || request.auth.uid == userId);
     }
 
     // Rules for the 'subjects' collection
     match /subjects/{subjectId} {
-      // Any authenticated user can read all subjects
+      // Any authenticated user can read all subjects.
       allow read: if isAuthenticated();
-      // Only Teachers and Admins can create, update, and delete subjects
+      // Only Teachers and Admins can write subjects.
       allow write: if isTeacher() || isAdmin();
     }
 
     // Rules for the 'attendance' collection
     match /attendance/{attendanceId} {
-      // Any authenticated user can read the attendance records.
-      // This is required for the reports and dashboard pages.
+      // Any authenticated user can read attendance records for reports.
       allow read: if isAuthenticated();
-      // Teachers can create new attendance records
+      // Only Teachers can create new attendance records.
       allow create: if isTeacher();
-      // Attendance records are immutable once created
+      // Attendance records are immutable once created.
       allow update, delete: if false;
     }
   }
