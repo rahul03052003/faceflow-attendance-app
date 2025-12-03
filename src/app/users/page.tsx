@@ -99,11 +99,12 @@ export default function UsersPage() {
     newUser: Omit<User, 'id' | 'avatar' | 'role' | 'facialFeatures'> & { photo?: File, photoPreview?: string, subjects?: string[] }
   ) => {
     
+    const avatarUrl = newUser.photoPreview || `https://i.pravatar.cc/150?u=${newUser.email}`;
     const userToAdd = {
       name: newUser.name,
       email: newUser.email,
       registerNo: newUser.registerNo,
-      avatar: newUser.photoPreview || `https://i.pravatar.cc/150?u=${newUser.email}`,
+      avatar: avatarUrl,
       role: 'Student' as const,
       subjects: newUser.subjects || [],
       facialFeatures: null,
@@ -116,30 +117,25 @@ export default function UsersPage() {
 
         toast({
           title: 'User Added',
-          description: `${newUser.name} has been added to the database.`,
+          description: `${newUser.name} has been added. Generating facial features...`,
         });
 
-        if (newUser.photoPreview) {
-            toast({
-              title: 'Analyzing Photo...',
-              description: 'Generating facial features for recognition. This may take a moment.',
+        try {
+            const { vector } = await generateFacialFeatures({ photoDataUri: avatarUrl });
+            await updateDoc(docRef, { facialFeatures: vector });
+             toast({
+                title: 'AI Analysis Complete',
+                description: `Facial features for ${newUser.name} have been saved.`,
             });
-            try {
-                const { vector } = await generateFacialFeatures({ photoDataUri: newUser.photoPreview });
-                await updateDoc(docRef, { facialFeatures: vector });
-                 toast({
-                    title: 'AI Analysis Complete',
-                    description: `Facial features for ${newUser.name} have been saved.`,
-                });
-            } catch (e) {
-                console.error("Failed to generate facial features:", e);
-                toast({
-                    variant: "destructive",
-                    title: "AI Analysis Failed",
-                    description: "Could not analyze the user's photo. The user has been added, but recognition may fail."
-                })
-            }
+        } catch (e) {
+            console.error("Failed to generate facial features:", e);
+            toast({
+                variant: "destructive",
+                title: "AI Analysis Failed",
+                description: "Could not analyze the user's photo. The user has been added, but recognition may fail."
+            })
         }
+
     } catch (serverError) {
          const permissionError = new FirestorePermissionError({
             path: collectionRef.path,
@@ -163,8 +159,10 @@ export default function UsersPage() {
     };
     
     let photoChanged = false;
+    let newAvatarUrl = '';
     if (updatedUser.photoPreview) {
         userToUpdate.avatar = updatedUser.photoPreview;
+        newAvatarUrl = updatedUser.photoPreview;
         photoChanged = true;
     }
 
@@ -181,7 +179,7 @@ export default function UsersPage() {
               description: 'Generating new facial features for recognition.',
             });
             try {
-                const { vector } = await generateFacialFeatures({ photoDataUri: updatedUser.photoPreview! });
+                const { vector } = await generateFacialFeatures({ photoDataUri: newAvatarUrl });
                 await updateDoc(docRef, { facialFeatures: vector });
                 toast({
                     title: 'AI Analysis Complete',
