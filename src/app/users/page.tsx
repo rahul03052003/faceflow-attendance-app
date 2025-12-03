@@ -60,7 +60,9 @@ export default function UsersPage() {
 
 
   const filteredUsers = useMemo(() => {
-    if (isLoadingUser || isLoadingUsers || !allUsers || !currentUser) return [];
+    if (isLoadingUser || isLoadingUsers || !allUsers || !currentUser) {
+      return [];
+    }
 
     if (currentUser.role === 'Admin') {
       return allUsers.filter(u => u.role === 'Teacher');
@@ -303,3 +305,5 @@ export default function UsersPage() {
     </div>
   );
 }
+
+    
