@@ -46,7 +46,7 @@ service cloud.firestore {
     // Rules for the 'attendance' collection
     match /attendance/{attendanceId} {
       // Any authenticated user can read the attendance records.
-      // A more granular rule might be needed here in a real app (e.g., only their own or their students').
+      // This is required for the reports and dashboard pages.
       allow read: if isAuthenticated();
       // Teachers can create new attendance records
       allow create: if isTeacher();
