@@ -273,7 +273,7 @@ export default function UsersPage() {
   const cardTitle = isAdmin ? "Teacher List" : "Student List";
   const cardDescription = isAdmin
     ? "A list of all teachers in the system."
-    : "A list of all students assigned to your subjects.";
+    : "A list of all students in the system.";
 
   return (
     <div className="flex flex-col gap-8">
