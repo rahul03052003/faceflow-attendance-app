@@ -63,8 +63,11 @@ service cloud.firestore {
     // Attendance Collection Rules
     // =================================
     match /attendance/{attendanceId} {
-      // Admins and Teachers can read all attendance records, which will be filtered on the client.
-      allow read: if isAuthenticated() && (isAdmin(request.auth.uid) || isTeacher(request.auth.uid));
+      // Admins can read any individual record. Teachers can read records for their subjects.
+      allow get: if isAuthenticated() && (isAdmin(request.auth.uid) || (isTeacher(request.auth.uid) && get(/databases/$(database)/documents/subjects/$(resource.data.subjectId)).data.teacherId == request.auth.uid));
+      
+      // Teachers can list records for their subjects. Admins can list all records.
+      allow list: if isAuthenticated() && (isAdmin(request.auth.uid) || isTeacher(request.auth.uid));
 
       // Only Teachers can create attendance records.
       allow create: if isAuthenticated() && isTeacher(request.auth.uid);
