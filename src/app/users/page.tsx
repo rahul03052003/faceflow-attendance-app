@@ -88,22 +88,11 @@ export default function UsersPage() {
     }
 
     if (currentUser.role === 'Teacher') {
-      if (!allSubjects) return [];
-       const teacherSubjectIds = allSubjects
-        .filter(s => s.teacherId === currentUser.uid)
-        .map(s => s.id);
-
-       if (teacherSubjectIds.length === 0) return [];
-       
-       return allUsers.filter(u => 
-        u.role === 'Student' && 
-        Array.isArray(u.subjects) && 
-        u.subjects.some(subId => teacherSubjectIds.includes(subId))
-       );
+       return allUsers.filter(u => u.role === 'Student');
     }
 
     return [];
-  }, [allUsers, currentUser, allSubjects, isLoading]);
+  }, [allUsers, currentUser, isLoading]);
 
 
   const handleAddUser = async (
@@ -303,11 +292,11 @@ export default function UsersPage() {
   const pageTitle = isAdmin ? "Teacher Management" : "Student Management";
   const pageDescription = isAdmin
     ? "Add and manage all teachers and admins in the system."
-    : "View and manage students assigned to your subjects.";
+    : "View and manage all students in the system.";
   const cardTitle = isAdmin ? "User List" : "Student List";
   const cardDescription = isAdmin
     ? "A list of all teachers and admins in the system."
-    : "A list of all students assigned to your subjects.";
+    : "A list of all students in the system.";
 
   return (
     <div className="flex flex-col gap-8">
