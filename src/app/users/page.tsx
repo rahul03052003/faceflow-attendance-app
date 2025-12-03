@@ -72,8 +72,10 @@ export default function UsersPage() {
 
   const assignableSubjects = useMemo(() => {
     if (isLoadingSubjects || !allSubjects) return [];
-    return allSubjects;
-  }, [allSubjects, isLoadingSubjects]);
+    if (isAdmin) return allSubjects;
+    // For teachers, only show subjects they teach
+    return allSubjects.filter(s => s.teacherId === currentUser?.uid);
+  }, [allSubjects, isLoadingSubjects, isAdmin, currentUser]);
 
 
   const filteredUsers = useMemo(() => {
@@ -82,7 +84,7 @@ export default function UsersPage() {
     }
   
     if (currentUser.role === 'Admin') {
-      return allUsers.filter(u => u.role === 'Teacher');
+      return allUsers.filter(u => u.role === 'Teacher' || u.role === 'Admin');
     }
     
     if (currentUser.role === 'Teacher') {
@@ -298,11 +300,11 @@ export default function UsersPage() {
 
   const pageTitle = isAdmin ? "Teacher Management" : "Student Management";
   const pageDescription = isAdmin
-    ? "Add and manage all teachers in the system."
+    ? "Add and manage all teachers and admins in the system."
     : "View and manage students assigned to your subjects.";
-  const cardTitle = isAdmin ? "Teacher List" : "Student List";
+  const cardTitle = isAdmin ? "User List" : "Student List";
   const cardDescription = isAdmin
-    ? "A list of all teachers in the system."
+    ? "A list of all teachers and admins in the system."
     : "A list of all students assigned to your subjects.";
 
   return (
@@ -315,7 +317,9 @@ export default function UsersPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          {isAdmin ? (
+          {isLoading ? (
+            <Skeleton className="h-10 w-36" />
+          ) : isAdmin ? (
             <AddTeacherDialog onAddTeacher={handleAddTeacher} subjects={assignableSubjects} />
           ) : (
             <AddUserDialog onAddUser={handleAddUser} subjects={assignableSubjects} />
