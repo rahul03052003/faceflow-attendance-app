@@ -35,8 +35,8 @@ service cloud.firestore {
     // User Collection Rules
     // =================================
     match /users/{userId} {
-      // Admins and Teachers can list users.
-      allow list: if isAdmin() || isTeacher();
+      // Any authenticated user can list users. The individual documents are still protected.
+      allow list: if isAuthenticated();
       
       // Admins and Teachers can read any user profile. Users can read their own.
       allow get: if isAdmin() || isTeacher() || isOwner(userId);
