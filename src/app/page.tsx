@@ -36,19 +36,23 @@ export default function Home() {
   const isLoading = isLoadingUser || isLoadingUsers || isLoadingRecords || isLoadingSubjects;
 
   const teacherSubjectIds = useMemo(() => {
-    if (isLoading || !allSubjects || !teacher) return [];
+    if (!allSubjects || !teacher) return [];
     return allSubjects.filter(s => s.teacherId === teacher.uid).map(s => s.id);
-  }, [allSubjects, teacher, isLoading]);
+  }, [allSubjects, teacher]);
 
   const teacherStudents = useMemo(() => {
-    if (isLoading || !allUsers || teacherSubjectIds.length === 0) return [];
-    return allUsers.filter(u => u.role === 'Student' && u.subjects?.some(subId => teacherSubjectIds.includes(subId)));
-  }, [allUsers, teacherSubjectIds, isLoading]);
+    if (!allUsers || teacherSubjectIds.length === 0) return [];
+    return allUsers.filter(u => 
+      u.role === 'Student' && 
+      Array.isArray(u.subjects) && 
+      u.subjects.some(subId => teacherSubjectIds.includes(subId))
+    );
+  }, [allUsers, teacherSubjectIds]);
 
   const teacherAttendance = useMemo(() => {
-    if (isLoading || !allAttendance || teacherSubjectIds.length === 0) return [];
+    if (!allAttendance || teacherSubjectIds.length === 0) return [];
     return allAttendance.filter(att => teacherSubjectIds.includes(att.subjectId));
-  }, [allAttendance, teacherSubjectIds, isLoading]);
+  }, [allAttendance, teacherSubjectIds]);
   
   const getTodaysAttendance = () => {
     if (!teacherAttendance) return 0;
