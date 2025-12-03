@@ -1,3 +1,4 @@
+
 rules_version = '2';
 
 service cloud.firestore {
@@ -28,9 +29,9 @@ service cloud.firestore {
       // Allow a user to read their own document.
       allow get: if isAuthenticated() && request.auth.uid == userId;
 
-      // Allow Admins and Teachers to read all user documents.
+      // Allow Admins and Teachers to read other user documents.
       allow list: if isAdmin() || isTeacher();
-
+      
       // Admins can create/update/delete any user.
       // Teachers can create/update students.
       // Users can update their own profile (if needed, currently not used).
@@ -39,9 +40,9 @@ service cloud.firestore {
 
     // Rules for the 'subjects' collection
     match /subjects/{subjectId} {
-      // Teachers and Admins can read all subjects
-      allow get, list: if isTeacher() || isAdmin();
-      // Teachers and Admins can create, update, and delete subjects
+      // Any authenticated user can read all subjects
+      allow read: if isAuthenticated();
+      // Only Teachers and Admins can create, update, and delete subjects
       allow write: if isTeacher() || isAdmin();
     }
 
