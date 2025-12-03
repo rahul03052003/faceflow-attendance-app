@@ -11,12 +11,12 @@ service cloud.firestore {
 
     // Helper function to check if the requesting user has the 'Admin' role
     function isAdmin() {
-      return isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
+      return isAuthenticated() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
     }
     
     // Helper function to check if the requesting user has the 'Teacher' role
     function isTeacher() {
-      return isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Teacher';
+      return isAuthenticated() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Teacher';
     }
 
     // Rules for the 'users' collection
