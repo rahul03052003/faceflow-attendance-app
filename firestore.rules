@@ -12,36 +12,34 @@ service cloud.firestore {
       return request.auth.uid == userId;
     }
 
-    function getUserData(userId) {
-      return get(/databases/$(database)/documents/users/$(userId)).data;
+    function isTeacher() {
+      return isAuthenticated() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Teacher';
     }
 
     function isAdmin() {
-      return isAuthenticated() && getUserData(request.auth.uid).role == 'Admin';
+      return isAuthenticated() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
     }
-
-    function isTeacher() {
-      return isAuthenticated() && getUserData(request.auth.uid).role == 'Teacher';
+    
+    function incomingData() {
+        return request.resource.data;
     }
     
     function isStudent(userId) {
-      return getUserData(userId).role == 'Student';
+      return exists(/databases/$(database)/documents/users/$(userId)) && get(/databases/$(database)/documents/users/$(userId)).data.role == 'Student';
     }
 
     match /users/{userId} {
-      // Any authenticated user can see the list of users.
-      // Specific document access is controlled by 'get' and 'write' rules.
-      allow list: if isAuthenticated();
+      // Admins and Teachers can list users.
+      allow list: if isAdmin() || isTeacher();
       
       // Admins and teachers can read any user profile. Users can read their own.
       allow get: if isAdmin() || isTeacher() || isOwner(userId);
 
-      // Admins can create/update/delete any user.
-      // Teachers can create/update/delete students.
-      // Users can update their own profile.
-      allow write: if isAdmin() 
-                   || (isTeacher() && isStudent(userId))
-                   || isOwner(userId);
+      // Admins can create/update any user. Teachers can create/update students. Users can update their own profile.
+      allow create, update: if isAdmin() || (isTeacher() && incomingData().role == 'Student') || isOwner(userId);
+      
+      // Admins can delete any user. Teachers can delete students.
+      allow delete: if isAdmin() || (isTeacher() && isStudent(userId));
     }
 
     match /subjects/{subjectId} {
