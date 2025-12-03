@@ -1,6 +1,6 @@
 
 'use client';
-import type { Subject } from '@/lib/types';
+import type { Subject, User } from '@/lib/types';
 import {
   Table,
   TableBody,
@@ -9,7 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { MoreHorizontal, Ban } from 'lucide-react';
+import { MoreHorizontal } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,13 +34,21 @@ import { useToast } from '@/hooks/use-toast';
 
 type SubjectsTableProps = {
   subjects: Subject[];
+  users: User[];
+  isAdmin?: boolean;
   onDeleteSubject: (subjectId: string) => void;
 };
 
-export function SubjectsTable({ subjects, onDeleteSubject }: SubjectsTableProps) {
+export function SubjectsTable({ subjects, users, isAdmin = false, onDeleteSubject }: SubjectsTableProps) {
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [subjectToDelete, setSubjectToDelete] = useState<Subject | null>(null);
   const { toast } = useToast();
+
+  const getTeacherName = (teacherId?: string) => {
+    if (!teacherId) return 'Unassigned';
+    const teacher = users.find(u => u.id === teacherId);
+    return teacher ? teacher.name : 'Unknown Teacher';
+  };
 
   const handleDeleteClick = (subject: Subject) => {
     setSubjectToDelete(subject);
@@ -74,6 +82,7 @@ export function SubjectsTable({ subjects, onDeleteSubject }: SubjectsTableProps)
           <TableRow>
             <TableHead>Title</TableHead>
             <TableHead>Code</TableHead>
+            {isAdmin && <TableHead>Teacher</TableHead>}
             <TableHead>
               <span className="sr-only">Actions</span>
             </TableHead>
@@ -84,6 +93,7 @@ export function SubjectsTable({ subjects, onDeleteSubject }: SubjectsTableProps)
             <TableRow key={subject.id}>
               <TableCell className="font-medium">{subject.title}</TableCell>
               <TableCell>{subject.code}</TableCell>
+              {isAdmin && <TableCell>{getTeacherName(subject.teacherId)}</TableCell>}
               <TableCell className="text-right">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -111,7 +121,7 @@ export function SubjectsTable({ subjects, onDeleteSubject }: SubjectsTableProps)
           ))}
            {subjects.length === 0 && (
             <TableRow>
-              <TableCell colSpan={3} className="h-24 text-center">
+              <TableCell colSpan={isAdmin ? 4 : 3} className="h-24 text-center">
                 No subjects found. Add a new one to get started.
               </TableCell>
             </TableRow>

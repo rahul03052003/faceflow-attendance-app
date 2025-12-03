@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/card';
 import { SubjectsTable } from '@/components/subjects/subjects-table';
 import { AddSubjectDialog } from '@/components/subjects/add-subject-dialog';
-import type { Subject } from '@/lib/types';
+import type { Subject, User } from '@/lib/types';
 import { useCollection, useUser } from '@/firebase';
 import { addDoc, collection, deleteDoc, doc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
@@ -21,7 +21,8 @@ import { useMemo } from 'react';
 
 export default function SubjectsPage() {
   const firestore = useFirestore();
-  const { user: teacher, isLoading: isLoadingUser } = useUser();
+  const { user: currentUser, isLoading: isLoadingUser } = useUser();
+  const { data: allUsers, isLoading: isLoadingUsers } = useCollection<User>('users');
 
   const {
     data: allSubjects,
@@ -29,19 +30,24 @@ export default function SubjectsPage() {
     error,
   } = useCollection<Subject>('subjects');
 
-  const isLoading = isLoadingUser || isLoadingSubjects;
+  const isLoading = isLoadingUser || isLoadingSubjects || isLoadingUsers;
 
-  const teacherSubjects = useMemo(() => {
-    if (isLoading || !allSubjects || !teacher) return [];
-    return allSubjects.filter(subject => subject.teacherId === teacher.uid);
-  }, [allSubjects, teacher, isLoading]);
+  const isAdmin = useMemo(() => currentUser?.role === 'Admin', [currentUser]);
+
+  const subjectsToDisplay = useMemo(() => {
+    if (isLoading || !allSubjects || !currentUser) return [];
+    if (isAdmin) {
+      return allSubjects;
+    }
+    return allSubjects.filter(subject => subject.teacherId === currentUser.uid);
+  }, [allSubjects, currentUser, isLoading, isAdmin]);
 
 
   const handleAddSubject = (
     newSubject: Omit<Subject, 'id' | 'teacherId'>
   ) => {
-    if (!teacher) return;
-    const subjectWithTeacher = { ...newSubject, teacherId: teacher.uid };
+    if (!currentUser) return;
+    const subjectWithTeacher = { ...newSubject, teacherId: currentUser.uid };
     const collectionRef = collection(firestore, 'subjects');
     addDoc(collectionRef, subjectWithTeacher).catch(async (serverError) => {
       const permissionError = new FirestorePermissionError({
@@ -79,7 +85,7 @@ export default function SubjectsPage() {
       return <p className="text-destructive">Error loading subjects: {error.message}</p>;
     }
 
-    return <SubjectsTable subjects={teacherSubjects} onDeleteSubject={handleDeleteSubject} />;
+    return <SubjectsTable subjects={subjectsToDisplay} users={allUsers || []} isAdmin={isAdmin} onDeleteSubject={handleDeleteSubject} />;
   };
 
   return (
@@ -88,17 +94,19 @@ export default function SubjectsPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Subject Management</h1>
           <p className="text-muted-foreground">
-            View, add, and manage subjects you teach.
+            {isAdmin ? "View, add, and manage all subjects." : "View, add, and manage subjects you teach."}
           </p>
         </div>
-        <AddSubjectDialog onAddSubject={handleAddSubject} />
+        {!isAdmin && <AddSubjectDialog onAddSubject={handleAddSubject} />}
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Your Subject List</CardTitle>
+          <CardTitle>
+            {isAdmin ? "All Subjects" : "Your Subject List"}
+          </CardTitle>
           <CardDescription>
-            A list of all subjects you are assigned to.
+            {isAdmin ? "A list of all subjects in the system." : "A list of all subjects you are assigned to teach."}
           </CardDescription>
         </CardHeader>
         <CardContent>{renderContent()}</CardContent>
