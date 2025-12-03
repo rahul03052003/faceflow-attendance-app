@@ -21,18 +21,20 @@ import { useMemo } from 'react';
 
 export default function SubjectsPage() {
   const firestore = useFirestore();
-  const { user: teacher } = useUser();
+  const { user: teacher, isLoading: isLoadingUser } = useUser();
 
   const {
-    data: subjects,
-    isLoading,
+    data: allSubjects,
+    isLoading: isLoadingSubjects,
     error,
   } = useCollection<Subject>('subjects');
 
+  const isLoading = isLoadingUser || isLoadingSubjects;
+
   const teacherSubjects = useMemo(() => {
-    if (!subjects || !teacher) return [];
-    return subjects.filter(subject => subject.teacherId === teacher.uid);
-  }, [subjects, teacher]);
+    if (isLoading || !allSubjects || !teacher) return [];
+    return allSubjects.filter(subject => subject.teacherId === teacher.uid);
+  }, [allSubjects, teacher, isLoading]);
 
 
   const handleAddSubject = (

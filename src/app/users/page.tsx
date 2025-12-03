@@ -39,17 +39,20 @@ export default function UsersPage() {
   
   const isLoading = isLoadingUser || isLoadingUsers || isLoadingSubjects;
 
-  const isAdmin = useMemo(() => !isLoadingUser && currentUser?.role === 'Admin', [currentUser, isLoadingUser]);
+  const isAdmin = useMemo(() => {
+    if (isLoadingUser || !currentUser) return false;
+    return currentUser.role === 'Admin';
+  }, [currentUser, isLoadingUser]);
 
   const assignableSubjects = useMemo(() => {
-    if (isLoading) return [];
+    if (isLoading || !allSubjects || !currentUser) return [];
   
-    if (currentUser?.role === 'Admin') {
-      return allSubjects || [];
+    if (currentUser.role === 'Admin') {
+      return allSubjects;
     }
   
-    if (currentUser?.role === 'Teacher') {
-      return (allSubjects || []).filter(subject => subject.teacherId === currentUser.uid);
+    if (currentUser.role === 'Teacher') {
+      return allSubjects.filter(subject => subject.teacherId === currentUser.uid);
     }
     
     return [];
