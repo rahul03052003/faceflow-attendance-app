@@ -15,9 +15,10 @@ import { Bot, Loader2, Mic, MicOff, Send } from 'lucide-react';
 import { processVoiceCommand } from '@/ai/flows/process-voice-commands';
 import { useToast } from '@/hooks/use-toast';
 import { addDoc, collection } from 'firebase/firestore';
-import { useFirestore } from '@/firebase';
+import { useAuth, useFirestore } from '@/firebase';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { signOut } from 'firebase/auth';
 
 // Extend window to include webkitSpeechRecognition
 declare global {
@@ -41,6 +42,7 @@ export function VoiceCommandDialog({ children, open, onOpenChange }: VoiceComman
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
+  const auth = useAuth();
 
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -80,6 +82,11 @@ export function VoiceCommandDialog({ children, open, onOpenChange }: VoiceComman
 
     setRecognition(rec);
   }, [toast]);
+  
+  const handleLogout = async () => {
+    await signOut(auth);
+    router.push('/login');
+  };
 
   const handleAction = (action: string, params: Record<string, any>) => {
     switch (action) {
@@ -120,6 +127,9 @@ export function VoiceCommandDialog({ children, open, onOpenChange }: VoiceComman
        case 'showReport':
          router.push('/reports');
          break;
+       case 'logout':
+         handleLogout();
+         break;
       default:
         toast({
           variant: 'destructive',
@@ -134,7 +144,11 @@ export function VoiceCommandDialog({ children, open, onOpenChange }: VoiceComman
     setIsLoading(true);
     try {
       const result = await processVoiceCommand({ command: text });
-      handleAction(result.action, result.parameters);
+      if (result.action && result.parameters) {
+        handleAction(result.action, result.parameters);
+      } else if (result.action) {
+        handleAction(result.action, {});
+      }
       onOpenChange(false);
       setCommand('');
     } catch (error) {
@@ -176,7 +190,7 @@ export function VoiceCommandDialog({ children, open, onOpenChange }: VoiceComman
             Voice Command Interface
           </DialogTitle>
           <DialogDescription>
-             Click the microphone to speak, or type a command. E.g., "Go to reports" or "Add user John Doe with email john@test.com".
+             Click the microphone to speak, or type a command. E.g., "Go to settings" or "Log out".
           </DialogDescription>
         </DialogHeader>
         <div className="flex items-center space-x-2">

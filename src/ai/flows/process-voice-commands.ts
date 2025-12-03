@@ -19,14 +19,14 @@ const ProcessVoiceCommandInputSchema = z.object({
 export type ProcessVoiceCommandInput = z.infer<typeof ProcessVoiceCommandInputSchema>;
 
 const ProcessVoiceCommandOutputSchema = z.object({
-  action: z.string().describe('The action to be performed. Should be one of: "navigate", "addUser", "markPresent", "showReport", "unknown".'),
+  action: z.string().describe('The action to be performed. Should be one of: "navigate", "addUser", "markPresent", "showReport", "logout", "unknown".'),
   parameters: z.union([
-    z.object({ page: z.string().describe("The page to navigate to (e.g., '/', '/reports').") }),
+    z.object({ page: z.string().describe("The page to navigate to (e.g., '/', '/reports', '/settings').") }),
     z.object({ name: z.string().describe("The user's full name."), email: z.string().email().optional().describe("The user's email address.") }),
     z.object({ name: z.string().describe("The name of the user to mark as present.") }),
     z.object({ date: z.string().describe("The date for the report (e.g., 'today').") }),
     z.string(),
-  ]).optional().describe('Parameters for the action, if any. For navigation, include a "page" parameter. For adding a user, include "name" and "email".'),
+  ]).optional().describe('Parameters for the action, if any. For navigation, include a "page" parameter. For adding a user, include "name" and "email". For logout, no parameters are needed.'),
 });
 export type ProcessVoiceCommandOutput = z.infer<typeof ProcessVoiceCommandOutputSchema>;
 
@@ -41,7 +41,7 @@ const prompt = ai.definePrompt({
   prompt: `You are an AI assistant that processes voice commands for an attendance system.
 
   Based on the user's voice command, determine the appropriate action to be performed and any necessary parameters.
-  The available pages are: Dashboard ('/'), Capture Attendance ('/capture'), Attendance Reports ('/reports'), and User Management ('/users').
+  The available pages are: Dashboard ('/'), Capture Attendance ('/capture'), Attendance Reports ('/reports'), User Management ('/users'), and Settings ('/settings').
 
   Here are some example voice commands and their corresponding actions and parameters:
 
@@ -49,8 +49,10 @@ const prompt = ai.definePrompt({
   - "Show attendance report for today": { "action": "showReport", "parameters": { "date": "today" } }
   - "Go to the dashboard": { "action": "navigate", "parameters": { "page": "/" } }
   - "Open the user management page": { "action": "navigate", "parameters": { "page": "/users" } }
+  - "Go to settings": { "action": "navigate", "parameters": { "page": "/settings" } }
   - "Add new user Jane Doe with email jane.doe@example.com": { "action": "addUser", "parameters": { "name": "Jane Doe", "email": "jane.doe@example.com" } }
   - "Create a new user named Bob": { "action": "addUser", "parameters": { "name": "Bob" } }
+  - "Log out" or "Sign out": { "action": "logout" }
 
   If the command is unclear, use the "unknown" action.
 
