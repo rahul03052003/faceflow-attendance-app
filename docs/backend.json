@@ -1,0 +1,67 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "A user of the application.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "The unique identifier for the user." },
+        "name": { "type": "string", "description": "The user's full name." },
+        "email": { "type": "string", "format": "email", "description": "The user's email address." },
+        "registerNo": { "type": "string", "description": "The user's registration number." },
+        "avatar": { "type": "string", "format": "uri", "description": "URL to the user's avatar image." },
+        "role": { "type": "string", "enum": ["Admin", "Teacher", "Student"], "description": "The user's role." },
+        "subjects": { "type": "array", "items": { "type": "string" }, "description": "Array of subject IDs the user is associated with." },
+        "facialFeatures": { "type": "array", "items": { "type": "number" }, "description": "Facial feature vector for recognition." }
+      },
+      "required": ["name", "email", "role"]
+    },
+    "Subject": {
+      "title": "Subject",
+      "description": "A course or subject taught in the system.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "The unique identifier for the subject." },
+        "title": { "type": "string", "description": "The title of the subject." },
+        "code": { "type": "string", "description": "The code for the subject (e.g., CS101)." },
+        "teacherId": { "type": "string", "description": "The ID of the teacher for this subject." }
+      },
+      "required": ["title", "code"]
+    },
+    "AttendanceRecord": {
+      "title": "Attendance Record",
+      "description": "A record of a user's attendance for a specific subject on a specific date.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "The unique identifier for the attendance record." },
+        "userId": { "type": "string", "description": "The ID of the user." },
+        "userName": { "type": "string", "description": "The name of the user." },
+        "userAvatar": { "type": "string", "format": "uri", "description": "URL to the user's avatar at the time of attendance." },
+        "subjectId": { "type": "string", "description": "The ID of the subject." },
+        "subjectName": { "type": "string", "description": "The name of the subject." },
+        "date": { "type": "string", "format": "date", "description": "The date of the attendance record." },
+        "status": { "type": "string", "enum": ["Present", "Absent", "Late"], "description": "The attendance status." },
+        "emotion": { "type": "string", "enum": ["Happy", "Sad", "Neutral", "Surprised", "N/A"], "description": "The detected emotion of the user." },
+        "timestamp": { "type": "string", "format": "date-time", "description": "The server timestamp of when the record was created." }
+      },
+      "required": ["userId", "subjectId", "date", "status"]
+    }
+  },
+  "auth": {
+    "providers": ["email"]
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Stores user profile information."
+    },
+    "/subjects/{subjectId}": {
+      "schema": { "$ref": "#/entities/Subject" },
+      "description": "Stores information about available subjects."
+    },
+    "/attendance/{attendanceId}": {
+      "schema": { "$ref": "#/entities/AttendanceRecord" },
+      "description": "Stores all attendance records for all users."
+    }
+  }
+}
