@@ -24,7 +24,7 @@ service cloud.firestore {
       // Any authenticated user can list the users collection.
       allow list: if isAuthenticated();
       // A user can read/write their own document. Admins and Teachers can read any user document.
-      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin() || isTeacher());
+      allow read: if (isAuthenticated() && request.auth.uid == userId) || isAdmin() || isTeacher();
 
       // Admins can write to any user.
       // Teachers can write to students.
