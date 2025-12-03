@@ -39,7 +39,7 @@ export default function SubjectsPage() {
     if (isAdmin) {
       return allSubjects;
     }
-    return allSubjects.filter(subject => subject.teacherId === currentUser.id);
+    return allSubjects.filter(subject => subject.teacherId === currentUser.uid);
   }, [allSubjects, currentUser, isLoading, isAdmin]);
 
 
@@ -47,7 +47,7 @@ export default function SubjectsPage() {
     newSubject: Omit<Subject, 'id' | 'teacherId'>
   ) => {
     if (!currentUser) return;
-    const subjectWithTeacher = { ...newSubject, teacherId: currentUser.id };
+    const subjectWithTeacher = { ...newSubject, teacherId: currentUser.uid };
     const collectionRef = collection(firestore, 'subjects');
     addDoc(collectionRef, subjectWithTeacher).catch(async (serverError) => {
       const permissionError = new FirestorePermissionError({
