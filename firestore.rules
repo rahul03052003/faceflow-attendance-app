@@ -12,18 +12,24 @@ service cloud.firestore {
       return request.auth.uid == userId;
     }
 
+    // Check for a 'role' custom claim on the user's auth token.
+    function hasRole(role) {
+      return isAuthenticated() && request.auth.token.role == role;
+    }
+    
     function isTeacher() {
-      return isAuthenticated() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Teacher';
+      return hasRole('Teacher');
     }
 
     function isAdmin() {
-      return isAuthenticated() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
+      return hasRole('Admin');
     }
     
     function incomingData() {
         return request.resource.data;
     }
     
+    // This function remains for checking the role of OTHER users, not the requesting user.
     function isStudent(userId) {
       return exists(/databases/$(database)/documents/users/$(userId)) && get(/databases/$(database)/documents/users/$(userId)).data.role == 'Student';
     }
