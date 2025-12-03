@@ -43,6 +43,7 @@ export default function UsersPage() {
 
   const assignableSubjects = useMemo(() => {
     if (isLoadingSubjects || !allSubjects) return [];
+    // Teachers should be able to assign any subject
     if (isAdmin || currentUser?.role === 'Teacher') {
       return allSubjects;
     }
