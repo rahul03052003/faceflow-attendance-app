@@ -55,7 +55,7 @@ export default function UsersPage() {
         return allSubjects.filter(s => s.teacherId === currentUser.uid);
     }
     return [];
-  }, [allSubjects, currentUser, isLoadingSubjects, isLoadingUser]);
+  }, [allSubjects, currentUser, isLoadingSubjects]);
 
 
   const filteredUsers = useMemo(() => {
@@ -262,7 +262,7 @@ export default function UsersPage() {
       return <p className="text-destructive">Error loading users: {usersError.message}</p>;
     }
 
-    return <UsersTable users={filteredUsers} isAdmin={isAdmin} onEditUser={handleEditUser} onDeleteUser={handleDeleteUser} subjects={allSubjects || []} />;
+    return <UsersTable users={filteredUsers} isAdmin={isAdmin} onEditUser={handleEditUser} onDeleteUser={handleDeleteUser} subjects={assignableSubjects} />;
   };
 
   const pageTitle = isAdmin ? "Teacher Management" : "Student Management";
@@ -304,5 +304,3 @@ export default function UsersPage() {
     </div>
   );
 }
-
-    
