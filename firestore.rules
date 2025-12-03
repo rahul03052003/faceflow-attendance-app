@@ -4,7 +4,9 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions
+    // =================================
+    // Helper Functions
+    // =================================
     function isAuthenticated() {
       return request.auth != null;
     }
@@ -12,50 +14,60 @@ service cloud.firestore {
     function isOwner(userId) {
       return request.auth.uid == userId;
     }
+
+    function getUserRole(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data.role;
+    }
     
-    function hasRole(role) {
-      // Roles are checked via custom claims on the auth token.
-      return isAuthenticated() && request.auth.token.role == role;
+    function isAdmin() {
+        return isAuthenticated() && getUserRole(request.auth.uid) == 'Admin';
     }
 
+    function isTeacher() {
+        return isAuthenticated() && getUserRole(request.auth.uid) == 'Teacher';
+    }
+    
     function incomingData() {
       return request.resource.data;
     }
-    
-    // This function is for checking the role of an existing user document,
-    // not the requesting user's token.
-    function isStudent(userId) {
-      return get(/databases/$(database)/documents/users/$(userId)).data.role == 'Student';
-    }
 
+    // =================================
+    // User Collection Rules
+    // =_================================
     match /users/{userId} {
       // Admins and Teachers can list users.
-      allow list: if hasRole('Admin') || hasRole('Teacher');
+      allow list: if isAuthenticated();
       
       // Admins and Teachers can read any user profile. Users can read their own.
-      allow get: if hasRole('Admin') || hasRole('Teacher') || isOwner(userId);
+      allow get: if isAdmin() || isTeacher() || isOwner(userId);
 
       // Admins can create/update any user. Teachers can create/update students. Users can update their own profile.
-      allow create, update: if hasRole('Admin') || (hasRole('Teacher') && incomingData().role == 'Student') || isOwner(userId);
+      allow create, update: if isAdmin() || (isTeacher() && incomingData().role == 'Student') || isOwner(userId);
       
       // Admins can delete any user. Teachers can delete students.
-      allow delete: if hasRole('Admin') || (hasRole('Teacher') && isStudent(userId));
+      allow delete: if isAdmin() || (isTeacher() && getUserRole(userId) == 'Student');
     }
 
+    // =================================
+    // Subject Collection Rules
+    // =================================
     match /subjects/{subjectId} {
       // Any authenticated user can read subjects.
       allow read: if isAuthenticated();
       
       // Only Admins and Teachers can create, update, or delete subjects.
-      allow write: if hasRole('Admin') || hasRole('Teacher');
+      allow write: if isAdmin() || isTeacher();
     }
 
+    // =================================
+    // Attendance Collection Rules
+    // =================================
     match /attendance/{attendanceId} {
       // Admins and Teachers can read all attendance records.
-      allow read: if hasRole('Admin') || hasRole('Teacher');
+      allow read: if isAdmin() || isTeacher();
 
       // Only Teachers can create attendance records.
-      allow create: if hasRole('Teacher');
+      allow create: if isTeacher();
 
       // Records are immutable once created.
       allow update, delete: if false;
