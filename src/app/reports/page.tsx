@@ -27,16 +27,20 @@ export default function ReportsPage() {
   const isAdmin = useMemo(() => !isLoadingUser && currentUser?.role === 'Admin', [currentUser, isLoadingUser]);
 
   const teacherSubjectIds = useMemo(() => {
-    if (isLoadingUser || isAdmin || !allSubjects || !currentUser) return [];
+    if (isLoadingSubjects || !allSubjects || !currentUser || currentUser.role !== 'Teacher') return [];
     return allSubjects.filter(s => s.teacherId === currentUser.id).map(s => s.id);
-  }, [allSubjects, currentUser, isAdmin, isLoadingUser]);
+  }, [allSubjects, currentUser, isLoadingSubjects]);
+
 
   const filteredAttendance = useMemo(() => {
     if (isLoading || !allAttendance) return [];
     if (isAdmin) return allAttendance;
-    if (teacherSubjectIds.length === 0) return [];
-    return allAttendance.filter(att => teacherSubjectIds.includes(att.subjectId));
-  }, [allAttendance, teacherSubjectIds, isAdmin, isLoading]);
+    if (currentUser?.role === 'Teacher') {
+        if (teacherSubjectIds.length === 0) return [];
+        return allAttendance.filter(att => teacherSubjectIds.includes(att.subjectId));
+    }
+    return [];
+  }, [allAttendance, teacherSubjectIds, isAdmin, isLoading, currentUser]);
 
 
   return (

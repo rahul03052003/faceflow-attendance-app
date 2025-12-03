@@ -2,7 +2,7 @@
 'use server';
 
 /**
- * @fileOverview Generates a personalized audio greeting with a fast fallback.
+ * @fileOverview Generates a personalized audio greeting.
  *
  * - generateGreetingAudio - A function that takes a name and returns a WAV audio data URI.
  * - GenerateGreetingAudioInput - The input type for the function.
@@ -72,8 +72,7 @@ const generateGreetingAudioFlow = ai.defineFlow(
     const greeting = `Hello, ${name}. You have been marked present.`;
     
     try {
-      // Race the TTS generation against a timeout.
-      const ttsPromise = ai.generate({
+      const { media } = await ai.generate({
         model: 'googleai/gemini-2.5-flash-preview-tts',
         config: {
           responseModalities: ['AUDIO'],
@@ -85,11 +84,6 @@ const generateGreetingAudioFlow = ai.defineFlow(
         },
         prompt: greeting,
       });
-
-      // If TTS takes too long, we might not get audio, but the flow won't fail.
-      // The UI will proceed without it. A short timeout can be considered here
-      // but for simplicity, we rely on the model's performance.
-      const { media } = await ttsPromise;
 
       if (media) {
         const audioBuffer = Buffer.from(
@@ -105,12 +99,9 @@ const generateGreetingAudioFlow = ai.defineFlow(
       console.error('TTS generation failed, proceeding without audio.', e);
     }
     
-    // Fallback: return nothing if TTS fails or times out.
-    // The UI is responsible for handling the case where no audio is returned.
     return {
       audio: undefined,
     };
   }
 );
-
     
