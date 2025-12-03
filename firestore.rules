@@ -38,12 +38,11 @@ service cloud.firestore {
       // This is needed for the app to function (e.g. get teacher names).
       allow read, list: if isAuthenticated();
 
-      // A user can create their own document (e.g., on signup)
       // An Admin can create any user.
       // A Teacher can create a Student.
       allow create: if isAuthenticated() &&
                     (isAdmin(request.auth.uid) ||
-                     (isTeacher(request.auth.uid) && request.resource.data.role == 'Student'));
+                     (request.resource.data.role == 'Student'));
 
       // Admins can update any user.
       // Users can update their own profile.
