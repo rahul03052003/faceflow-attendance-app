@@ -41,6 +41,14 @@ const generateFacialFeaturesFlow = ai.defineFlow(
     },
     async (input) => {
         
+        // Return a mock vector to avoid hitting API rate limits during development/demo.
+        console.log("SIMULATING facial feature generation to avoid rate limits.");
+        const mockVector = Array.from({ length: 768 }, () => Math.random() * 2 - 1);
+        
+        return { vector: mockVector };
+
+        /*
+        // Original code that calls the AI model, disabled to prevent rate-limiting.
         const result = await ai.generate({
             model: 'googleai/gemini-2.5-flash-image-preview',
             prompt: `You are a state-of-the-art facial recognition engine. Your task is to analyze the user's photo and generate a high-fidelity 768-dimensional numerical feature vector (embedding) that uniquely represents their facial characteristics. This vector should be optimized for accurate comparison using cosine similarity. Output only the JSON object containing the vector.`,
@@ -58,6 +66,7 @@ const generateFacialFeaturesFlow = ai.defineFlow(
         }
 
         return output;
+        */
     }
 );
 
