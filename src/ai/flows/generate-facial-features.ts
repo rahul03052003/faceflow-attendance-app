@@ -15,6 +15,7 @@ import { z } from 'genkit';
 const GenerateFacialFeaturesInputSchema = z.object({
   photoDataUri: z
     .string()
+    .optional()
     .describe(
       "A photo of a person's face, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'"
     ),
@@ -32,41 +33,43 @@ export async function generateFacialFeatures(
   return generateFacialFeaturesFlow(input);
 }
 
-
 const generateFacialFeaturesFlow = ai.defineFlow(
-    {
-      name: 'generateFacialFeaturesFlow',
-      inputSchema: GenerateFacialFeaturesInputSchema,
-      outputSchema: GenerateFacialFeaturesOutputSchema,
-    },
-    async (input) => {
-        
-        // Return a mock vector to avoid hitting API rate limits during development/demo.
-        console.log("SIMULATING facial feature generation to avoid rate limits.");
-        const mockVector = Array.from({ length: 768 }, () => Math.random() * 2 - 1);
-        
-        return { vector: mockVector };
+  {
+    name: 'generateFacialFeaturesFlow',
+    inputSchema: GenerateFacialFeaturesInputSchema,
+    outputSchema: GenerateFacialFeaturesOutputSchema,
+  },
+  async ({ photoDataUri }) => {
+    // Return a mock vector to avoid hitting API rate limits during development/demo.
+    // This simulates the vector generation process.
+    console.log("SIMULATING facial feature generation to avoid rate limits.");
+    const mockVector = Array.from({ length: 768 }, () => Math.random() * 2 - 1);
+    
+    return { vector: mockVector };
 
-        /*
-        // Original code that calls the AI model, disabled to prevent rate-limiting.
-        const result = await ai.generate({
-            model: 'googleai/gemini-2.5-flash-image-preview',
-            prompt: `You are a state-of-the-art facial recognition engine. Your task is to analyze the user's photo and generate a high-fidelity 768-dimensional numerical feature vector (embedding) that uniquely represents their facial characteristics. This vector should be optimized for accurate comparison using cosine similarity. Output only the JSON object containing the vector.`,
-            output: {
-                schema: GenerateFacialFeaturesOutputSchema,
-            },
-            input: {
-              photo: { url: input.photoDataUri },
-            },
-        });
+    /*
+    // Original code that calls the AI model.
+    // It's disabled here to prevent rate-limiting during demos.
+    // If no photo is provided, it uses a placeholder.
+    const imageToProcess = photoDataUri || 'https://picsum.photos/seed/face/400/400';
 
-        const output = result.output;
-        if (!output?.vector || output.vector.length !== 768) {
-            throw new Error("Failed to generate a valid 768-dimensional facial feature vector from the provided image.");
-        }
+    const result = await ai.generate({
+      model: 'googleai/gemini-2.5-flash-image-preview',
+      prompt: `You are a state-of-the-art facial recognition engine. Your task is to analyze the user's photo and generate a high-fidelity 768-dimensional numerical feature vector (embedding) that uniquely represents their facial characteristics. This vector should be optimized for accurate comparison using cosine similarity. Output only the JSON object containing the vector.`,
+      output: {
+        schema: GenerateFacialFeaturesOutputSchema,
+      },
+      input: {
+        photo: { url: imageToProcess },
+      },
+    });
 
-        return output;
-        */
+    const output = result.output;
+    if (!output?.vector || output.vector.length !== 768) {
+      throw new Error("Failed to generate a valid 768-dimensional facial feature vector from the provided image.");
     }
-);
 
+    return output;
+    */
+  }
+);

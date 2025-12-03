@@ -32,7 +32,7 @@ async function setCustomUserClaims(uid: string, claims: object) {
     'This would be a backend operation in a real app.'
   );
   // In a real app, this would be an httpsCallable function call.
-  // For this demo, we will just log it. The rules are temporarily relaxed.
+  // For this demo, we will just log it.
   return Promise.resolve();
 }
 
@@ -84,10 +84,12 @@ export default function UsersPage() {
     }
   
     if (currentUser.role === 'Admin') {
+      // Admins see all other Admins and Teachers
       return allUsers.filter(u => u.role === 'Teacher' || u.role === 'Admin');
     }
   
     if (currentUser.role === 'Teacher') {
+       // Teachers see all Students
        return allUsers.filter(u => u.role === 'Student');
     }
   
@@ -99,16 +101,23 @@ export default function UsersPage() {
     newUser: Omit<User, 'id' | 'avatar' | 'role' | 'facialFeatures'> & { photo?: File, photoPreview?: string, subjects?: string[] }
   ) => {
     
+    // Use a generic placeholder unless a photo is provided
     const avatarUrl = newUser.photoPreview || `https://i.pravatar.cc/150?u=${newUser.email}`;
-    const userToAdd = {
+
+    const userToAdd: any = {
       name: newUser.name,
       email: newUser.email,
       registerNo: newUser.registerNo,
-      avatar: avatarUrl,
       role: 'Student' as const,
       subjects: newUser.subjects || [],
-      facialFeatures: null,
+      facialFeatures: null, // Initialize as null
     };
+
+    if (newUser.photoPreview) {
+      userToAdd.avatar = newUser.photoPreview;
+    } else {
+      userToAdd.avatar = `https://i.pravatar.cc/150?u=${newUser.email}`;
+    }
 
     const collectionRef = collection(firestore, 'users');
     
@@ -120,19 +129,20 @@ export default function UsersPage() {
           description: `${newUser.name} has been added. Generating facial features...`,
         });
 
+        // Always generate facial features. Pass the data URI if it exists.
         try {
-            const { vector } = await generateFacialFeatures({ photoDataUri: avatarUrl });
+            const { vector } = await generateFacialFeatures({ photoDataUri: newUser.photoPreview });
             await updateDoc(docRef, { facialFeatures: vector });
              toast({
                 title: 'AI Analysis Complete',
                 description: `Facial features for ${newUser.name} have been saved.`,
             });
-        } catch (e) {
+        } catch (e: any) {
             console.error("Failed to generate facial features:", e);
             toast({
                 variant: "destructive",
                 title: "AI Analysis Failed",
-                description: "Could not analyze the user's photo. The user has been added, but recognition may fail."
+                description: e.message || "Could not analyze the user's photo. The user has been added, but recognition may fail."
             })
         }
 
@@ -185,12 +195,12 @@ export default function UsersPage() {
                     title: 'AI Analysis Complete',
                     description: `New facial features for ${updatedUser.name} have been saved.`,
                 });
-            } catch(e) {
+            } catch(e: any) {
                  console.error("Failed to re-generate facial features:", e);
                  toast({
                     variant: "destructive",
                     title: "AI Analysis Failed",
-                    description: "Could not analyze the new photo. User details were updated, but recognition may fail with the new image."
+                    description: e.message || "Could not analyze the new photo. User details were updated, but recognition may fail with the new image."
                 })
             }
         }
@@ -215,7 +225,6 @@ export default function UsersPage() {
       const teacherId = userCredential.user.uid;
 
       // In a real app, this would be a backend operation.
-      // We simulate it here to work with the updated rules.
       await setCustomUserClaims(teacherId, { role: 'Teacher' });
 
       const teacherToAdd = {
