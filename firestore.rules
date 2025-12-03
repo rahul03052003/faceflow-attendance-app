@@ -40,9 +40,9 @@ service cloud.firestore {
       // A user can create their own document (e.g., on signup)
       // An Admin can create any user.
       // A Teacher can create a Student.
-      allow create: if isAuthenticated() && 
-                    (isOwner(userId) || 
-                     isAdmin(request.auth.uid) || 
+      allow create: if isAuthenticated() &&
+                    (isOwner(userId) ||
+                     isAdmin(request.auth.uid) ||
                      (isTeacher(request.auth.uid) && request.resource.data.role == 'Student'));
 
       // Admins can update any user.
@@ -59,7 +59,7 @@ service cloud.firestore {
     match /subjects/{subjectId} {
       // Any authenticated user can read subjects.
       allow read: if isAuthenticated();
-      
+
       // Only Admins and Teachers can create, update, or delete subjects.
       allow write: if isAuthenticated() && (isAdmin(request.auth.uid) || isTeacher(request.auth.uid));
     }
@@ -74,7 +74,7 @@ service cloud.firestore {
 
       // Admins and Teachers can read any individual record.
       allow get: if isAuthenticated() && (isAdmin(request.auth.uid) || isTeacher(request.auth.uid));
-      
+
       // Only a teacher assigned to the subject can create an attendance record.
       allow create: if isAuthenticated() && isTeacher(request.auth.uid) &&
                     get(/databases/$(database)/documents/subjects/$(request.resource.data.subjectId)).data.teacherId == request.auth.uid;
