@@ -14,18 +14,21 @@ import { AiSummary } from '@/components/reports/ai-summary';
 import { useCollection, useUser } from '@/firebase';
 import type { AttendanceRecord, Subject } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { query, where } from 'firebase/firestore';
 
 
 export default function ReportsPage() {
   const { user: currentUser, isLoading: isLoadingUser } = useUser();
 
+  const subjectsQuery = useCallback((ref: any) => {
+    if (!currentUser?.uid) return query(ref, where('teacherId', '==', ''));
+    return query(ref, where('teacherId', '==', currentUser.uid));
+  }, [currentUser?.uid]);
+
   const { data: teacherSubjects, isLoading: isLoadingSubjects } = useCollection<Subject>(
     currentUser?.role === 'Teacher' ? 'subjects' : null,
-    {
-      buildQuery: (ref) => query(ref, where('teacherId', '==', currentUser?.uid))
-    }
+    { buildQuery: subjectsQuery }
   );
   
   const teacherSubjectIds = useMemo(() => {
@@ -33,14 +36,19 @@ export default function ReportsPage() {
     return teacherSubjects.map(s => s.id);
   }, [teacherSubjects]);
 
-  const { data: allAttendance, isLoading: isLoadingRecords } = useCollection<AttendanceRecord>(
-    currentUser?.role === 'Admin' ? 'attendance' : (teacherSubjectIds.length > 0 ? 'attendance' : null),
-    {
-      buildQuery: (ref) => {
-        if (currentUser?.role === 'Admin') return ref;
-        return query(ref, where('subjectId', 'in', teacherSubjectIds));
-      }
+  const attendanceQuery = useCallback((ref: any) => {
+    if (currentUser?.role === 'Admin') return ref;
+    if (teacherSubjectIds.length > 0) {
+      return query(ref, where('subjectId', 'in', teacherSubjectIds));
     }
+    // Return a query that will find nothing if there are no subjects
+    return query(ref, where('subjectId', '==', ''));
+  }, [currentUser?.role, teacherSubjectIds]);
+
+
+  const { data: allAttendance, isLoading: isLoadingRecords } = useCollection<AttendanceRecord>(
+    currentUser ? 'attendance' : null,
+    { buildQuery: attendanceQuery }
   );
 
   const isLoading = isLoadingUser || isLoadingRecords || isLoadingSubjects;
@@ -110,3 +118,5 @@ export default function ReportsPage() {
     </div>
   );
 }
+
+    

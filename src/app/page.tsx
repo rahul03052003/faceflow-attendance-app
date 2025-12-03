@@ -12,7 +12,7 @@ import { EmotionChart } from '@/components/reports/emotion-chart';
 import { useCollection, useUser } from '@/firebase';
 import type { AttendanceRecord, User, Subject } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { query, where, CollectionReference, DocumentData } from 'firebase/firestore';
 
 function EmotionIcon({ emotion }: { emotion: string }) {
@@ -35,11 +35,14 @@ export default function Home() {
     'users'
   );
 
+  const subjectsQuery = useCallback((ref: any) => {
+    if (!teacher?.uid) return query(ref, where('teacherId', '==', ''));
+    return query(ref, where('teacherId', '==', teacher.uid));
+  }, [teacher?.uid]);
+
   const { data: allSubjects, isLoading: isLoadingSubjects } = useCollection<Subject>(
     teacher?.uid ? 'subjects' : null,
-    {
-      buildQuery: (ref) => query(ref, where('teacherId', '==', teacher?.uid))
-    }
+    { buildQuery: subjectsQuery }
   );
   
   const teacherSubjectIds = useMemo(() => {
@@ -47,11 +50,14 @@ export default function Home() {
     return allSubjects.map(s => s.id);
   }, [allSubjects]);
 
+  const attendanceQuery = useCallback((ref: any) => {
+    if (!teacher?.uid || teacherSubjectIds.length === 0) return query(ref, where('subjectId', '==', ''));
+    return query(ref, where('subjectId', 'in', teacherSubjectIds));
+  }, [teacher?.uid, teacherSubjectIds]);
+
   const { data: allAttendance, isLoading: isLoadingRecords } = useCollection<AttendanceRecord>(
     teacher?.uid && teacherSubjectIds.length > 0 ? 'attendance' : null,
-    {
-      buildQuery: (ref) => query(ref, where('subjectId', 'in', teacherSubjectIds))
-    }
+    { buildQuery: attendanceQuery }
   );
 
   const isLoading = isLoadingUser || isLoadingUsers || isLoadingRecords || isLoadingSubjects;
@@ -175,3 +181,5 @@ export default function Home() {
     </div>
   );
 }
+
+    

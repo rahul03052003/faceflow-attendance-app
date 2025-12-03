@@ -17,19 +17,26 @@ import { useFirestore } from '@/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 
 export default function SubjectsPage() {
   const firestore = useFirestore();
   const { user: currentUser, isLoading: isLoadingUser } = useUser();
   const { data: allUsers, isLoading: isLoadingUsers } = useCollection<User>('users');
 
+  const subjectsQuery = useCallback((ref: any) => {
+    if (!currentUser?.uid) return query(ref, where('teacherId', '==', '')); // Empty query
+    if (currentUser.role === 'Admin') return ref; // Admins see all
+    return query(ref, where('teacherId', '==', currentUser.uid)); // Teachers see their own
+  }, [currentUser?.uid, currentUser?.role]);
+
   const {
     data: allSubjects,
     isLoading: isLoadingSubjects,
     error,
   } = useCollection<Subject>(
-    currentUser?.uid ? 'subjects' : null
+    currentUser?.uid ? 'subjects' : null,
+    { buildQuery: subjectsQuery }
   );
 
   const isLoading = isLoadingUser || isLoadingSubjects || isLoadingUsers;
@@ -37,13 +44,9 @@ export default function SubjectsPage() {
   const isAdmin = useMemo(() => currentUser?.role === 'Admin', [currentUser]);
 
   const subjectsToDisplay = useMemo(() => {
-    if (isLoading || !allSubjects || !currentUser) return [];
-    if (isAdmin) {
-      return allSubjects;
-    }
-    // Correctly filter subjects by matching teacherId with the user's uid
-    return allSubjects.filter(subject => subject.teacherId === currentUser.uid);
-  }, [allSubjects, currentUser, isLoading, isAdmin]);
+    if (isLoading || !allSubjects) return [];
+    return allSubjects;
+  }, [allSubjects, isLoading]);
 
 
   const handleAddSubject = (
@@ -117,3 +120,5 @@ export default function SubjectsPage() {
     </div>
   );
 }
+
+    

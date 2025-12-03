@@ -69,11 +69,14 @@ export default function CapturePage() {
   
   const { data: allUsers, isLoading: isLoadingUsers } = useCollection<User>('users');
 
+  const subjectsQuery = useCallback((ref: any) => {
+    if (!teacher?.uid) return query(ref, where('teacherId', '==', ''));
+    return query(ref, where('teacherId', '==', teacher.uid));
+  }, [teacher?.uid]);
+
   const { data: subjects, isLoading: isLoadingSubjects } = useCollection<Subject>(
     teacher?.uid ? 'subjects' : null,
-    {
-      buildQuery: (ref) => query(ref, where('teacherId', '==', teacher?.uid))
-    }
+    { buildQuery: subjectsQuery }
   );
 
   const teacherSubjects = useMemo(() => {
@@ -86,11 +89,15 @@ export default function CapturePage() {
     return teacherSubjects.map(s => s.id);
   }, [teacherSubjects]);
 
+  const attendanceQuery = useCallback((ref: any) => {
+    if (!teacher?.uid || teacherSubjectIds.length === 0) return query(ref, where('subjectId', '==', ''));
+    return query(ref, where('subjectId', 'in', teacherSubjectIds));
+  }, [teacher?.uid, teacherSubjectIds]);
+
+
   const { data: attendanceRecords, isLoading: isLoadingAttendance } = useCollection<AttendanceRecord>(
     teacher?.uid && teacherSubjectIds.length > 0 ? 'attendance' : null,
-    {
-      buildQuery: (ref) => query(ref, where('subjectId', 'in', teacherSubjectIds))
-    }
+    { buildQuery: attendanceQuery }
   );
 
   const studentsInSelectedSubject = useMemo(() => {
@@ -396,3 +403,5 @@ export default function CapturePage() {
     </div>
   );
 }
+
+    

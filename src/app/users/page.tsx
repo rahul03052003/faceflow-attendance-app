@@ -20,7 +20,7 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { useToast } from '@/hooks/use-toast';
 import { generateFacialFeatures } from '@/ai/flows/generate-facial-features';
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
 
 export default function UsersPage() {
@@ -32,12 +32,19 @@ export default function UsersPage() {
     isLoading: isLoadingUsers,
     error: usersError,
   } = useCollection<User>('users');
+
+  const subjectsQuery = useCallback((ref: any) => {
+    if (!currentUser?.uid) return query(ref, where('teacherId', '==', '')); // Empty query
+    if (currentUser.role === 'Admin') return ref; // Admins see all
+    return query(ref, where('teacherId', '==', currentUser.uid)); // Teachers see their own
+  }, [currentUser?.uid, currentUser?.role]);
   
   const { 
     data: allSubjects, 
     isLoading: isLoadingSubjects 
   } = useCollection<Subject>(
-    currentUser?.uid ? 'subjects' : null
+    currentUser?.uid ? 'subjects' : null,
+    { buildQuery: subjectsQuery }
   );
 
   const { toast } = useToast();
@@ -50,17 +57,9 @@ export default function UsersPage() {
   }, [currentUser, isLoadingUser]);
 
   const assignableSubjects = useMemo(() => {
-    if (isLoadingSubjects || !allSubjects || !currentUser) return [];
-
-    if (currentUser.role === 'Admin') {
-        return allSubjects;
-    }
-    
-    if (currentUser.role === 'Teacher') {
-        return allSubjects.filter(s => s.teacherId === currentUser.uid);
-    }
-    return [];
-  }, [allSubjects, currentUser, isLoadingSubjects]);
+    if (isLoadingSubjects || !allSubjects) return [];
+    return allSubjects;
+  }, [allSubjects, isLoadingSubjects]);
 
 
   const filteredUsers = useMemo(() => {
@@ -318,3 +317,5 @@ export default function UsersPage() {
     </div>
   );
 }
+
+    
