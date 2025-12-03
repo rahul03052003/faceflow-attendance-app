@@ -45,18 +45,9 @@ export default function UsersPage() {
   }, [currentUser, isLoadingUser]);
 
   const assignableSubjects = useMemo(() => {
-    if (isLoadingUser || isLoadingSubjects || !allSubjects || !currentUser) return [];
-  
-    if (currentUser.role === 'Admin') {
-      return allSubjects;
-    }
-  
-    if (currentUser.role === 'Teacher') {
-      return allSubjects.filter(subject => subject.teacherId === currentUser.uid);
-    }
-    
-    return [];
-  }, [allSubjects, currentUser, isLoadingUser, isLoadingSubjects]);
+    if (isLoadingSubjects || !allSubjects) return [];
+    return allSubjects;
+  }, [allSubjects, isLoadingSubjects]);
 
 
   const filteredUsers = useMemo(() => {
