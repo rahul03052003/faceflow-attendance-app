@@ -78,25 +78,6 @@ export default function UsersPage() {
   }, [allSubjects, isLoadingSubjects, isAdmin, currentUser]);
 
 
-  const filteredUsers = useMemo(() => {
-    if (isLoading || !allUsers || !currentUser) {
-      return [];
-    }
-    
-    // Admins see all Teachers and other Admins
-    if (currentUser.role === 'Admin') {
-      return allUsers.filter(u => u.role !== 'Student');
-    }
-  
-    // Teachers see all Students
-    if (currentUser.role === 'Teacher') {
-       return allUsers.filter(u => u.role === 'Student');
-    }
-  
-    return [];
-  }, [allUsers, currentUser, isLoading]);
-
-
   const handleAddUser = async (
     newUser: Omit<User, 'id' | 'avatar' | 'role' | 'facialFeatures'> & { photo?: File, photoPreview?: string, subjects?: string[] }
   ) => {
@@ -291,8 +272,14 @@ export default function UsersPage() {
     if (usersError) {
       return <p className="text-destructive">Error loading users: {usersError.message}</p>;
     }
+    
+    // Admins see teachers/admins, Teachers see students
+    const usersToDisplay = allUsers?.filter(u => {
+      if (isAdmin) return u.role !== 'Student';
+      return u.role === 'Student';
+    }) || [];
 
-    return <UsersTable users={filteredUsers} isAdmin={isAdmin} onEditUser={handleEditUser} onDeleteUser={handleDeleteUser} subjects={assignableSubjects} />;
+    return <UsersTable users={usersToDisplay} isAdmin={isAdmin} onEditUser={handleEditUser} onDeleteUser={handleDeleteUser} subjects={assignableSubjects} />;
   };
 
   const pageTitle = isAdmin ? "Teacher Management" : "Student Management";
