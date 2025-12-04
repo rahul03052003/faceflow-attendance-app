@@ -33,6 +33,9 @@ service cloud.firestore {
     // User Collection Rules
     // =================================
     match /users/{userId} {
+      // Admins and Teachers can list all users. 
+      // Individual users can read their own profile.
+      allow list: if isAuthenticated() && (isAdmin() || isTeacher());
       allow read: if isAuthenticated();
       
       // Admins can create any user.
