@@ -68,23 +68,23 @@ export default function Home() {
   const isLoading = isLoadingUser || isLoadingUsers || isLoadingRecords || isLoadingSubjects;
 
   const teacherStudents = useMemo(() => {
-    if (isLoading || !allUsers || !currentUser || !teacherSubjectIds) return [];
+    if (isLoadingUser || !allUsers || !currentUser) return [];
     
     if (currentUser.role === 'Admin') {
       return allUsers.filter(u => u.role === 'Student');
     }
 
     if (currentUser.role === 'Teacher') {
-      if (teacherSubjectIds.length === 0) return [];
-      return allUsers.filter(u => 
-        u.role === 'Student' && 
-        Array.isArray(u.subjects) && 
-        u.subjects.some(subId => teacherSubjectIds.includes(subId))
-      );
+        if (!teacherSubjectIds || teacherSubjectIds.length === 0) return [];
+        return allUsers.filter(u => 
+            u.role === 'Student' && 
+            Array.isArray(u.subjects) && 
+            u.subjects.some(subId => teacherSubjectIds.includes(subId))
+        );
     }
     
     return [];
-  }, [allUsers, teacherSubjectIds, currentUser, isLoading]);
+}, [allUsers, teacherSubjectIds, currentUser, isLoadingUser, isLoadingSubjects]);
 
 
   const teacherAttendance = useMemo(() => {
