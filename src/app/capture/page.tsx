@@ -102,8 +102,13 @@ export default function CapturePage() {
 
   const studentsInSelectedSubject = useMemo(() => {
     if (!selectedSubjectId || !allUsers) return [];
-    return allUsers.filter(u => u.role === 'Student');
-  }, [allUsers]);
+    return allUsers.filter(
+      (u) =>
+        u.role === 'Student' &&
+        Array.isArray(u.subjects) &&
+        u.subjects.includes(selectedSubjectId)
+    );
+  }, [allUsers, selectedSubjectId]);
 
   const stopCamera = useCallback(() => {
     if (streamRef.current) {
