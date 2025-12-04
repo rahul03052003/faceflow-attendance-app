@@ -15,17 +15,20 @@ service cloud.firestore {
       return request.auth.uid == userId;
     }
 
-    // Check for role in the user's document in the 'users' collection.
-    function getUserRole(userId) {
-      return get(/databases/$(database)/documents/users/$(userId)).data.role;
+    // Check for role in the user's custom auth token.
+    // This is more secure and efficient than reading from the database.
+    function getUserRole() {
+      return request.auth.token.role;
     }
 
     function isTeacher() {
-      return getUserRole(request.auth.uid) == 'Teacher';
+      // To fix the permission error, we check the custom token instead of the database.
+      return isAuthenticated() && getUserRole() == 'Teacher';
     }
 
     function isAdmin() {
-      return getUserRole(request.auth.uid) == 'Admin';
+      // To fix the permission error, we check the custom token instead of the database.
+      return isAuthenticated() && getUserRole() == 'Admin';
     }
 
 
