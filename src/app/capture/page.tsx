@@ -283,11 +283,11 @@ export default function CapturePage() {
   
   const getEmotionIcon = (emotion: string) => {
     switch (emotion?.toLowerCase()) {
-      case 'happy': return <Smile className="h-6 w-6 text-green-500" />;
-      case 'sad': return <Frown className="h-6 w-6 text-blue-500" />;
-      case 'neutral': return <Meh className="h-6 w-6 text-yellow-500" />;
-      case 'surprised': return <Sparkles className="h-6 w-6 text-purple-500" />;
-      default: return <Meh className="h-6 w-6 text-gray-500" />;
+      case 'happy': return <Smile className="h-5 w-5 text-green-500" />;
+      case 'sad': return <Frown className="h-5 w-5 text-blue-500" />;
+      case 'neutral': return <Meh className="h-5 w-5 text-yellow-500" />;
+      case 'surprised': return <Sparkles className="h-5 w-5 text-purple-500" />;
+      default: return <Meh className="h-5 w-5 text-gray-500" />;
     }
   };
 
@@ -337,6 +337,10 @@ export default function CapturePage() {
           </div>
           <div className="flex items-center gap-2">
             <Badge variant="secondary">Status: Marked Present</Badge>
+            <Badge variant="outline" className="flex items-center gap-1.5">
+                {getEmotionIcon(result.emotion)}
+                Emotion: {result.emotion}
+            </Badge>
             {result.greetingAudio && (
                 <Button variant="ghost" size="icon" onClick={playGreeting} className="h-7 w-7">
                     <PlayCircle className="h-5 w-5 text-muted-foreground hover:text-foreground" />
