@@ -35,20 +35,17 @@ export default function Home() {
     'users'
   );
 
-  const subjectsQuery = useCallback((ref: any) => {
-    if (!teacher?.uid) return query(ref, where('teacherId', '==', ''));
-    return query(ref, where('teacherId', '==', teacher.uid));
-  }, [teacher?.uid]);
-
   const { data: allSubjects, isLoading: isLoadingSubjects } = useCollection<Subject>(
-    teacher?.uid ? 'subjects' : null,
-    { buildQuery: subjectsQuery }
+    'subjects'
   );
   
   const teacherSubjectIds = useMemo(() => {
-    if (!allSubjects) return [];
-    return allSubjects.map(s => s.id);
-  }, [allSubjects]);
+    if (!allSubjects || !teacher) return [];
+    if (teacher.role === 'Admin') {
+      return allSubjects.map(s => s.id);
+    }
+    return allSubjects.filter(s => s.teacherId === teacher.uid).map(s => s.id);
+  }, [allSubjects, teacher]);
 
   const attendanceQuery = useCallback((ref: any) => {
     if (!teacher?.uid || teacherSubjectIds.length === 0) return query(ref, where('subjectId', '==', ''));
