@@ -81,7 +81,7 @@ export function UsersTable({ users, subjects, onEditUser, onDeleteUser, isAdmin 
             <TableHead>User</TableHead>
             <TableHead>Register No.</TableHead>
             <TableHead>Role</TableHead>
-            <TableHead>Subjects</TableHead>
+            <TableHead>Assigned Subjects</TableHead>
             <TableHead>
               <span className="sr-only">Actions</span>
             </TableHead>
@@ -138,7 +138,7 @@ export function UsersTable({ users, subjects, onEditUser, onDeleteUser, isAdmin 
           ))}
           {users.length === 0 && (
             <TableRow>
-              <TableCell colSpan={isAdmin ? 4 : 5} className="h-24 text-center">
+              <TableCell colSpan={5} className="h-24 text-center">
                 {isAdmin ? "No teachers found. Add one to get started." : "No students found."}
               </TableCell>
             </TableRow>

@@ -102,8 +102,8 @@ export default function CapturePage() {
 
   const studentsInSelectedSubject = useMemo(() => {
     if (!selectedSubjectId || !allUsers) return [];
-    return allUsers.filter(u => u.subjects?.includes(selectedSubjectId));
-  }, [selectedSubjectId, allUsers]);
+    return allUsers.filter(u => u.role === 'Student');
+  }, [allUsers]);
 
   const stopCamera = useCallback(() => {
     if (streamRef.current) {
@@ -170,7 +170,7 @@ export default function CapturePage() {
        toast({
           variant: "destructive",
           title: "System Not Ready",
-          description: "Camera is not ready or no students are enrolled in the selected subject.",
+          description: "Camera is not ready or no students are available for recognition.",
        });
        return;
     }
@@ -196,7 +196,16 @@ export default function CapturePage() {
         toast({
           variant: "destructive",
           title: "Recognition Failed",
-          description: "Could not identify a student from this subject in the photo. Please try again.",
+          description: "Could not identify a registered student in the photo. Please try again.",
+        });
+        return;
+      }
+      
+      if (!matchedUser.subjects?.includes(selectedSubjectId!)) {
+        toast({
+          variant: "destructive",
+          title: "Not Registered",
+          description: `${matchedUser.name} is not registered for this subject.`,
         });
         return;
       }
@@ -214,11 +223,10 @@ export default function CapturePage() {
           title: "Already Marked Present",
           description: `${matchedUser.name}, you are already marked as present for this subject today.`,
         });
-        setResult(newResult); // Set result without audio
+        setResult(newResult);
         return;
       }
       
-      // Mark present and generate audio
       setResult(newResult);
 
       const attendanceRecord: NewAttendanceRecord = {
@@ -242,14 +250,12 @@ export default function CapturePage() {
         errorEmitter.emit('permission-error', permissionError);
       });
 
-      // Generate and play audio
       try {
         const { audio } = await generateGreetingAudio({ name: matchedUser.name });
         if (audio) {
           setResult(prev => prev ? { ...prev, greetingAudio: audio } : null);
           if (audioRef.current) {
             audioRef.current.src = audio;
-            // Use a slight delay to ensure state is set before playing
             setTimeout(() => {
                 audioRef.current?.play().catch(e => console.warn("Auto-play failed, user may need to interact.", e));
             }, 100);
@@ -403,5 +409,3 @@ export default function CapturePage() {
     </div>
   );
 }
-
-    
