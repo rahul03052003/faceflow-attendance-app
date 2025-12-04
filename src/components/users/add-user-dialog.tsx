@@ -185,39 +185,41 @@ export function AddUserDialog({ onAddUser, subjects = [] }: AddUserDialogProps) 
                     <FormLabel className="text-base">Assign Subjects</FormLabel>
                   </div>
                   {subjects.length > 0 ? (
-                    subjects.map((item) => (
-                      <FormField
-                        key={item.id}
-                        control={form.control}
-                        name="subjects"
-                        render={({ field }) => {
-                          return (
-                            <FormItem
-                              key={item.id}
-                              className="flex flex-row items-start space-x-3 space-y-0"
-                            >
-                              <FormControl>
-                                <Checkbox
-                                  checked={field.value?.includes(item.id)}
-                                  onCheckedChange={(checked) => {
-                                    return checked
-                                      ? field.onChange([...(field.value || []), item.id])
-                                      : field.onChange(
-                                          field.value?.filter(
-                                            (value) => value !== item.id
+                    <div className="max-h-32 overflow-y-auto pr-4">
+                      {subjects.map((item) => (
+                        <FormField
+                          key={item.id}
+                          control={form.control}
+                          name="subjects"
+                          render={({ field }) => {
+                            return (
+                              <FormItem
+                                key={item.id}
+                                className="flex flex-row items-start space-x-3 space-y-0 mb-2"
+                              >
+                                <FormControl>
+                                  <Checkbox
+                                    checked={field.value?.includes(item.id)}
+                                    onCheckedChange={(checked) => {
+                                      return checked
+                                        ? field.onChange([...(field.value || []), item.id])
+                                        : field.onChange(
+                                            field.value?.filter(
+                                              (value) => value !== item.id
+                                            )
                                           )
-                                        )
-                                  }}
-                                />
-                              </FormControl>
-                              <FormLabel className="font-normal">
-                                {item.title} ({item.code})
-                              </FormLabel>
-                            </FormItem>
-                          )
-                        }}
-                      />
-                    ))
+                                    }}
+                                  />
+                                </FormControl>
+                                <FormLabel className="font-normal">
+                                  {item.title} ({item.code})
+                                </FormLabel>
+                              </FormItem>
+                            )
+                          }}
+                        />
+                      ))}
+                    </div>
                   ) : (
                     <p className="text-sm text-muted-foreground">No subjects available to assign. Please add subjects first.</p>
                   )}

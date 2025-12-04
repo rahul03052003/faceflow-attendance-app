@@ -46,20 +46,11 @@ export default function UsersPage() {
     isLoading: isLoadingUsers,
     error: usersError,
   } = useCollection<User>('users');
-
-  const subjectsQuery = useCallback((ref: any) => {
-    if (!currentUser?.uid) return query(ref, where('teacherId', '==', '')); // Empty query
-    if (currentUser.role === 'Admin') return ref; // Admins see all
-    return query(ref, where('teacherId', '==', currentUser.uid)); // Teachers see their own
-  }, [currentUser?.uid, currentUser?.role]);
   
   const { 
     data: allSubjects, 
     isLoading: isLoadingSubjects 
-  } = useCollection<Subject>(
-    currentUser?.uid ? 'subjects' : null,
-    { buildQuery: subjectsQuery }
-  );
+  } = useCollection<Subject>('subjects');
 
   const { toast } = useToast();
   
@@ -69,13 +60,29 @@ export default function UsersPage() {
     if (isLoadingUser || !currentUser) return false;
     return currentUser.role === 'Admin';
   }, [currentUser, isLoadingUser]);
+  
+  const teacherSubjects = useMemo(() => {
+    if (isLoadingSubjects || !allSubjects || !currentUser) return [];
+    return allSubjects.filter(s => s.teacherId === currentUser.uid);
+  }, [allSubjects, isLoadingSubjects, currentUser]);
+  
+  const teacherSubjectIds = useMemo(() => teacherSubjects.map(s => s.id), [teacherSubjects]);
 
-  const assignableSubjects = useMemo(() => {
-    if (isLoadingSubjects || !allSubjects) return [];
-    if (isAdmin) return allSubjects;
-    // For teachers, only show subjects they teach
-    return allSubjects.filter(s => s.teacherId === currentUser?.uid);
-  }, [allSubjects, isLoadingSubjects, isAdmin, currentUser]);
+  const usersToDisplay = useMemo(() => {
+    if (isLoading || !allUsers) return [];
+    
+    if (isAdmin) {
+      // Admins see teachers and other admins
+      return allUsers.filter(u => u.role !== 'Student');
+    }
+    
+    // Teachers see only students in their subjects
+    return allUsers.filter(u => 
+      u.role === 'Student' &&
+      Array.isArray(u.subjects) &&
+      u.subjects.some(subId => teacherSubjectIds.includes(subId))
+    );
+  }, [allUsers, teacherSubjectIds, isAdmin, isLoading]);
 
 
   const handleAddUser = async (
@@ -272,14 +279,8 @@ export default function UsersPage() {
     if (usersError) {
       return <p className="text-destructive">Error loading users: {usersError.message}</p>;
     }
-    
-    // Admins see teachers/admins, Teachers see students
-    const usersToDisplay = allUsers?.filter(u => {
-      if (isAdmin) return u.role !== 'Student';
-      return u.role === 'Student';
-    }) || [];
 
-    return <UsersTable users={usersToDisplay} isAdmin={isAdmin} onEditUser={handleEditUser} onDeleteUser={handleDeleteUser} subjects={assignableSubjects} />;
+    return <UsersTable users={usersToDisplay} isAdmin={isAdmin} onEditUser={handleEditUser} onDeleteUser={handleDeleteUser} subjects={allSubjects || []} />;
   };
 
   const pageTitle = isAdmin ? "Teacher Management" : "Student Management";
@@ -290,6 +291,8 @@ export default function UsersPage() {
   const cardDescription = isAdmin
     ? "A list of all teachers and admins in the system."
     : "A list of all students assigned to your subjects.";
+    
+  const assignableSubjects = isAdmin ? allSubjects : teacherSubjects;
 
   return (
     <div className="flex flex-col gap-8">
@@ -304,9 +307,9 @@ export default function UsersPage() {
           {isLoading ? (
             <Skeleton className="h-10 w-36" />
           ) : isAdmin ? (
-            <AddTeacherDialog onAddTeacher={handleAddTeacher} subjects={assignableSubjects} />
+            <AddTeacherDialog onAddTeacher={handleAddTeacher} subjects={allSubjects || []} />
           ) : (
-            <AddUserDialog onAddUser={handleAddUser} subjects={assignableSubjects} />
+            <AddUserDialog onAddUser={handleAddUser} subjects={teacherSubjects || []} />
           )}
         </div>
       </div>

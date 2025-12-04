@@ -49,7 +49,7 @@ export function UsersTable({ users, subjects, onEditUser, onDeleteUser, isAdmin 
   const { toast } = useToast();
 
   const getSubjectNames = (subjectIds: string[] = []) => {
-    if (!subjectIds || subjectIds.length === 0) return 'N/A';
+    if (!subjects || subjects.length === 0 || !subjectIds || subjectIds.length === 0) return 'N/A';
     return subjectIds.map(id => {
       const subject = subjects.find(s => s.id === id);
       return subject ? subject.title : 'Unknown';
