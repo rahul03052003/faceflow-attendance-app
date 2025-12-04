@@ -17,17 +17,18 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useCallback, useMemo } from 'react';
 import { query, where } from 'firebase/firestore';
 
-
 export default function ReportsPage() {
   const { user: currentUser, isLoading: isLoadingUser } = useUser();
 
+  const isAdmin = useMemo(() => !isLoadingUser && currentUser?.role === 'Admin', [currentUser, isLoadingUser]);
+
   const subjectsQuery = useCallback((ref: any) => {
-    if (!currentUser?.uid) return query(ref, where('teacherId', '==', ''));
+    if (isAdmin || !currentUser?.uid) return query(ref, where('teacherId', '==', ''));
     return query(ref, where('teacherId', '==', currentUser.uid));
-  }, [currentUser?.uid]);
+  }, [currentUser?.uid, isAdmin]);
 
   const { data: teacherSubjects, isLoading: isLoadingSubjects } = useCollection<Subject>(
-    currentUser?.role === 'Teacher' ? 'subjects' : null,
+    !isAdmin && currentUser ? 'subjects' : null,
     { buildQuery: subjectsQuery }
   );
   
@@ -37,29 +38,25 @@ export default function ReportsPage() {
   }, [teacherSubjects]);
 
   const attendanceQuery = useCallback((ref: any) => {
-    if (currentUser?.role === 'Admin') return ref;
+    if (isAdmin) return ref; // Admins see all
     if (teacherSubjectIds.length > 0) {
       return query(ref, where('subjectId', 'in', teacherSubjectIds));
     }
-    // Return a query that will find nothing if there are no subjects
+    // For teachers with no subjects, return a query that finds nothing
     return query(ref, where('subjectId', '==', ''));
-  }, [currentUser?.role, teacherSubjectIds]);
-
+  }, [isAdmin, teacherSubjectIds]);
 
   const { data: allAttendance, isLoading: isLoadingRecords } = useCollection<AttendanceRecord>(
     currentUser ? 'attendance' : null,
     { buildQuery: attendanceQuery }
   );
 
-  const isLoading = isLoadingUser || isLoadingRecords || isLoadingSubjects;
+  const isLoading = isLoadingUser || isLoadingRecords || (currentUser?.role === 'Teacher' && isLoadingSubjects);
   
-  const isAdmin = useMemo(() => !isLoadingUser && currentUser?.role === 'Admin', [currentUser, isLoadingUser]);
-
   const filteredAttendance = useMemo(() => {
     if (isLoading || !allAttendance) return [];
     return allAttendance;
   }, [allAttendance, isLoading]);
-
 
   return (
     <div className="flex flex-col gap-8">
@@ -118,5 +115,3 @@ export default function ReportsPage() {
     </div>
   );
 }
-
-    
