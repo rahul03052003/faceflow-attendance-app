@@ -13,7 +13,7 @@ import { useCollection, useUser } from '@/firebase';
 import type { AttendanceRecord, User, Subject } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCallback, useMemo } from 'react';
-import { query, where, CollectionReference, DocumentData } from 'firebase/firestore';
+import { query, where } from 'firebase/firestore';
 
 function EmotionIcon({ emotion }: { emotion: string }) {
   switch (emotion) {
@@ -29,44 +29,52 @@ function EmotionIcon({ emotion }: { emotion: string }) {
 }
 
 export default function Home() {
-  const { user: teacher, isLoading: isLoadingUser } = useUser();
+  const { user: currentUser, isLoading: isLoadingUser } = useUser();
   
   const { data: allUsers, isLoading: isLoadingUsers } = useCollection<User>(
     'users'
   );
 
-  const { data: allSubjects, isLoading: isLoadingSubjects } = useCollection<Subject>(
-    'subjects'
+  const subjectsQuery = useCallback((ref: any) => {
+    if (currentUser?.role === 'Admin') return ref;
+    if (!currentUser?.uid) return query(ref, where('teacherId', '==', ''));
+    return query(ref, where('teacherId', '==', currentUser.uid));
+  }, [currentUser?.uid, currentUser?.role]);
+  
+  const { data: teacherSubjects, isLoading: isLoadingSubjects } = useCollection<Subject>(
+    currentUser ? 'subjects' : null,
+    { buildQuery: subjectsQuery }
   );
   
   const teacherSubjectIds = useMemo(() => {
-    if (!allSubjects || !teacher) return [];
-    if (teacher.role === 'Admin') {
-      return allSubjects.map(s => s.id);
-    }
-    return allSubjects.filter(s => s.teacherId === teacher.uid).map(s => s.id);
-  }, [allSubjects, teacher]);
+    if (!teacherSubjects) return [];
+    return teacherSubjects.map(s => s.id);
+  }, [teacherSubjects]);
 
   const attendanceQuery = useCallback((ref: any) => {
-    if (!teacher?.uid || teacherSubjectIds.length === 0) return query(ref, where('subjectId', '==', ''));
-    return query(ref, where('subjectId', 'in', teacherSubjectIds));
-  }, [teacher?.uid, teacherSubjectIds]);
+    if (currentUser?.role === 'Admin') return ref; // Admins see all attendance
+    if (teacherSubjectIds.length > 0) {
+      return query(ref, where('subjectId', 'in', teacherSubjectIds));
+    }
+    // Return a query that will find nothing if there are no subjects
+    return query(ref, where('subjectId', '==', ''));
+  }, [currentUser?.role, teacherSubjectIds]);
 
   const { data: allAttendance, isLoading: isLoadingRecords } = useCollection<AttendanceRecord>(
-    teacher?.uid && teacherSubjectIds.length > 0 ? 'attendance' : null,
+    currentUser ? 'attendance' : null,
     { buildQuery: attendanceQuery }
   );
 
   const isLoading = isLoadingUser || isLoadingUsers || isLoadingRecords || isLoadingSubjects;
 
   const teacherStudents = useMemo(() => {
-    if (isLoading || !allUsers || !teacher) return [];
+    if (isLoading || !allUsers || !currentUser) return [];
     
-    if (teacher.role === 'Admin') {
+    if (currentUser.role === 'Admin') {
       return allUsers.filter(u => u.role === 'Student');
     }
 
-    if (teacher.role === 'Teacher') {
+    if (currentUser.role === 'Teacher') {
         if (teacherSubjectIds.length === 0) return [];
         return allUsers.filter(u => 
         u.role === 'Student' && 
@@ -76,7 +84,7 @@ export default function Home() {
     }
     
     return [];
-  }, [allUsers, teacherSubjectIds, teacher, isLoading]);
+  }, [allUsers, teacherSubjectIds, currentUser, isLoading]);
 
 
   const teacherAttendance = useMemo(() => {
@@ -178,5 +186,3 @@ export default function Home() {
     </div>
   );
 }
-
-    
