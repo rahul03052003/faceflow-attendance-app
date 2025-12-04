@@ -16,7 +16,6 @@ service cloud.firestore {
     }
 
     // Check for role in the user's custom auth token.
-    // This is more secure and efficient than reading from the database.
     function getUserRole() {
       return request.auth.token.role;
     }
@@ -63,11 +62,9 @@ service cloud.firestore {
       // Any authenticated user can read subjects.
       allow read: if isAuthenticated();
 
-      // Admins and Teachers can create subjects.
-      // For teachers, the teacherId must match their own uid.
-      allow create: if isAuthenticated() &&
-                    (isAdmin() || 
-                    (isTeacher() && request.auth.uid == request.resource.data.teacherId));
+      // Admins can create any subject.
+      // Teachers can only create subjects where they are the teacher.
+      allow create: if request.auth.token.role == 'Admin' || (request.auth.token.role == 'Teacher' && request.auth.uid == request.resource.data.teacherId);
       
       // Admins can update any subject.
       // Teachers can only update subjects they are assigned to.
@@ -93,11 +90,7 @@ service cloud.firestore {
       allow get: if isAuthenticated() && (isAdmin() || isTeacher());
 
       // A teacher can create an attendance record for one of their subjects.
-      // We check `isTeacher()` first, which uses the token, before calling `get` on the subject.
-      // This avoids the nested `get` error.
-      allow create: if isAuthenticated() && 
-                    isTeacher() &&
-                    get(/databases/$(database)/documents/subjects/$(request.resource.data.subjectId)).data.teacherId == request.auth.uid;
+      allow create: if request.auth.token.role == 'Teacher' && get(/databases/$(database)/documents/subjects/$(request.resource.data.subjectId)).data.teacherId == request.auth.uid;
       
       // Records are immutable once created.
       allow update, delete: if false;
