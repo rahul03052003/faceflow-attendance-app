@@ -15,13 +15,17 @@ service cloud.firestore {
       return request.auth.uid == userId;
     }
 
-    // Check for a custom claim 'role' on the user's auth token.
+    // Check for role in the user's document in the 'users' collection.
+    function getUserRole(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data.role;
+    }
+
     function isTeacher() {
-      return request.auth.token.role == 'Teacher';
+      return getUserRole(request.auth.uid) == 'Teacher';
     }
 
     function isAdmin() {
-      return request.auth.token.role == 'Admin';
+      return getUserRole(request.auth.uid) == 'Admin';
     }
 
 
@@ -42,7 +46,7 @@ service cloud.firestore {
       allow update: if isAuthenticated() && 
                     (isAdmin() || 
                      isOwner(userId) ||
-                     (isTeacher() && resource.data.role == 'Student')
+                     (isTeacher() && get(/databases/$(database)/documents/users/$(userId)).data.role == 'Student')
                      );
 
       allow delete: if isAuthenticated() && isAdmin();
@@ -94,4 +98,3 @@ service cloud.firestore {
     }
   }
 }
-
