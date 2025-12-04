@@ -22,12 +22,10 @@ service cloud.firestore {
     }
 
     function isTeacher() {
-      // We check the custom token instead of the database to prevent nested `get` calls.
       return isAuthenticated() && getUserRole() == 'Teacher';
     }
 
     function isAdmin() {
-      // We check the custom token instead of the database.
       return isAuthenticated() && getUserRole() == 'Admin';
     }
 
