@@ -41,16 +41,16 @@ export default function Home() {
     return query(ref, where('teacherId', '==', currentUser.uid));
   }, [currentUser?.uid, currentUser?.role]);
   
-  const { data: teacherSubjects, isLoading: isLoadingSubjects } = useCollection<Subject>(
+  const { data: allSubjects, isLoading: isLoadingSubjects } = useCollection<Subject>(
     currentUser ? 'subjects' : null,
     { buildQuery: subjectsQuery }
   );
   
   const teacherSubjectIds = useMemo(() => {
-    if (!teacherSubjects) return [];
-    return teacherSubjects.map(s => s.id);
-  }, [teacherSubjects]);
-
+    if (!allSubjects) return [];
+    return allSubjects.map(s => s.id);
+  }, [allSubjects]);
+  
   const attendanceQuery = useCallback((ref: any) => {
     if (currentUser?.role === 'Admin') return ref; // Admins see all attendance
     if (teacherSubjectIds.length > 0) {
@@ -68,14 +68,14 @@ export default function Home() {
   const isLoading = isLoadingUser || isLoadingUsers || isLoadingRecords || isLoadingSubjects;
 
   const teacherStudents = useMemo(() => {
-    if (isLoadingUser || !allUsers || !currentUser) return [];
+    if (isLoading || !allUsers) return [];
     
-    if (currentUser.role === 'Admin') {
+    if (currentUser?.role === 'Admin') {
       return allUsers.filter(u => u.role === 'Student');
     }
 
-    if (currentUser.role === 'Teacher') {
-        if (!teacherSubjectIds || teacherSubjectIds.length === 0) return [];
+    if (currentUser?.role === 'Teacher') {
+        if (teacherSubjectIds.length === 0) return [];
         return allUsers.filter(u => 
             u.role === 'Student' && 
             Array.isArray(u.subjects) && 
@@ -84,7 +84,7 @@ export default function Home() {
     }
     
     return [];
-}, [allUsers, teacherSubjectIds, currentUser, isLoadingUser, isLoadingSubjects]);
+}, [allUsers, teacherSubjectIds, currentUser, isLoading]);
 
 
   const teacherAttendance = useMemo(() => {
