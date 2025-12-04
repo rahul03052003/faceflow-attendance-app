@@ -46,11 +46,20 @@ export default function UsersPage() {
     isLoading: isLoadingUsers,
     error: usersError,
   } = useCollection<User>('users');
+
+  const subjectsQuery = useCallback((ref: any) => {
+    if (currentUser?.role === 'Admin') return ref;
+    if (!currentUser?.uid) return query(ref, where('teacherId', '==', ''));
+    return query(ref, where('teacherId', '==', currentUser.uid));
+  }, [currentUser?.uid, currentUser?.role]);
   
   const { 
     data: allSubjects, 
     isLoading: isLoadingSubjects 
-  } = useCollection<Subject>('subjects');
+  } = useCollection<Subject>(
+    currentUser ? 'subjects' : null,
+    { buildQuery: subjectsQuery }
+  );
 
   const { toast } = useToast();
   
@@ -63,8 +72,9 @@ export default function UsersPage() {
   
   const teacherSubjects = useMemo(() => {
     if (isLoadingSubjects || !allSubjects || !currentUser) return [];
+    if (isAdmin) return allSubjects;
     return allSubjects.filter(s => s.teacherId === currentUser.uid);
-  }, [allSubjects, isLoadingSubjects, currentUser]);
+  }, [allSubjects, isLoadingSubjects, currentUser, isAdmin]);
   
   const teacherSubjectIds = useMemo(() => teacherSubjects.map(s => s.id), [teacherSubjects]);
 
