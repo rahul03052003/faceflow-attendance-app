@@ -82,14 +82,14 @@ export default function UsersPage() {
     if (isLoading || !allUsers || !currentUser) {
       return [];
     }
-  
+    
+    // Admins see all Teachers and other Admins
     if (currentUser.role === 'Admin') {
-      // Admins see all other Admins and Teachers
-      return allUsers.filter(u => u.role === 'Teacher' || u.role === 'Admin');
+      return allUsers.filter(u => u.role !== 'Student');
     }
   
+    // Teachers see all Students
     if (currentUser.role === 'Teacher') {
-       // Teachers see all Students
        return allUsers.filter(u => u.role === 'Student');
     }
   
