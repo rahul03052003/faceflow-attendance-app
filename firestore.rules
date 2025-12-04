@@ -22,12 +22,12 @@ service cloud.firestore {
     }
 
     function isTeacher() {
-      // To fix the permission error, we check the custom token instead of the database.
+      // We check the custom token instead of the database to prevent nested `get` calls.
       return isAuthenticated() && getUserRole() == 'Teacher';
     }
 
     function isAdmin() {
-      // To fix the permission error, we check the custom token instead of the database.
+      // We check the custom token instead of the database.
       return isAuthenticated() && getUserRole() == 'Admin';
     }
 
@@ -95,6 +95,8 @@ service cloud.firestore {
       allow get: if isAuthenticated() && (isAdmin() || isTeacher());
 
       // A teacher can create an attendance record for one of their subjects.
+      // We check `isTeacher()` first, which uses the token, before calling `get` on the subject.
+      // This avoids the nested `get` error.
       allow create: if isAuthenticated() && 
                     isTeacher() &&
                     get(/databases/$(database)/documents/subjects/$(request.resource.data.subjectId)).data.teacherId == request.auth.uid;

@@ -24,15 +24,14 @@ import { useCallback, useMemo } from 'react';
 import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
 
 // NOTE: In a real production app, you would use a Cloud Function to set custom claims.
-// This is a client-side simulation for demonstration purposes.
+// This function simulates that backend operation for demonstration purposes. It does not
+// actually set claims but serves as a placeholder for where that logic would be triggered.
 async function setCustomUserClaims(uid: string, claims: object) {
   console.log(
-    `Simulating setting custom claims for user ${uid}:`,
+    `SIMULATING setting custom claims for user ${uid}:`,
     claims,
-    'This would be a backend operation in a real app.'
+    'In a real app, this would be a backend Cloud Function (e.g., httpsCallable) call.'
   );
-  // In a real app, this would be an httpsCallable function call.
-  // For this demo, we will just log it.
   return Promise.resolve();
 }
 
