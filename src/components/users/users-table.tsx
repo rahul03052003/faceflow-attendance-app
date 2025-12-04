@@ -48,6 +48,14 @@ export function UsersTable({ users, subjects, onEditUser, onDeleteUser, isAdmin 
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const { toast } = useToast();
 
+  const getSubjectNames = (subjectIds: string[] = []) => {
+    if (!subjectIds || subjectIds.length === 0) return 'N/A';
+    return subjectIds.map(id => {
+      const subject = subjects.find(s => s.id === id);
+      return subject ? subject.title : 'Unknown';
+    }).join(', ');
+  }
+
   const handleDeleteClick = (user: User) => {
     setUserToDelete(user);
     setIsAlertOpen(true);
@@ -71,8 +79,9 @@ export function UsersTable({ users, subjects, onEditUser, onDeleteUser, isAdmin 
         <TableHeader>
           <TableRow>
             <TableHead>User</TableHead>
-            {!isAdmin && <TableHead>Register No.</TableHead>}
+            <TableHead>Register No.</TableHead>
             <TableHead>Role</TableHead>
+            <TableHead>Subjects</TableHead>
             <TableHead>
               <span className="sr-only">Actions</span>
             </TableHead>
@@ -93,12 +102,13 @@ export function UsersTable({ users, subjects, onEditUser, onDeleteUser, isAdmin 
                   </div>
                 </div>
               </TableCell>
-              {!isAdmin && <TableCell>{user.registerNo || 'N/A'}</TableCell>}
+              <TableCell>{user.registerNo || 'N/A'}</TableCell>
               <TableCell>
                 <Badge variant={user.role === 'Admin' ? 'destructive' : user.role === 'Teacher' ? 'secondary' : 'outline'}>
                   {user.role}
                 </Badge>
               </TableCell>
+              <TableCell>{getSubjectNames(user.subjects)}</TableCell>
               <TableCell className="text-right">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -128,7 +138,7 @@ export function UsersTable({ users, subjects, onEditUser, onDeleteUser, isAdmin 
           ))}
           {users.length === 0 && (
             <TableRow>
-              <TableCell colSpan={isAdmin ? 3 : 4} className="h-24 text-center">
+              <TableCell colSpan={isAdmin ? 4 : 5} className="h-24 text-center">
                 {isAdmin ? "No teachers found. Add one to get started." : "No students found."}
               </TableCell>
             </TableRow>
