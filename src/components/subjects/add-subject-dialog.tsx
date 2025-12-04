@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -14,9 +14,17 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { BookPlus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import type { Subject } from '@/lib/types';
+import type { Subject, User } from '@/lib/types';
+import { useUser, useCollection } from '@/firebase';
 
 type AddSubjectDialogProps = {
   onAddSubject: (subject: Omit<Subject, 'id'>) => void;
@@ -24,8 +32,19 @@ type AddSubjectDialogProps = {
 
 export function AddSubjectDialog({ onAddSubject }: AddSubjectDialogProps) {
   const [open, setOpen] = useState(false);
+  const [selectedTeacherId, setSelectedTeacherId] = useState<string>('');
   const formRef = useRef<HTMLFormElement>(null);
   const { toast } = useToast();
+  const { user: currentUser } = useUser();
+  const { data: allUsers } = useCollection<User>('users');
+
+  const isAdmin = useMemo(() => currentUser?.role === 'Admin', [currentUser]);
+
+  const teachers = useMemo(() => {
+    if (!allUsers) return [];
+    return allUsers.filter(u => u.role === 'Teacher');
+  }, [allUsers]);
+
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -33,25 +52,49 @@ export function AddSubjectDialog({ onAddSubject }: AddSubjectDialogProps) {
     const title = formData.get('title') as string;
     const code = formData.get('code') as string;
 
-    if (title && code) {
-      onAddSubject({ title, code });
+    if (!title || !code) {
       toast({
-        title: 'Subject Added',
-        description: `${title} is being added to the database.`,
-      });
-      setOpen(false);
-    } else {
-       toast({
         variant: 'destructive',
         title: 'Error',
         description: 'Please fill out all fields.',
       });
+      return;
     }
+    
+    let teacherId = currentUser?.uid;
+    if (isAdmin) {
+      if (!selectedTeacherId) {
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: 'Please select a teacher for the subject.',
+        });
+        return;
+      }
+      teacherId = selectedTeacherId;
+    }
+
+    if (!teacherId) {
+       toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Could not determine the teacher. Please try again.',
+      });
+      return;
+    }
+
+    onAddSubject({ title, code, teacherId });
+    toast({
+      title: 'Subject Added',
+      description: `${title} is being added to the database.`,
+    });
+    setOpen(false);
   };
   
   const handleOpenChange = (isOpen: boolean) => {
     if (!isOpen) {
       formRef.current?.reset();
+      setSelectedTeacherId('');
     }
     setOpen(isOpen);
   };
@@ -85,6 +128,23 @@ export function AddSubjectDialog({ onAddSubject }: AddSubjectDialogProps) {
               </Label>
               <Input id="code" name="code" placeholder="e.g., CS101" className="col-span-3" required />
             </div>
+            {isAdmin && (
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="teacher" className="text-right">
+                  Teacher
+                </Label>
+                <Select value={selectedTeacherId} onValueChange={setSelectedTeacherId}>
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Select a teacher..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {teachers.map(teacher => (
+                      <SelectItem key={teacher.id} value={teacher.id}>{teacher.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button type="submit">Save Subject</Button>

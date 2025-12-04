@@ -50,16 +50,17 @@ export default function SubjectsPage() {
 
 
   const handleAddSubject = (
-    newSubject: Omit<Subject, 'id'> & {teacherId?: string}
+    newSubject: Omit<Subject, 'id'>
   ) => {
     if (!currentUser) return;
-    const subjectWithTeacher = { ...newSubject, teacherId: currentUser.uid };
+    
+    // The teacherId is now passed directly from the dialog
     const collectionRef = collection(firestore, 'subjects');
-    addDoc(collectionRef, subjectWithTeacher).catch(async (serverError) => {
+    addDoc(collectionRef, newSubject).catch(async (serverError) => {
       const permissionError = new FirestorePermissionError({
         path: collectionRef.path,
         operation: 'create',
-        requestResourceData: subjectWithTeacher,
+        requestResourceData: newSubject,
       });
       errorEmitter.emit('permission-error', permissionError);
     });
