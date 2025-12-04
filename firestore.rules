@@ -64,7 +64,7 @@ service cloud.firestore {
 
       // Admins can create any subject.
       // Teachers can only create subjects where they are the teacher.
-      allow create: if request.auth.token.role == 'Admin' || (request.auth.token.role == 'Teacher' && request.auth.uid == request.resource.data.teacherId);
+      allow create: if isAdmin() || (isTeacher() && request.auth.uid == request.resource.data.teacherId);
       
       // Admins can update any subject.
       // Teachers can only update subjects they are assigned to.
@@ -90,7 +90,7 @@ service cloud.firestore {
       allow get: if isAuthenticated() && (isAdmin() || isTeacher());
 
       // A teacher can create an attendance record for one of their subjects.
-      allow create: if request.auth.token.role == 'Teacher' && get(/databases/$(database)/documents/subjects/$(request.resource.data.subjectId)).data.teacherId == request.auth.uid;
+      allow create: if isTeacher() && get(/databases/$(database)/documents/subjects/$(request.resource.data.subjectId)).data.teacherId == request.auth.uid;
       
       // Records are immutable once created.
       allow update, delete: if false;
