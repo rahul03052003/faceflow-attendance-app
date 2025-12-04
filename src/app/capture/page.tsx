@@ -324,7 +324,7 @@ export default function CapturePage() {
         </div>
       );
     }
-    if (result) {
+    if (result && result.user) {
       return (
         <div className="flex flex-col items-center gap-4 text-center animate-in fade-in zoom-in-95">
           <Avatar className="h-40 w-40 border-4 border-primary shadow-lg">
