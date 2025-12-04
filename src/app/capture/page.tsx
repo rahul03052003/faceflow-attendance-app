@@ -51,6 +51,7 @@ type ScanResult = {
   user: User;
   emotion: string;
   greetingAudio: string | null;
+  status: 'Present' | 'Already Marked Present';
 };
 
 export default function CapturePage() {
@@ -170,6 +171,12 @@ export default function CapturePage() {
       }
   }, [result, toast]);
 
+  useEffect(() => {
+    if (result?.greetingAudio && audioRef.current) {
+      playGreeting();
+    }
+  }, [result?.greetingAudio, playGreeting]);
+
   const scan = async () => {
     if (!videoRef.current?.srcObject || !firestore || studentsInSelectedSubject.length === 0) {
        toast({
@@ -220,19 +227,17 @@ export default function CapturePage() {
       const isAlreadyPresent = attendanceRecords?.some(
         record => record.userId === matchedUser.id && record.date === today && record.subjectId === selectedSubjectId
       );
-      
-      const newResult: ScanResult = { user: matchedUser, emotion, greetingAudio: null };
 
       if (isAlreadyPresent) {
         toast({
           title: "Already Marked Present",
           description: `${matchedUser.name}, you are already marked as present for this subject today.`,
         });
-        setResult(newResult);
+        setResult({ user: matchedUser, emotion, greetingAudio: null, status: 'Already Marked Present' });
         return;
       }
       
-      setResult(newResult);
+      setResult({ user: matchedUser, emotion, greetingAudio: null, status: 'Present' });
 
       const attendanceRecord: NewAttendanceRecord = {
         userId: matchedUser.id,
@@ -259,12 +264,6 @@ export default function CapturePage() {
         const { audio } = await generateGreetingAudio({ name: matchedUser.name });
         if (audio) {
           setResult(prev => prev ? { ...prev, greetingAudio: audio } : null);
-          if (audioRef.current) {
-            audioRef.current.src = audio;
-            setTimeout(() => {
-                audioRef.current?.play().catch(e => console.warn("Auto-play failed, user may need to interact.", e));
-            }, 100);
-          }
         }
       } catch (e) {
         console.error("Audio generation failed:", e);
@@ -336,7 +335,7 @@ export default function CapturePage() {
             <h3 className="text-2xl font-semibold">{result.user.name}</h3>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant="secondary">Status: Marked Present</Badge>
+            <Badge variant="secondary">Status: {result.status}</Badge>
             <Badge variant="outline" className="flex items-center gap-1.5">
                 {getEmotionIcon(result.emotion)}
                 Emotion: {result.emotion}
