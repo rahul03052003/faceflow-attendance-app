@@ -22,34 +22,42 @@ service cloud.firestore {
     
     function isAdmin(userId) {
        // Also handles the special default admin email.
-      return get(/databases/$(database)/documents/users/$(userId)).data.role == 'Admin' || request.auth.email == 'admin@gmail.com';
+      return get(/databases/$(database)/documents/users/$(userId)).data.role == 'Admin' || request.auth.email == 'admin@example.com';
     }
 
     // =================================
     // User Collection Rules
     // =================================
     match /users/{userId} {
-      // Anyone authenticated can read user profiles and list them.
-      allow read, list: if isAuthenticated();
+      // Anyone authenticated can read user profiles.
+      allow read: if isAuthenticated();
 
-      // Anyone authenticated can create a user (students for teachers, any for admin).
+      // Anyone authenticated can create a user. The app logic handles role assignment.
       allow create: if isAuthenticated();
 
       // Admins can update anyone. A user can update their own profile.
       // A teacher can update a user ONLY if that user IS a student.
       // `resource.data` refers to the document state before the change. This is valid.
-      allow update: if isAuthenticated() && (isOwner(userId) || (getUserRole(request.auth.uid) == 'Admin') || (getUserRole(request.auth.uid) == 'Teacher' && resource.data.role == 'Student'));
+      allow update: if isAuthenticated() && 
+                    (isOwner(userId) || 
+                     (getUserRole(request.auth.uid) == 'Admin') || 
+                     (getUserRole(request.auth.uid) == 'Teacher' && resource.data.role == 'Student'));
 
       // Admins can delete anyone.
       // A teacher can delete a user ONLY if that user IS a student.
-      allow delete: if isAuthenticated() && ((getUserRole(request.auth.uid) == 'Admin') || (getUserRole(request.auth.uid) == 'Teacher' && resource.data.role == 'Student'));
+      // This rule is valid because it does NOT use a `get()` call.
+      allow delete: if isAuthenticated() && 
+                    ((getUserRole(request.auth.uid) == 'Admin') || 
+                     (getUserRole(request.auth.uid) == 'Teacher' && resource.data.role == 'Student'));
     }
 
     // =================================
     // Subject Collection Rules
     // =================================
     match /subjects/{subjectId} {
-      allow read, create: if isAuthenticated();
+      allow read: if isAuthenticated();
+      // Any authenticated user can create a subject.
+      allow create: if isAuthenticated();
 
       // Admins can update any subject.
       // A teacher can update a subject only if they are the assigned teacher.
@@ -67,8 +75,8 @@ service cloud.firestore {
     // =================================
     match /attendance/{attendanceId} {
       allow list, read: if isAuthenticated();
-      // This `get` is valid because it's in a `create` rule.
-      allow create: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Teacher' && get(/databases/$(database)/documents/subjects/$(request.resource.data.subjectId)).data.teacherId == request.auth.uid;
+      // A teacher can create an attendance record for a subject they teach.
+      allow create: if getUserRole(request.auth.uid) == 'Teacher' && get(/databases/$(database)/documents/subjects/$(request.resource.data.subjectId)).data.teacherId == request.auth.uid;
       // Attendance records are immutable.
       allow update, delete: if false;
     }
