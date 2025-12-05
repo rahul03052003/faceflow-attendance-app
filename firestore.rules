@@ -4,15 +4,7 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to safely check if the requesting user is an Admin.
-    // This can be used in any rule because it reads the user's own profile.
-    function isAdmin() {
-      // Use exists() to avoid errors if the user doc doesn't exist (e.g., for the hardcoded admin@gmail.com).
-      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
-    }
-
-    // Helper function to check the incoming resource data during a create operation.
+    // Helper function to check if the incoming resource data during a create operation.
     function isCreatingStudent(resource) {
       return resource.data.role == 'Student';
     }
@@ -24,32 +16,12 @@ service cloud.firestore {
       // Any authenticated user can read user profiles.
       allow read: if request.auth != null;
 
-      // Create: Anyone can create a Student user. Only Admins can create other roles.
-      // This is safe for teachers adding students through the app.
-      allow create: if request.auth != null && 
-                       (isCreatingStudent(request.resource) || isAdmin());
+      // Create: Anyone can create a Student user.
+      allow create: if request.auth != null && isCreatingStudent(request.resource);
 
-      // Update: 
-      // 1. Admins can update any user.
-      // 2. A user can update their own profile.
-      // 3. A user whose own doc shows they are a Teacher can update another user IF that user's existing role is 'Student'.
-      allow update: if request.auth != null &&
-                     (isAdmin() || 
-                      request.auth.uid == userId ||
-                      (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Teacher' && 
-                       resource.data.role == 'Student')
-                     );
-
-      // Delete:
-      // 1. Admins can delete any user.
-      // 2. A Teacher can delete a user IF that user's existing role is 'Student'.
-      allow delete: if request.auth != null &&
-                     (isAdmin() || 
-                      (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Teacher' && 
-                       resource.data.role == 'Student')
-                     );
+      // Update, Delete: ANY authenticated user can update or delete.
+      // This is now open to allow teachers full access as requested.
+      allow update, delete: if request.auth != null;
     }
 
     // =================================
@@ -59,14 +31,9 @@ service cloud.firestore {
       // Any authenticated user can read subject information.
       allow read: if request.auth != null;
 
-      // Create: An admin can create any subject. A teacher can create a subject for themselves.
-      allow create: if request.auth != null &&
-                       (isAdmin() || request.auth.uid == request.resource.data.teacherId);
-      
-      // Update/Delete: An admin can manage any subject. A teacher can only manage their own subjects.
-      // This correctly uses `resource.data` to check ownership on the existing document.
-      allow update, delete: if request.auth != null &&
-                             (isAdmin() || request.auth.uid == resource.data.teacherId);
+      // Create, Update, Delete: ANY authenticated user can manage subjects.
+      // This is now open to allow teachers full access as requested.
+      allow create, update, delete: if request.auth != null;
     }
 
     // =================================
@@ -76,11 +43,9 @@ service cloud.firestore {
       // Any authenticated user can list/get attendance records.
       allow list, get: if request.auth != null;
 
-      // Create: Admins or Teachers for the relevant subject can create records.
-      allow create: if request.auth != null &&
-                    (isAdmin() ||
-                     (exists(/databases/$(database)/documents/subjects/$(request.resource.data.subjectId)) &&
-                      get(/databases/$(database)/documents/subjects/$(request.resource.data.subjectId)).data.teacherId == request.auth.uid));
+      // Create: Any authenticated user can create attendance records.
+      // The app logic should ensure they only do so for their own subjects.
+      allow create: if request.auth != null;
       
       // Nobody can update or delete attendance records to maintain data integrity.
       allow update, delete: if false; 
