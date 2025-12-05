@@ -98,6 +98,16 @@ export default function UsersPage() {
     newUser: Omit<User, 'id' | 'avatar' | 'role' | 'facialFeatures'> & { photo?: File, photoPreview?: string, subjects?: string[] }
   ) => {
     
+    // Check for duplicate register number
+    if (allUsers?.some(user => user.registerNo === newUser.registerNo)) {
+      toast({
+        variant: "destructive",
+        title: "Registration Error",
+        description: `Register number ${newUser.registerNo} is already in use. Please use a unique number.`,
+      });
+      return;
+    }
+
     toast({
       title: 'Adding User...',
       description: `Analyzing photo and preparing to add ${newUser.name}.`,
@@ -148,6 +158,16 @@ export default function UsersPage() {
     userId: string,
     updatedUser: Omit<User, 'id' | 'avatar' | 'role' | 'facialFeatures'> & { photo?: File, photoPreview?: string, subjects?: string[] }
   ) => {
+    // Check for duplicate register number, excluding the current user
+    if (allUsers?.some(user => user.registerNo === updatedUser.registerNo && user.id !== userId)) {
+      toast({
+        variant: "destructive",
+        title: "Update Error",
+        description: `Register number ${updatedUser.registerNo} is already in use by another student.`,
+      });
+      return;
+    }
+
     const docRef = doc(firestore, 'users', userId);
     const userToUpdate: any = {
       name: updatedUser.name,
