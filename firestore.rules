@@ -4,48 +4,28 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to check if the incoming resource data during a create operation.
-    function isCreatingStudent(resource) {
-      return resource.data.role == 'Student';
-    }
-
     // =================================
     // User Collection Rules
     // =================================
     match /users/{userId} {
-      // Any authenticated user can read user profiles.
-      allow read: if request.auth != null;
-
-      // Create: Anyone can create a Student user.
-      allow create: if request.auth != null && isCreatingStudent(request.resource);
-
-      // Update, Delete: ANY authenticated user can update or delete.
-      // This is now open to allow teachers full access as requested.
-      allow update, delete: if request.auth != null;
+      // Allow any authenticated user to read, create, update, and delete user documents.
+      allow read, write: if request.auth != null;
     }
 
     // =================================
     // Subject Collection Rules
     // =================================
     match /subjects/{subjectId} {
-      // Any authenticated user can read subject information.
-      allow read: if request.auth != null;
-
-      // Create, Update, Delete: ANY authenticated user can manage subjects.
-      // This is now open to allow teachers full access as requested.
-      allow create, update, delete: if request.auth != null;
+      // Allow any authenticated user to read, create, update, and delete subject documents.
+      allow read, write: if request.auth != null;
     }
 
     // =================================
     // Attendance Collection Rules
     // =================================
     match /attendance/{attendanceId} {
-      // Any authenticated user can list/get attendance records.
-      allow list, get: if request.auth != null;
-
-      // Create: Any authenticated user can create attendance records.
-      // The app logic should ensure they only do so for their own subjects.
-      allow create: if request.auth != null;
+      // Any authenticated user can read or create attendance records.
+      allow read, create: if request.auth != null;
       
       // Nobody can update or delete attendance records to maintain data integrity.
       allow update, delete: if false; 
