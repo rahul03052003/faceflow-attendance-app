@@ -4,16 +4,18 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to check if the requesting user's role is Admin
+    // Helper function to check if the requesting user's role is Admin.
+    // This is safe to use in 'read' and 'create' rules.
     function isAdmin() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
     }
-    
-    // Helper function to check if the requesting user's role is Teacher
+
+    // Helper function to check if the requesting user's role is Teacher.
+    // This is safe to use in 'read' and 'create' rules.
     function isTeacher() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Teacher';
     }
-
+    
     // =================================
     // User Collection Rules
     // =================================
@@ -27,13 +29,14 @@ service cloud.firestore {
                      (isTeacher() && request.resource.data.role == 'Student'));
 
       // Update: Admins can update any user. A user can update their own profile.
-      // A teacher can update a user IF that user is a Student.
+      // A teacher can update a user IF that user's existing role is 'Student'.
+      // This uses `resource`, which is the document state *before* the change.
       allow update: if request.auth != null &&
                      (isAdmin() ||
                       request.auth.uid == userId ||
                       (isTeacher() && resource.data.role == 'Student'));
 
-      // Delete: Admins can delete any user. A teacher can delete a user IF that user is a Student.
+      // Delete: Admins can delete any user. A teacher can delete a user IF that user's existing role is 'Student'.
       allow delete: if request.auth != null &&
                      (isAdmin() ||
                       (isTeacher() && resource.data.role == 'Student'));
@@ -46,12 +49,13 @@ service cloud.firestore {
       // Any authenticated user can read subject information.
       allow read: if request.auth != null;
 
-      // Teachers can create subjects for themselves. Admins can create any.
+      // Create: Admins can create any subject. Teachers can create subjects for themselves.
       allow create: if request.auth != null &&
                        (isAdmin() || 
                         (isTeacher() && request.auth.uid == request.resource.data.teacherId));
       
-      // Teachers can update/delete their own subjects. Admins can update/delete any.
+      // Update/Delete: Admins can manage any subject. Teachers can only manage their own subjects.
+      // This uses `resource` to check the `teacherId` of the document *before* the change.
       allow update, delete: if request.auth != null &&
                              (isAdmin() || 
                               (isTeacher() && request.auth.uid == resource.data.teacherId));
@@ -64,7 +68,8 @@ service cloud.firestore {
       // Any authenticated user can list/get attendance records.
       allow list, get: if request.auth != null;
 
-      // Teachers can create records for subjects they teach. Admins can create any.
+      // Create: Admins can create any record. Teachers can only create records for subjects they teach.
+      // This rule correctly checks for the existence of the subject and verifies ownership.
       allow create: if request.auth != null &&
                     (isAdmin() ||
                      (isTeacher() &&
