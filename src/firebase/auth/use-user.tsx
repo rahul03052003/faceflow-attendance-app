@@ -47,7 +47,6 @@ export function useUser() {
       } else {
         // This case handles a user that exists in Firebase Auth but NOT in the 'users'
         // collection in Firestore. This could be an admin user or a user in the process of creation.
-        // We will treat them as a user without a specific role for now.
         setAppUser(null);
       }
       setIsLoading(false);
@@ -63,14 +62,17 @@ export function useUser() {
   const user = useMemo(() => {
     if (!authUser) return null;
     
+    // Special case: Automatically assign 'Admin' role for the default admin email.
+    const isAdminByEmail = authUser.email === 'admin@example.com';
+    
     // The final user object merges data from Firebase Auth (like uid, email)
     // with our application-specific data from Firestore (like role, name).
-    // The role from the Firestore document is the source of truth for the app's UI and logic.
     const mergedUser: EnrichedUser = {
       ...authUser,
       ...appUser, // Firestore data (including role) overrides any auth data if keys conflict
       id: authUser.uid, // Ensure the canonical ID from Auth is used
-      role: appUser?.role || 'Teacher', // Default to 'Teacher' if no profile exists, can be adjusted.
+      // If they are the special admin, assign the role. Otherwise, use Firestore role or default to 'Teacher'.
+      role: isAdminByEmail ? 'Admin' : appUser?.role || 'Teacher',
     };
 
     return mergedUser;
