@@ -45,7 +45,7 @@ export function useUser() {
         setAppUser({ id: doc.id, ...firestoreData });
       } else {
         // Handle users in Auth but not Firestore, like the special admin.
-        if (authUser.email === 'admin@example.com') {
+        if (authUser.email === 'admin@gmail.com') {
           setAppUser({
             id: authUser.uid,
             email: authUser.email,
@@ -71,7 +71,7 @@ export function useUser() {
   const user = useMemo(() => {
     if (!authUser) return null;
     
-    const isAdminByEmail = authUser.email === 'admin@example.com';
+    const isAdminByEmail = authUser.email === 'admin@gmail.com';
     
     const mergedUser: EnrichedUser = {
       ...authUser,

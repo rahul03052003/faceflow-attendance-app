@@ -19,10 +19,15 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/users/$(userId)).data.role;
     }
 
-    // This is for READ rules ONLY. The 'admin@example.com' check is a fallback.
-    function isAdmin(userId) {
-        return getUserRole(userId) == 'Admin' || request.auth.email == 'admin@example.com';
+    // This is for READ rules ONLY. The 'admin@gmail.com' check is a fallback.
+    function isAdmin() {
+        return getUserRole(request.auth.uid) == 'Admin' || request.auth.email == 'admin@gmail.com';
     }
+    
+    function isTeacher() {
+      return getUserRole(request.auth.uid) == 'Teacher';
+    }
+
 
     // =================================
     // User Collection Rules
@@ -33,7 +38,7 @@ service cloud.firestore {
       // Anyone authenticated can create a user. The app UI restricts this to Admins/Teachers.
       allow create: if isAuthenticated();
 
-      // Admins can update anyone (checked on client side, this rule is open for them)
+      // An admin can update anyone.
       // A user can update their own profile.
       // A teacher can update a user ONLY IF that user's existing role is 'Student'.
       // This uses `resource.data` which is valid in update rules.
@@ -53,11 +58,9 @@ service cloud.firestore {
       allow read: if isAuthenticated();
 
       // Any authenticated user can create a subject. The app UI controls who sees the button.
-      // This removes the invalid `get()` call.
       allow create: if isAuthenticated();
 
       // A user can update/delete a subject if they are the assigned teacher for that subject.
-      // This is a valid ownership check using `resource.data`.
       allow update, delete: if isAuthenticated() && (resource.data.teacherId == request.auth.uid);
     }
 
@@ -65,14 +68,10 @@ service cloud.firestore {
     // Attendance Collection Rules
     // =================================
     match /attendance/{attendanceId} {
-      // Teachers and Admins can read the full list.
-      allow list: if isAuthenticated();
-      
-      // Teachers can read individual records.
-      allow read: if isAuthenticated();
+      allow list, read: if isAuthenticated();
 
-      // A teacher can create a record for a subject they teach. This is a valid use of `get`
-      // because Firestore allows checking against incoming data in a `create` rule.
+      // A teacher can create a record for a subject they teach.
+      // This uses `get` on a different path, which is allowed for `create` rules.
       allow create: if get(/databases/$(database)/documents/subjects/$(request.resource.data.subjectId)).data.teacherId == request.auth.uid;
       
       // Attendance records are immutable.
