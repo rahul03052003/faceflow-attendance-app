@@ -34,10 +34,18 @@ export default function LoginPage() {
       router.push('/');
     } catch (error: any) {
       console.error('Login failed:', error);
+      
+      let description = 'An unexpected error occurred. Please try again.';
+      if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+        description = 'The email or password you entered is incorrect. Please check your credentials and try again.';
+      } else if (error.message) {
+        description = error.message;
+      }
+      
       toast({
         variant: 'destructive',
         title: 'Login Failed',
-        description: error.message || 'Please check your credentials and try again.',
+        description: description,
       });
     } finally {
       setIsLoading(false);
