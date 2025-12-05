@@ -15,84 +15,61 @@ service cloud.firestore {
       return request.auth.uid == userId;
     }
 
-    function getRole(userId) {
+    function getUserRole(userId) {
       return get(/databases/$(database)/documents/users/$(userId)).data.role;
-    }
-    
-    function isAdmin() {
-      return getRole(request.auth.uid) == 'Admin';
-    }
-
-    function isTeacher() {
-      return getRole(request.auth.uid) == 'Teacher';
     }
 
     // =================================
     // User Collection Rules
     // =================================
     match /users/{userId} {
-      // Any authenticated user can read/list user profiles. This is needed for the app to function.
       allow read: if isAuthenticated();
       
-      // Admins can create any user.
-      // Teachers can create Students.
       allow create: if isAuthenticated() &&
-                    (isAdmin() || (isTeacher() && request.resource.data.role == 'Student'));
+                    (getUserRole(request.auth.uid) == 'Admin' || 
+                     (getUserRole(request.auth.uid) == 'Teacher' && request.resource.data.role == 'Student'));
 
-      // Admins can update any user.
-      // Users can update their own profiles.
-      // Teachers can only update users whose existing data shows they are a 'Student'.
       allow update: if isAuthenticated() &&
-                    (isAdmin() || 
+                    (getUserRole(request.auth.uid) == 'Admin' ||
                      isOwner(userId) ||
-                     (isTeacher() && resource.data.role == 'Student'));
+                     (getUserRole(request.auth.uid) == 'Teacher' && resource.data.role == 'Student'));
       
-      // Admins can delete any user.
-      // Teachers can delete Students by checking the role on the existing resource.
       allow delete: if isAuthenticated() &&
-                    (isAdmin() || 
-                     (isTeacher() && resource.data.role == 'Student'));
+                    (getUserRole(request.auth.uid) == 'Admin' || 
+                     (getUserRole(request.auth.uid) == 'Teacher' && resource.data.role == 'Student'));
     }
 
     // =================================
     // Subject Collection Rules
     // =================================
     match /subjects/{subjectId} {
-      // Any authenticated user can read subjects.
       allow read: if isAuthenticated();
 
-      // Admins can create any subject.
-      // Teachers can only create subjects where they are the teacher.
       allow create: if isAuthenticated() &&
-                    (isAdmin() || (isTeacher() && request.auth.uid == request.resource.data.teacherId));
+                    (getUserRole(request.auth.uid) == 'Admin' || 
+                     (getUserRole(request.auth.uid) == 'Teacher' && request.auth.uid == request.resource.data.teacherId));
       
-      // Admins can update any subject.
-      // Teachers can only update subjects they are assigned to.
       allow update: if isAuthenticated() &&
-                    (isAdmin() || (isTeacher() && request.auth.uid == resource.data.teacherId));
+                    (getUserRole(request.auth.uid) == 'Admin' ||
+                     (getUserRole(request.auth.uid) == 'Teacher' && request.auth.uid == resource.data.teacherId));
 
-      // Admins can delete any subject.
-      // Teachers can only delete subjects they are assigned to.
       allow delete: if isAuthenticated() &&
-                    (isAdmin() || (isTeacher() && request.auth.uid == resource.data.teacherId));
+                    (getUserRole(request.auth.uid) == 'Admin' ||
+                     (getUserRole(request.auth.uid) == 'Teacher' && request.auth.uid == resource.data.teacherId));
     }
 
     // =================================
     // Attendance Collection Rules
     // =================================
     match /attendance/{attendanceId} {
-      // Authenticated users can list attendance records.
       allow list: if isAuthenticated();
 
-      // Admins and Teachers can read any individual record.
-      allow get: if isAuthenticated() && (isAdmin() || isTeacher());
+      allow get: if isAuthenticated() && (getUserRole(request.auth.uid) == 'Admin' || getUserRole(request.auth.uid) == 'Teacher');
 
-      // A teacher can create an attendance record for one of their subjects.
       allow create: if isAuthenticated() &&
-                    isTeacher() &&
+                    getUserRole(request.auth.uid) == 'Teacher' &&
                     get(/databases/$(database)/documents/subjects/$(request.resource.data.subjectId)).data.teacherId == request.auth.uid;
       
-      // Records are immutable once created.
       allow update, delete: if false;
     }
   }
