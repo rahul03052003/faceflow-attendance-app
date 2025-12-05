@@ -37,7 +37,7 @@ service cloud.firestore {
                      (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Teacher' && resource.data.role == 'Student'));
       
       // Admins can delete any user.
-      // Teachers can delete Students.
+      // Teachers can delete Students by checking the role on the existing resource.
       allow delete: if isAuthenticated() &&
                     (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin' ||
                      (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Teacher' && resource.data.role == 'Student'));
@@ -82,7 +82,6 @@ service cloud.firestore {
                   get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Teacher');
 
       // A teacher can create an attendance record for one of their subjects.
-      // This is the one rule that requires two 'get' calls, but they are not nested inside a function.
       allow create: if isAuthenticated() &&
                     get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Teacher' &&
                     get(/databases/$(database)/documents/subjects/$(request.resource.data.subjectId)).data.teacherId == request.auth.uid;
