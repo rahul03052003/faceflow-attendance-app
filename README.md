@@ -27,3 +27,53 @@ This project is built with the following technologies:
 ## Getting Started
 
 To get started with the application, log in with one of the provided user roles (Admin or Teacher) to explore the features. The main functionalities are accessible through the sidebar navigation.
+
+## Running the Project Locally
+
+To run this project on your local machine, you'll need to have [Node.js](https://nodejs.org/) installed.
+
+### 1. Clone the Repository
+
+Clone this repository to your local machine:
+
+```bash
+git clone <repository-url>
+cd <repository-directory>
+```
+
+### 2. Install Dependencies
+
+Install the project dependencies using npm:
+
+```bash
+npm install
+```
+
+### 3. Environment Variables
+
+The project uses Google's Generative AI models, which require an API key.
+
+1.  Create a file named `.env` in the root of the project.
+2.  Obtain a Gemini API key from [Google AI Studio](https://aistudio.google.com/app/apikey).
+3.  Add the key to your `.env` file like this:
+    ```
+    GEMINI_API_KEY=YOUR_API_KEY_HERE
+    ```
+
+### 4. Run the Development Servers
+
+This project requires two separate development servers to be running at the same time: one for the Next.js application and one for the Genkit AI flows.
+
+1.  **Run the Next.js Dev Server:**
+    Open a terminal and run:
+    ```bash
+    npm run dev
+    ```
+    This will start the web application, typically on `http://localhost:9002`.
+
+2.  **Run the Genkit Dev Server:**
+    Open a **second terminal** and run:
+    ```bash
+    npm run genkit:watch
+    ```
+    This starts the Genkit development server, which runs your AI flows. It also watches for changes in your AI-related files and reloads them automatically.
