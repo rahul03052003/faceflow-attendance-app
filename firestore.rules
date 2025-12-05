@@ -3,32 +3,10 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // =================================
-    // User Collection Rules
-    // =================================
-    match /users/{userId} {
-      // Allow any authenticated user to read, create, update, and delete user documents.
-      allow read, create, update, delete: if request.auth != null;
-    }
-
-    // =================================
-    // Subject Collection Rules
-    // =================================
-    match /subjects/{subjectId} {
-      // Allow any authenticated user to read, create, update, and delete subject documents.
-      allow read, create, update, delete: if request.auth != null;
-    }
-
-    // =================================
-    // Attendance Collection Rules
-    // =================================
-    match /attendance/{attendanceId} {
-      // Any authenticated user can read or create attendance records.
-      allow read, create: if request.auth != null;
-      
-      // Nobody can update or delete attendance records to maintain data integrity.
-      allow update, delete: if false; 
+    // WARNING: These rules are insecure and are for development purposes only.
+    // They allow anyone to read, write, and delete data in your database.
+    match /{document=**} {
+      allow read, write: if true;
     }
   }
 }
