@@ -47,8 +47,9 @@ service cloud.firestore {
       // Teachers can only update users whose role is 'Student'.
       allow update: if isAdmin() || isOwner(userId) || (isTeacher() && request.resource.data.role == 'Student');
       
-      // Admins can delete any user. Teachers can only delete students.
-      allow delete: if isAdmin() || (isTeacher() && get(/databases/$(database)/documents/users/$(userId)).data.role == 'Student');
+      // Admins can delete any user.
+      // Teachers can delete Students. The check is on the role of the user being deleted.
+      allow delete: if isAdmin() || (isTeacher() && resource.data.role == 'Student');
     }
 
     // =================================
