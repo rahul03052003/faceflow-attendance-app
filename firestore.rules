@@ -5,70 +5,67 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // =================================
-    // Helper Functions
-    // =================================
-    function isAuthenticated() {
-      return request.auth != null;
-    }
-
-    function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-
-    function getUserRole(userId) {
-      return get(/databases/$(database)/documents/users/$(userId)).data.role;
-    }
-
-    // =================================
     // User Collection Rules
     // =================================
     match /users/{userId} {
-      allow read: if isAuthenticated();
-      
-      allow create: if isAuthenticated() &&
-                    (getUserRole(request.auth.uid) == 'Admin' || 
-                     (getUserRole(request.auth.uid) == 'Teacher' && request.resource.data.role == 'Student'));
+      allow read: if request.auth != null;
 
-      allow update: if isAuthenticated() &&
-                    (getUserRole(request.auth.uid) == 'Admin' ||
-                     isOwner(userId) ||
-                     (getUserRole(request.auth.uid) == 'Teacher' && resource.data.role == 'Student'));
-      
-      allow delete: if isAuthenticated() &&
-                    (getUserRole(request.auth.uid) == 'Admin' || 
-                     (getUserRole(request.auth.uid) == 'Teacher' && resource.data.role == 'Student'));
+      allow create: if request.auth != null &&
+                    // An admin can create any user
+                    (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin' ||
+                    // A teacher can create a student
+                     (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Teacher' && request.resource.data.role == 'Student'));
+
+      allow update: if request.auth != null &&
+                    // An admin can update any user
+                    (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin' ||
+                    // A user can update their own profile
+                     request.auth.uid == userId ||
+                    // A teacher can update a student
+                     (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Teacher' && resource.data.role == 'Student'));
+
+      allow delete: if request.auth != null &&
+                    // An admin can delete any user
+                    (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin' ||
+                    // A teacher can delete a student
+                     (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Teacher' && resource.data.role == 'Student'));
     }
 
     // =================================
     // Subject Collection Rules
     // =================================
     match /subjects/{subjectId} {
-      allow read: if isAuthenticated();
+      allow read: if request.auth != null;
 
-      allow create: if isAuthenticated() &&
-                    (getUserRole(request.auth.uid) == 'Admin' || 
-                     (getUserRole(request.auth.uid) == 'Teacher' && request.auth.uid == request.resource.data.teacherId));
+      allow create: if request.auth != null &&
+                    // An admin can create any subject
+                    (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin' ||
+                    // A teacher can create a subject for themselves
+                     (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Teacher' && request.auth.uid == request.resource.data.teacherId));
       
-      allow update: if isAuthenticated() &&
-                    (getUserRole(request.auth.uid) == 'Admin' ||
-                     (getUserRole(request.auth.uid) == 'Teacher' && request.auth.uid == resource.data.teacherId));
+      allow update: if request.auth != null &&
+                    // An admin can update any subject
+                    (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin' ||
+                    // A teacher can update their own subject
+                     (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Teacher' && request.auth.uid == resource.data.teacherId));
 
-      allow delete: if isAuthenticated() &&
-                    (getUserRole(request.auth.uid) == 'Admin' ||
-                     (getUserRole(request.auth.uid) == 'Teacher' && request.auth.uid == resource.data.teacherId));
+      allow delete: if request.auth != null &&
+                    // An admin can delete any subject
+                    (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin' ||
+                    // A teacher can delete their own subject
+                     (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Teacher' && request.auth.uid == resource.data.teacherId));
     }
 
     // =================================
     // Attendance Collection Rules
     // =================================
     match /attendance/{attendanceId} {
-      allow list: if isAuthenticated();
+      allow list, get: if request.auth != null;
 
-      allow get: if isAuthenticated() && (getUserRole(request.auth.uid) == 'Admin' || getUserRole(request.auth.uid) == 'Teacher');
-
-      allow create: if isAuthenticated() &&
-                    getUserRole(request.auth.uid) == 'Teacher' &&
-                    get(/databases/$(database)/documents/subjects/$(request.resource.data.subjectId)).data.teacherId == request.auth.uid;
+      allow create: if request.auth != null &&
+                    // A teacher can create an attendance record for a subject they teach
+                    (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Teacher' &&
+                    get(/databases/$(database)/documents/subjects/$(request.resource.data.subjectId)).data.teacherId == request.auth.uid);
       
       allow update, delete: if false;
     }
