@@ -1,12 +1,79 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // WARNING: These rules are insecure and are for development purposes only.
-    // They allow anyone to read, write, and delete data in your database.
-    match /{document=**} {
-      allow read, write: if true;
+
+    // =================================
+    // Helper Functions (no changes)
+    // =================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    function getUserRole() {
+      // In a real app with custom claims, this would be:
+      // return request.auth.token.role;
+      // For this app, we read from the user's document.
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isTeacher() {
+      return isAuthenticated() && getUserRole() == 'Teacher';
+    }
+
+    function isAdmin() {
+      // Special case for the default admin email, which doesn't have a DB entry
+      return isAuthenticated() && (request.auth.email == 'admin@gmail.com' || getUserRole() == 'Admin');
+    }
+
+
+    // =================================
+    // User Collection Rules
+    // =================================
+    match /users/{userId} {
+      allow list: if isAuthenticated();
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+
+      // Teachers can update a user only if that user IS a student
+      // Admins can update anyone
+      // A user can update their own profile
+      allow update: if isAdmin() || isOwner(userId) || (isTeacher() && resource.data.role == 'Student');
+
+      // Teachers can delete a user only if that user IS a student
+      // Admins can delete anyone
+      allow delete: if isAdmin() || (isTeacher() && resource.data.role == 'Student');
+    }
+
+    // =================================
+    // Subject Collection Rules
+    // =================================
+    match /subjects/{subjectId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+
+      // Teachers can update a subject only if they are the assigned teacher
+      // Admins can update any subject
+      allow update: if isAdmin() || (isTeacher() && resource.data.teacherId == request.auth.uid);
+
+
+      // Teachers can delete a subject only if they are the assigned teacher
+      // Admins can delete any subject
+      allow delete: if isAdmin() || (isTeacher() && resource.data.teacherId == request.auth.uid);
+    }
+
+    // =================================
+    // Attendance Collection Rules
+    // =================================
+    match /attendance/{attendanceId} {
+      allow list, read: if isAuthenticated();
+      // Only the teacher assigned to the subject can create an attendance record for it
+      allow create: if isTeacher() && get(/databases/$(database)/documents/subjects/$(request.resource.data.subjectId)).data.teacherId == request.auth.uid;
+      allow update, delete: if false; // Attendance records are immutable
     }
   }
 }
