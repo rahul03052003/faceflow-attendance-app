@@ -34,25 +34,21 @@ service cloud.firestore {
     // =================================
     match /users/{userId} {
       // Admins and Teachers can list all users. 
-      // Individual users can read their own profile.
       allow list: if isAuthenticated() && (isAdmin() || isTeacher());
-      allow read: if isAuthenticated();
+      // Any authenticated user can read their own profile.
+      allow get: if isAuthenticated();
       
       // Admins can create any user.
-      // Authenticated users (Teachers) can create Students.
-      allow create: if isAuthenticated() && 
-                    (isAdmin() || request.resource.data.role == 'Student');
+      // Teachers can create Students.
+      allow create: if isAdmin() || (isTeacher() && request.resource.data.role == 'Student');
 
       // Admins can update any user.
-      // Teachers can update Students.
       // Any user can update their own profile.
-      allow update: if isAuthenticated() && 
-                    (isAdmin() || 
-                     isOwner(userId) ||
-                     (isTeacher() && get(/databases/$(database)/documents/users/$(userId)).data.role == 'Student')
-                     );
-
-      allow delete: if isAuthenticated() && isAdmin();
+      // Teachers can only update users whose role is 'Student'.
+      allow update: if isAdmin() || isOwner(userId) || (isTeacher() && request.resource.data.role == 'Student');
+      
+      // Admins can delete any user. Teachers can only delete students.
+      allow delete: if isAdmin() || (isTeacher() && get(/databases/$(database)/documents/users/$(userId)).data.role == 'Student');
     }
 
     // =================================
