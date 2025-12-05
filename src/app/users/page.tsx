@@ -81,8 +81,8 @@ export default function UsersPage() {
     if (isLoading || !allUsers) return [];
     
     if (isAdmin) {
-      // Admins see teachers and other admins
-      return allUsers.filter(u => u.role !== 'Student');
+      // Admins see teachers and other admins, but not students.
+      return allUsers.filter(u => u.role === 'Teacher' || u.role === 'Admin');
     }
     
     // Teachers see only students in their subjects

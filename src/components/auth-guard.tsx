@@ -34,10 +34,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       const allowedNavItems = ALL_NAV_ITEMS.filter(item => item.roles.includes(userRole));
       const isAllowed = allowedNavItems.some(item => item.href === pathname);
       
-      // Allow access to settings page for all authenticated users
-      const isSettings = pathname === '/settings';
-
-      if (!isAllowed && !isSettings) {
+      if (!isAllowed) {
         // If not allowed, redirect to their default home page
         const homePage = userRole === 'Admin' ? '/reports' : '/';
         router.push(homePage);
