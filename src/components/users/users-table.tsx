@@ -79,7 +79,6 @@ export function UsersTable({ users, subjects, onEditUser, onDeleteUser, isAdmin 
         <TableHeader>
           <TableRow>
             <TableHead>User</TableHead>
-            <TableHead>ID</TableHead>
             <TableHead>Register No.</TableHead>
             <TableHead>Role</TableHead>
             <TableHead>Assigned Subjects</TableHead>
@@ -102,9 +101,6 @@ export function UsersTable({ users, subjects, onEditUser, onDeleteUser, isAdmin 
                     <p className="text-sm text-muted-foreground">{user.email}</p>
                   </div>
                 </div>
-              </TableCell>
-              <TableCell>
-                <div className="text-xs text-muted-foreground truncate w-24">{user.id}</div>
               </TableCell>
               <TableCell>{user.registerNo || 'N/A'}</TableCell>
               <TableCell>
@@ -142,7 +138,7 @@ export function UsersTable({ users, subjects, onEditUser, onDeleteUser, isAdmin 
           ))}
           {users.length === 0 && (
             <TableRow>
-              <TableCell colSpan={6} className="h-24 text-center">
+              <TableCell colSpan={5} className="h-24 text-center">
                 {isAdmin ? "No teachers found. Add one to get started." : "No students found."}
               </TableCell>
             </TableRow>
