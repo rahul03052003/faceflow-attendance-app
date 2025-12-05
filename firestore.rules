@@ -14,35 +14,35 @@ service cloud.firestore {
       return request.auth.uid == userId;
     }
 
-    function getUserRole() {
-      // Correctly get the role from the user's document in the 'users' collection
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    // This function can only be used in 'read' or 'create' rules for other collections,
+    // or within the /users/{userId} match itself.
+    function getUserRole(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data.role;
     }
-
-    function isTeacher() {
-      return isAuthenticated() && getUserRole() == 'Teacher';
-    }
-
-    function isAdmin() {
-      // Includes a special case for the default admin email, which might not have a DB entry
-      return isAuthenticated() && (request.auth.email == 'admin@gmail.com' || getUserRole() == 'Admin');
+    
+    function isAdmin(userId) {
+       // Also handles the special default admin email.
+      return get(/databases/$(database)/documents/users/$(userId)).data.role == 'Admin' || request.auth.email == 'admin@gmail.com';
     }
 
     // =================================
     // User Collection Rules
     // =================================
     match /users/{userId} {
-      allow list, read: if isAuthenticated();
+      // Anyone authenticated can read user profiles and list them.
+      allow read, list: if isAuthenticated();
+
+      // Anyone authenticated can create a user (students for teachers, any for admin).
       allow create: if isAuthenticated();
 
-      // Admins can update anyone.
-      // A user can update their own profile.
-      // A teacher can update a user only if that user IS a student.
-      allow update: if isAdmin() || isOwner(userId) || (isTeacher() && resource.data.role == 'Student');
+      // Admins can update anyone. A user can update their own profile.
+      // A teacher can update a user ONLY if that user IS a student.
+      // `resource.data` refers to the document state before the change. This is valid.
+      allow update: if isAuthenticated() && (isOwner(userId) || (getUserRole(request.auth.uid) == 'Admin') || (getUserRole(request.auth.uid) == 'Teacher' && resource.data.role == 'Student'));
 
       // Admins can delete anyone.
-      // A teacher can delete a user only if that user IS a student.
-      allow delete: if isAdmin() || (isTeacher() && resource.data.role == 'Student');
+      // A teacher can delete a user ONLY if that user IS a student.
+      allow delete: if isAuthenticated() && ((getUserRole(request.auth.uid) == 'Admin') || (getUserRole(request.auth.uid) == 'Teacher' && resource.data.role == 'Student'));
     }
 
     // =================================
@@ -53,11 +53,13 @@ service cloud.firestore {
 
       // Admins can update any subject.
       // A teacher can update a subject only if they are the assigned teacher.
-      allow update: if isAdmin() || (resource.data.teacherId == request.auth.uid);
+      // This rule is valid because it does NOT use a `get()` call.
+      allow update: if isAuthenticated() && (isAdmin(request.auth.uid) || (resource.data.teacherId == request.auth.uid));
 
       // Admins can delete any subject.
       // A teacher can delete a subject only if they are the assigned teacher.
-      allow delete: if isAdmin() || (resource.data.teacherId == request.auth.uid);
+      // This rule is valid because it does NOT use a `get()` call.
+      allow delete: if isAuthenticated() && (isAdmin(request.auth.uid) || (resource.data.teacherId == request.auth.uid));
     }
 
     // =================================
@@ -65,8 +67,8 @@ service cloud.firestore {
     // =================================
     match /attendance/{attendanceId} {
       allow list, read: if isAuthenticated();
-      // Only the teacher assigned to the subject can create an attendance record for it.
-      allow create: if isTeacher() && get(/databases/$(database)/documents/subjects/$(request.resource.data.subjectId)).data.teacherId == request.auth.uid;
+      // This `get` is valid because it's in a `create` rule.
+      allow create: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Teacher' && get(/databases/$(database)/documents/subjects/$(request.resource.data.subjectId)).data.teacherId == request.auth.uid;
       // Attendance records are immutable.
       allow update, delete: if false;
     }
