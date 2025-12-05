@@ -26,7 +26,17 @@ This project is built with the following technologies:
 
 ## Getting Started
 
-To get started with the application, log in with one of the provided user roles (Admin or Teacher) to explore the features. The main functionalities are accessible through the sidebar navigation.
+### Default Login Credentials
+
+To make testing easier, you can sign up and log in with the following roles. The Teacher login is on the main login page. To create an Admin, you will need to add them directly in your Firebase Authentication console.
+
+- **Admin Login:**
+    -   **Email:** `admin@example.com`
+    -   **Password:** `admin123`
+
+- **Teacher Login:**
+    -   **Email:** `teacher@example.com`
+    -   **Password:** `teacher123`
 
 ## Running the Project Locally
 
