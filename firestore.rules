@@ -8,6 +8,11 @@ service cloud.firestore {
     function isAdmin() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
     }
+    
+    // Helper function to check if the requesting user's role is Teacher
+    function isTeacher() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Teacher';
+    }
 
     // =================================
     // User Collection Rules
@@ -19,23 +24,23 @@ service cloud.firestore {
       // Create: Admins can create any user. Teachers can only create Students.
       allow create: if request.auth != null &&
                     (isAdmin() ||
-                     (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Teacher' && request.resource.data.role == 'Student'));
+                     (isTeacher() && request.resource.data.role == 'Student'));
 
       // Update: Admins can update any user. A user can update their own profile.
       // A teacher can update a user IF that user is a Student.
       allow update: if request.auth != null &&
                      (isAdmin() ||
                       request.auth.uid == userId ||
-                      (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Teacher' && resource.data.role == 'Student'));
+                      (isTeacher() && resource.data.role == 'Student'));
 
       // Delete: Admins can delete any user. A teacher can delete a user IF that user is a Student.
       allow delete: if request.auth != null &&
                      (isAdmin() ||
-                      (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Teacher' && resource.data.role == 'Student'));
+                      (isTeacher() && resource.data.role == 'Student'));
     }
 
     // =================================
-    // Subject Collection Rules (Corrected)
+    // Subject Collection Rules
     // =================================
     match /subjects/{subjectId} {
       // Any authenticated user can read subject information.
@@ -43,11 +48,13 @@ service cloud.firestore {
 
       // Teachers can create subjects for themselves. Admins can create any.
       allow create: if request.auth != null &&
-                       (isAdmin() || request.auth.uid == request.resource.data.teacherId);
+                       (isAdmin() || 
+                        (isTeacher() && request.auth.uid == request.resource.data.teacherId));
       
       // Teachers can update/delete their own subjects. Admins can update/delete any.
       allow update, delete: if request.auth != null &&
-                             (isAdmin() || request.auth.uid == resource.data.teacherId);
+                             (isAdmin() || 
+                              (isTeacher() && request.auth.uid == resource.data.teacherId));
     }
 
     // =================================
@@ -60,7 +67,7 @@ service cloud.firestore {
       // Teachers can create records for subjects they teach. Admins can create any.
       allow create: if request.auth != null &&
                     (isAdmin() ||
-                     (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Teacher' &&
+                     (isTeacher() &&
                       exists(/databases/$(database)/documents/subjects/$(request.resource.data.subjectId)) &&
                       get(/databases/$(database)/documents/subjects/$(request.resource.data.subjectId)).data.teacherId == request.auth.uid));
       
