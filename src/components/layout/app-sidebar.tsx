@@ -29,7 +29,8 @@ export const ALL_NAV_ITEMS: NavItem[] = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard, roles: ['Teacher'] },
   { href: '/capture', label: 'Capture Attendance', icon: ScanFace, roles: ['Teacher'] },
   { href: '/reports', label: 'Attendance Reports', icon: BarChart3, roles: ['Teacher', 'Admin'] },
-  { href: '/users', label: 'User Management', icon: Users, roles: ['Admin', 'Teacher'] },
+  { href: '/users', label: 'Student Management', icon: Users, roles: ['Teacher'] },
+  { href: '/users', label: 'Teacher Management', icon: Users, roles: ['Admin'] },
   { href: '/subjects', label: 'Subjects', icon: Book, roles: ['Teacher', 'Admin'] },
   { href: '/settings', label: 'Settings', icon: Settings, roles: ['Admin', 'Teacher'] },
 ];
@@ -57,17 +58,10 @@ export function AppSidebar() {
       <SidebarContent className="p-2">
         <SidebarMenu>
           {navItems.map((item) => {
-            let label = item.label;
-            if (item.href === '/users') {
-              if (userRole === 'Admin') {
-                label = 'Teacher Management';
-              } else if (userRole === 'Teacher') {
-                label = 'Student Management';
-              }
-            }
+            const label = item.label;
 
             return (
-              <SidebarMenuItem key={item.href}>
+              <SidebarMenuItem key={`${item.href}-${item.label}`}>
                 <SidebarMenuButton
                   asChild
                   isActive={pathname === item.href}
