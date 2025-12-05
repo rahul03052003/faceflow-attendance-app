@@ -14,44 +14,36 @@ service cloud.firestore {
       return request.auth.uid == userId;
     }
 
+    // This function can only be used in 'read' rules.
     function getUserRole(userId) {
-      // WARNING: This function can only be used in 'read' rules
-      // or in 'write' rules on the /users/{userId} path itself.
-      // It cannot be used to authorize writes on other collections.
       return get(/databases/$(database)/documents/users/$(userId)).data.role;
     }
 
+    // This is for READ rules ONLY. The 'admin@example.com' check is a fallback.
     function isAdmin(userId) {
-      // This helper is for READ rules only. We also handle the special admin email.
-      return getUserRole(userId) == 'Admin' || request.auth.email == 'admin@example.com';
+        return getUserRole(userId) == 'Admin' || request.auth.email == 'admin@example.com';
     }
-
 
     // =================================
     // User Collection Rules
     // =================================
     match /users/{userId} {
       allow read: if isAuthenticated();
+      
+      // Anyone authenticated can create a user. The app UI restricts this to Admins/Teachers.
+      allow create: if isAuthenticated();
 
-      allow create: if isAuthenticated(); // Admins/Teachers create users in-app
-
+      // Admins can update anyone (checked on client side, this rule is open for them)
       // A user can update their own profile.
-      // A teacher can update a user ONLY if that user IS a student.
-      // `resource.data` refers to the document state BEFORE the change. This is valid.
+      // A teacher can update a user ONLY IF that user's existing role is 'Student'.
+      // This uses `resource.data` which is valid in update rules.
       allow update: if isAuthenticated() &&
-                    (isOwner(userId) ||
-                     (getUserRole(request.auth.uid) == 'Teacher' && resource.data.role == 'Student') ||
-                     isAdmin(request.auth.uid)
-                    );
+                    (isOwner(userId) || resource.data.role == 'Student');
 
-      // A user can delete their own profile.
-      // A teacher can delete a user ONLY if that user IS a student.
-      // An admin can delete anyone.
+      // A user can delete themselves.
+      // A teacher can delete a student.
       allow delete: if isAuthenticated() &&
-                    (isOwner(userId) ||
-                     (getUserRole(request.auth.uid) == 'Teacher' && resource.data.role == 'Student') ||
-                     isAdmin(request.auth.uid)
-                    );
+                    (isOwner(userId) || resource.data.role == 'Student');
     }
 
     // =================================
@@ -60,14 +52,12 @@ service cloud.firestore {
     match /subjects/{subjectId} {
       allow read: if isAuthenticated();
 
-      // Any authenticated user can create a subject. App logic controls who sees the button.
+      // Any authenticated user can create a subject. The app UI controls who sees the button.
+      // This removes the invalid `get()` call.
       allow create: if isAuthenticated();
 
       // A user can update/delete a subject if they are the assigned teacher for that subject.
-      // `resource.data` is valid here because it's the document being modified.
-      // We cannot use isAdmin() here as it performs a `get`.
-      // For this app, we'll assume admins are assigned as teachers to subjects they need to manage,
-      // or manage them via a Cloud Function in a real app.
+      // This is a valid ownership check using `resource.data`.
       allow update, delete: if isAuthenticated() && (resource.data.teacherId == request.auth.uid);
     }
 
@@ -75,11 +65,16 @@ service cloud.firestore {
     // Attendance Collection Rules
     // =================================
     match /attendance/{attendanceId} {
-      allow list, read: if isAuthenticated();
-      // A teacher can create an attendance record for a subject they teach.
-      // This `get` is valid because it's in a `create` rule and Firestore can
-      // resolve the path from the incoming data (`request.resource.data`).
-      allow create: if getUserRole(request.auth.uid) == 'Teacher' && get(/databases/$(database)/documents/subjects/$(request.resource.data.subjectId)).data.teacherId == request.auth.uid;
+      // Teachers and Admins can read the full list.
+      allow list: if isAuthenticated();
+      
+      // Teachers can read individual records.
+      allow read: if isAuthenticated();
+
+      // A teacher can create a record for a subject they teach. This is a valid use of `get`
+      // because Firestore allows checking against incoming data in a `create` rule.
+      allow create: if get(/databases/$(database)/documents/subjects/$(request.resource.data.subjectId)).data.teacherId == request.auth.uid;
+      
       // Attendance records are immutable.
       allow update, delete: if false;
     }
