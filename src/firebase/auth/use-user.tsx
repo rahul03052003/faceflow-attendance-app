@@ -32,11 +32,23 @@ export function useUser() {
 
   useEffect(() => {
     if (!authUser?.uid) {
-        if(!isLoading) setIsLoading(true);
-        setAppUser(null);
         setIsLoading(false);
         return;
     };
+
+    // Special handling for the hardcoded admin user
+    if (authUser.email === 'admin@gmail.com') {
+        setAppUser({
+            id: authUser.uid,
+            email: authUser.email,
+            name: 'Admin',
+            role: 'Admin',
+            registerNo: 'N/A',
+            avatar: '',
+        });
+        setIsLoading(false);
+        return;
+    }
 
     const userDocRef = doc(firestore, 'users', authUser.uid);
     const unsubscribeFirestore = onSnapshot(userDocRef, (doc) => {
@@ -44,19 +56,7 @@ export function useUser() {
         const firestoreData = doc.data() as Omit<AppUser, 'id'>;
         setAppUser({ id: doc.id, ...firestoreData });
       } else {
-        // Handle users in Auth but not Firestore, like the special admin.
-        if (authUser.email === 'admin@gmail.com') {
-          setAppUser({
-            id: authUser.uid,
-            email: authUser.email,
-            name: 'Admin',
-            role: 'Admin',
-            registerNo: 'N/A',
-            avatar: '',
-          });
-        } else {
-          setAppUser(null);
-        }
+        setAppUser(null);
       }
       setIsLoading(false);
     }, (error) => {
@@ -66,22 +66,31 @@ export function useUser() {
     });
 
     return () => unsubscribeFirestore();
-  }, [authUser, firestore, isLoading]);
+  }, [authUser, firestore]);
 
   const user = useMemo(() => {
     if (!authUser) return null;
     
-    const isAdminByEmail = authUser.email === 'admin@gmail.com';
-    
-    const mergedUser: EnrichedUser = {
-      ...authUser,
-      ...appUser,
-      id: authUser.uid,
-      // Ensure the role is correctly assigned, prioritizing the Firestore doc but falling back to email check.
-      role: isAdminByEmail ? 'Admin' : appUser?.role || 'Teacher',
-    };
+    // If we have an appUser (from Firestore or the special admin case), merge it.
+    if (appUser) {
+        return {
+            ...authUser,
+            ...appUser,
+            id: authUser.uid,
+            role: appUser.role, // Prioritize role from our app data
+        } as EnrichedUser;
+    }
 
-    return mergedUser;
+    // Fallback for auth user that exists but has no Firestore doc yet
+    return {
+        ...authUser,
+        id: authUser.uid,
+        name: authUser.displayName || 'New User',
+        email: authUser.email || '',
+        role: 'Teacher', // Default role for users without a doc
+        registerNo: '',
+        avatar: authUser.photoURL || '',
+    } as EnrichedUser;
 
   }, [authUser, appUser]);
 

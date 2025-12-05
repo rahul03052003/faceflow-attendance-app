@@ -22,6 +22,7 @@ import { useCallback, useMemo } from 'react';
 export default function SubjectsPage() {
   const firestore = useFirestore();
   const { user: currentUser, isLoading: isLoadingUser } = useUser();
+  // Fetching allUsers is necessary for the SubjectsTable to display teacher names
   const { data: allUsers, isLoading: isLoadingUsers } = useCollection<User>('users');
 
   const subjectsQuery = useCallback((ref: any) => {
