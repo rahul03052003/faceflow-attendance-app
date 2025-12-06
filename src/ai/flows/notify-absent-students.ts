@@ -10,6 +10,7 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
+import * as nodemailer from 'nodemailer';
 
 const AbsenteeSchema = z.object({
   name: z.string().describe("The student's name."),
@@ -46,35 +47,55 @@ const notifyAbsenteesFlow = ai.defineFlow(
       return { success: false, message: 'No absentees were provided.' };
     }
 
-    console.log(`SIMULATING SENDING ${absentees.length} EMAILS...`);
+    const emailUser = process.env.EMAIL_USER;
+    const emailPass = process.env.EMAIL_PASS;
 
-    for (const absentee of absentees) {
-      // In a real application, you would integrate a third-party email service
-      // like Nodemailer, SendGrid, or Resend here.
-      const emailBody = `
-        Subject: Unexcused Absence Notification
-        To: ${absentee.email}
-        
-        Dear ${absentee.name},
-        
-        This is an automated notification to inform you that you were marked as absent 
-        for the subject "${absentee.subjectName}" on ${absentee.date}.
-        
-        If you believe this is an error, please contact your teacher or the administration.
-        
-        Regards,
-        faceflow Attendance System
-      `;
-
-      // We log to the console to simulate the email sending action.
-      console.log('--- EMAIL TO BE SENT ---');
-      console.log(emailBody.trim());
-      console.log('------------------------');
+    if (!emailUser || !emailPass) {
+        const errorMessage = 'Email credentials are not configured in the .env file. Cannot send emails.';
+        console.error(errorMessage);
+        return { success: false, message: errorMessage };
     }
-    
-    return {
-      success: true,
-      message: `Successfully processed notifications for ${absentees.length} absent students.`,
-    };
+
+    const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: emailUser,
+          pass: emailPass, // Use the App Password here
+        },
+    });
+
+    const emailPromises = absentees.map(absentee => {
+        const mailOptions = {
+            from: `"faceflow Attendance System" <${emailUser}>`,
+            to: absentee.email,
+            subject: 'Unexcused Absence Notification',
+            text: `
+Dear ${absentee.name},
+
+This is an automated notification to inform you that you were marked as absent for the subject "${absentee.subjectName}" on ${absentee.date}.
+
+If you believe this is an error, please contact your teacher or the administration.
+
+Regards,
+faceflow Attendance System
+            `
+        };
+
+        return transporter.sendMail(mailOptions);
+    });
+
+    try {
+        await Promise.all(emailPromises);
+        return {
+          success: true,
+          message: `Successfully sent notifications to ${absentees.length} absent students.`,
+        };
+    } catch(error: any) {
+        console.error("Failed to send one or more emails:", error);
+        return {
+            success: false,
+            message: `Failed to send emails. Please check server logs for details. Error: ${error.message}`
+        }
+    }
   }
 );
