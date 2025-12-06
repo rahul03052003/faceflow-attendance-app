@@ -29,6 +29,7 @@ import {
   Smile,
   Sparkles,
   UserCheck,
+  UserX,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -38,10 +39,20 @@ import type { User, AttendanceRecord, Subject } from '@/lib/types';
 import { recognizeFace } from '@/ai/flows/recognize-face';
 import { generateGreetingAudio } from '@/ai/flows/generate-greeting-audio';
 import { useFirestore, useCollection, useUser } from '@/firebase';
-import { addDoc, collection, serverTimestamp, query, where } from 'firebase/firestore';
+import { addDoc, collection, serverTimestamp, query, where, writeBatch } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 type NewAttendanceRecord = Omit<AttendanceRecord, 'id' | 'timestamp'> & {
   timestamp: any;
@@ -56,6 +67,8 @@ type ScanResult = {
 
 export default function CapturePage() {
   const [isScanning, setIsScanning] = useState(false);
+  const [isEndingSession, setIsEndingSession] = useState(false);
+  const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [result, setResult] = useState<ScanResult | null>(null);
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
@@ -92,11 +105,12 @@ export default function CapturePage() {
 
   const attendanceQuery = useCallback((ref: any) => {
     if (!teacher?.uid || teacherSubjectIds.length === 0) return query(ref, where('subjectId', '==', ''));
-    return query(ref, where('subjectId', 'in', teacherSubjectIds));
+    const today = new Date().toISOString().split('T')[0];
+    return query(ref, where('subjectId', 'in', teacherSubjectIds), where('date', '==', today));
   }, [teacher?.uid, teacherSubjectIds]);
 
 
-  const { data: attendanceRecords, isLoading: isLoadingAttendance } = useCollection<AttendanceRecord>(
+  const { data: todaysAttendance, isLoading: isLoadingAttendance } = useCollection<AttendanceRecord>(
     teacher?.uid && teacherSubjectIds.length > 0 ? 'attendance' : null,
     { buildQuery: attendanceQuery }
   );
@@ -224,8 +238,8 @@ export default function CapturePage() {
 
       const today = new Date().toISOString().split('T')[0];
       const selectedSubject = teacherSubjects.find(s => s.id === selectedSubjectId);
-      const isAlreadyPresent = attendanceRecords?.some(
-        record => record.userId === matchedUser.id && record.date === today && record.subjectId === selectedSubjectId
+      const isAlreadyPresent = todaysAttendance?.some(
+        record => record.userId === matchedUser.id && record.subjectId === selectedSubjectId
       );
 
       if (isAlreadyPresent) {
@@ -277,6 +291,78 @@ export default function CapturePage() {
         title: "AI Scan Failed",
         description: error.message || "The AI could not process the image. Please try again.",
       });
+    }
+  };
+
+  const handleEndSession = async () => {
+    setIsAlertOpen(false);
+    if (!selectedSubjectId || studentsInSelectedSubject.length === 0 || !todaysAttendance) {
+        toast({
+            variant: "destructive",
+            title: "Cannot End Session",
+            description: "Please select a subject with students first."
+        });
+        return;
+    }
+
+    setIsEndingSession(true);
+    toast({
+        title: "Ending Session...",
+        description: "Marking remaining students as absent."
+    });
+
+    const today = new Date().toISOString().split('T')[0];
+    const presentStudentIds = new Set(todaysAttendance
+        .filter(r => r.subjectId === selectedSubjectId)
+        .map(r => r.userId)
+    );
+
+    const absentStudents = studentsInSelectedSubject.filter(student => !presentStudentIds.has(student.id));
+    
+    if (absentStudents.length === 0) {
+        toast({
+            title: "Session Ended",
+            description: "All students in the selected subject have been accounted for."
+        });
+        setIsEndingSession(false);
+        return;
+    }
+
+    try {
+        const batch = writeBatch(firestore);
+        const selectedSubject = teacherSubjects.find(s => s.id === selectedSubjectId);
+
+        absentStudents.forEach(student => {
+            const attendanceRecord: NewAttendanceRecord = {
+                userId: student.id,
+                userName: student.name,
+                userAvatar: student.avatar,
+                subjectId: selectedSubjectId!,
+                subjectName: selectedSubject?.title || 'Unknown Subject',
+                date: today,
+                status: 'Absent',
+                emotion: 'N/A',
+                timestamp: serverTimestamp(),
+            };
+            const attendanceRef = doc(collection(firestore, 'attendance'));
+            batch.set(attendanceRef, attendanceRecord);
+        });
+
+        await batch.commit();
+
+        toast({
+            title: "Session Ended Successfully",
+            description: `Marked ${absentStudents.length} student(s) as absent. You can now notify them from the reports page.`
+        });
+    } catch (e: any) {
+        console.error("Failed to mark students as absent:", e);
+        toast({
+            variant: "destructive",
+            title: "Failed to End Session",
+            description: e.message || "An error occurred while updating attendance."
+        });
+    } finally {
+        setIsEndingSession(false);
     }
   };
   
@@ -363,6 +449,7 @@ export default function CapturePage() {
   };
 
   return (
+    <>
     <div className="flex justify-center items-start pt-10">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
@@ -399,10 +486,10 @@ export default function CapturePage() {
             {renderMainContent()}
           </div>
         </CardContent>
-        <CardFooter>
+        <CardFooter className="flex flex-col sm:flex-row gap-2">
           <Button
             onClick={handleScanClick}
-            disabled={isScanning || hasCameraPermission === null || isLoadingUsers || !selectedSubjectId}
+            disabled={isScanning || hasCameraPermission === null || isLoadingUsers || !selectedSubjectId || isEndingSession}
             className="w-full"
             size="lg"
           >
@@ -411,9 +498,35 @@ export default function CapturePage() {
              : hasCameraPermission ? <><ScanFace className="mr-2 h-4 w-4" />Start Scan</>
              : <><Camera className="mr-2 h-4 w-4" />Enable Camera</>}
           </Button>
+          <Button
+            variant="outline"
+            onClick={() => setIsAlertOpen(true)}
+            disabled={isEndingSession || !selectedSubjectId || isScanning}
+            className="w-full sm:w-auto"
+            size="lg"
+            >
+             {isEndingSession ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Ending...</> : <><UserX className="mr-2 h-4 w-4" />End Session</>}
+          </Button>
         </CardFooter>
       </Card>
       <audio ref={audioRef} className="hidden" />
     </div>
+    <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>End Attendance Session?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will mark all students in the selected subject who have not been scanned as &quot;Absent&quot; for today. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleEndSession}>
+              Yes, End Session
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
