@@ -39,7 +39,7 @@ import type { User, AttendanceRecord, Subject } from '@/lib/types';
 import { recognizeFace } from '@/ai/flows/recognize-face';
 import { generateGreetingAudio } from '@/ai/flows/generate-greeting-audio';
 import { useFirestore, useCollection, useUser } from '@/firebase';
-import { addDoc, collection, serverTimestamp, query, where, writeBatch } from 'firebase/firestore';
+import { addDoc, collection, serverTimestamp, query, where, writeBatch, doc } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -530,3 +530,5 @@ export default function CapturePage() {
     </>
   );
 }
+
+    
