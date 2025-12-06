@@ -1,6 +1,6 @@
 
 'use client';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, Dispatch, SetStateAction } from 'react';
 import {
   collection,
   query,
@@ -19,10 +19,18 @@ interface UseCollectionOptions {
   buildQuery?: (ref: CollectionReference<DocumentData>) => Query<DocumentData>;
 }
 
+interface UseCollectionResult<T> {
+  data: T[] | null;
+  isLoading: boolean;
+  error: FirestoreError | null;
+  setData: Dispatch<SetStateAction<T[] | null>>;
+}
+
+
 export function useCollection<T = any>(
   collectionName: string | null,
   options?: UseCollectionOptions
-) {
+): UseCollectionResult<T> {
   const firestore = useFirestore();
   const [data, setData] = useState<T[] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -74,5 +82,5 @@ export function useCollection<T = any>(
     return () => unsubscribe();
   }, [collectionRef, buildQuery]);
 
-  return { data, isLoading, error };
+  return { data, isLoading, error, setData };
 }

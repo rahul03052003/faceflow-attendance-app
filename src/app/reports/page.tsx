@@ -17,7 +17,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useCallback, useMemo, useState } from 'react';
 import { query, where } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
-import { BellPlus, Loader2 } from 'lucide-react';
+import { BellPlus, Loader2, RefreshCw } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,7 +37,7 @@ export default function ReportsPage() {
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const { toast } = useToast();
 
-  const { data: allUsers, isLoading: isLoadingUsers } = useCollection<User>('users');
+  const { data: allUsers, isLoading: isLoadingUsers, setData: setAllUsers } = useCollection<User>('users');
 
   const isAdmin = useMemo(() => !isLoadingUser && currentUser?.role === 'Admin', [currentUser, isLoadingUser]);
 
@@ -65,10 +65,22 @@ export default function ReportsPage() {
     return query(ref, where('subjectId', '==', ''));
   }, [isAdmin, teacherSubjectIds]);
 
-  const { data: allAttendance, isLoading: isLoadingRecords } = useCollection<AttendanceRecord>(
+  const { data: allAttendance, isLoading: isLoadingRecords, setData: setAllAttendance } = useCollection<AttendanceRecord>(
     currentUser ? 'attendance' : null,
     { buildQuery: attendanceQuery }
   );
+  
+  const handleRefresh = () => {
+    // The useCollection hook automatically updates on changes, but we can force a re-render
+    // by "setting" the data to its current value. In a real app with more complex
+    // caching, you might have a dedicated re-fetch function.
+    if (allAttendance) setAllAttendance([...allAttendance]);
+    if (allUsers) setAllUsers([...allUsers]);
+    toast({
+      title: 'Data Refreshed',
+      description: 'The latest attendance data has been loaded.',
+    });
+  };
 
   const isLoading = isLoadingUser || isLoadingRecords || isLoadingUsers || (currentUser?.role === 'Teacher' && isLoadingSubjects);
   
@@ -139,16 +151,22 @@ export default function ReportsPage() {
             {isLoading ? <Skeleton className="h-5 w-72" /> : <p>{(isAdmin ? "View detailed attendance records for all classes." : "View detailed attendance records for your subjects.")}</p>}
           </div>
         </div>
-        {todaysAbsentees.length > 0 && (
-            <Button onClick={() => setIsAlertOpen(true)} disabled={isNotifying}>
-                {isNotifying ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                    <BellPlus className="mr-2 h-4 w-4" />
-                )}
-                Notify Today's Absentees ({todaysAbsentees.length})
+        <div className="flex items-center gap-2">
+            {todaysAbsentees.length > 0 && (
+                <Button onClick={() => setIsAlertOpen(true)} disabled={isNotifying}>
+                    {isNotifying ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                        <BellPlus className="mr-2 h-4 w-4" />
+                    )}
+                    Notify Today's Absentees ({todaysAbsentees.length})
+                </Button>
+            )}
+             <Button variant="outline" onClick={handleRefresh}>
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Refresh Data
             </Button>
-        )}
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">

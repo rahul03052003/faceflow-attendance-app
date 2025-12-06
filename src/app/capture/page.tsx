@@ -25,6 +25,7 @@ import {
   Loader2,
   Meh,
   PlayCircle,
+  RefreshCw,
   ScanFace,
   Smile,
   Sparkles,
@@ -396,6 +397,16 @@ export default function CapturePage() {
       }
       return null;
   }
+  
+  const handleRefresh = () => {
+    setResult(null);
+    setSelectedSubjectId(null);
+    toast({
+      title: 'Session Refreshed',
+      description: 'You can now start a new attendance session.',
+    });
+  };
+
 
   const renderMainContent = () => {
     if (isLoadingUsers && !allUsers) {
@@ -452,11 +463,20 @@ export default function CapturePage() {
     <>
     <div className="flex justify-center items-start pt-10">
       <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
+        <CardHeader className="text-center relative">
           <CardTitle className="text-2xl">Capture Attendance</CardTitle>
           <CardDescription>
             Select a subject and the system will capture and recognize students.
           </CardDescription>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleRefresh}
+            className="absolute top-4 right-4"
+          >
+            <RefreshCw className="h-5 w-5" />
+            <span className="sr-only">Start New Session</span>
+          </Button>
         </CardHeader>
         <CardContent className="flex flex-col items-center justify-center gap-6 p-6 min-h-[400px]">
           <div className="w-full aspect-video rounded-md bg-muted overflow-hidden flex items-center justify-center relative">
