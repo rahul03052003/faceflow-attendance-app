@@ -12,13 +12,32 @@ import { AttendanceTable } from '@/components/reports/attendance-table';
 import { EmotionChart } from '@/components/reports/emotion-chart';
 import { AiSummary } from '@/components/reports/ai-summary';
 import { useCollection, useUser } from '@/firebase';
-import type { AttendanceRecord, Subject } from '@/lib/types';
+import type { AttendanceRecord, Subject, User } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { query, where } from 'firebase/firestore';
+import { Button } from '@/components/ui/button';
+import { BellPlus, Loader2 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { useToast } from '@/hooks/use-toast';
+import { notifyAbsentees } from '@/ai/flows/notify-absent-students';
 
 export default function ReportsPage() {
   const { user: currentUser, isLoading: isLoadingUser } = useUser();
+  const [isNotifying, setIsNotifying] = useState(false);
+  const [isAlertOpen, setIsAlertOpen] = useState(false);
+  const { toast } = useToast();
+
+  const { data: allUsers, isLoading: isLoadingUsers } = useCollection<User>('users');
 
   const isAdmin = useMemo(() => !isLoadingUser && currentUser?.role === 'Admin', [currentUser, isLoadingUser]);
 
@@ -51,22 +70,85 @@ export default function ReportsPage() {
     { buildQuery: attendanceQuery }
   );
 
-  const isLoading = isLoadingUser || isLoadingRecords || (currentUser?.role === 'Teacher' && isLoadingSubjects);
+  const isLoading = isLoadingUser || isLoadingRecords || isLoadingUsers || (currentUser?.role === 'Teacher' && isLoadingSubjects);
   
   const filteredAttendance = useMemo(() => {
     if (isLoading || !allAttendance) return [];
     return allAttendance;
   }, [allAttendance, isLoading]);
+  
+  const todaysAbsentees = useMemo(() => {
+    if (!filteredAttendance || !allUsers) return [];
+    const today = new Date().toISOString().split('T')[0];
+    const todaysRecords = filteredAttendance.filter(r => r.date === today && r.status === 'Absent');
+    
+    // Map record to include student email
+    return todaysRecords.map(record => {
+        const student = allUsers.find(u => u.id === record.userId);
+        return {
+            name: record.userName,
+            email: student?.email || '',
+            subjectName: record.subjectName,
+            date: record.date
+        }
+    }).filter(a => a.email); // Only include those with an email
+
+  }, [filteredAttendance, allUsers]);
+
+  const handleNotify = async () => {
+    setIsAlertOpen(false);
+    if (todaysAbsentees.length === 0) {
+        toast({ title: 'No absentees to notify.' });
+        return;
+    }
+    setIsNotifying(true);
+    toast({
+        title: 'Sending Notifications...',
+        description: `Notifying ${todaysAbsentees.length} absent students.`,
+    });
+    try {
+        const result = await notifyAbsentees({ absentees: todaysAbsentees });
+        if (result.success) {
+            toast({
+                title: 'Notifications Sent',
+                description: result.message,
+            });
+        } else {
+            throw new Error(result.message);
+        }
+    } catch (e: any) {
+        toast({
+            variant: 'destructive',
+            title: 'Failed to Send Notifications',
+            description: e.message || 'An unexpected error occurred.',
+        });
+    } finally {
+        setIsNotifying(false);
+    }
+  }
+
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold tracking-tight">
-          Attendance Reports
-        </h1>
-        <div className="text-muted-foreground">
-          {isLoading ? <Skeleton className="h-5 w-72" /> : <p>{(isAdmin ? "View detailed attendance records for all classes." : "View detailed attendance records for your subjects.")}</p>}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">
+            Attendance Reports
+          </h1>
+          <div className="text-muted-foreground">
+            {isLoading ? <Skeleton className="h-5 w-72" /> : <p>{(isAdmin ? "View detailed attendance records for all classes." : "View detailed attendance records for your subjects.")}</p>}
+          </div>
         </div>
+        {todaysAbsentees.length > 0 && (
+            <Button onClick={() => setIsAlertOpen(true)} disabled={isNotifying}>
+                {isNotifying ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                    <BellPlus className="mr-2 h-4 w-4" />
+                )}
+                Notify Today's Absentees ({todaysAbsentees.length})
+            </Button>
+        )}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -112,6 +194,23 @@ export default function ReportsPage() {
           <AiSummary attendanceRecords={filteredAttendance || []} isLoading={isLoading}/>
         </div>
       </div>
+      <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Notifications</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to send email notifications to all {todaysAbsentees.length} students
+              marked as absent today? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleNotify}>
+              Yes, Send Notifications
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
