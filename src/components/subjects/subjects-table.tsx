@@ -48,7 +48,7 @@ export function SubjectsTable({ subjects, users, isAdmin = false, onEditSubject,
   const { toast } = useToast();
 
   const getTeacherName = (teacherId?: string) => {
-    if (!teacherId) return 'Unassigned';
+    if (!teacherId || !users) return 'Unknown Teacher';
     const teacher = users.find(u => u.id === teacherId);
     return teacher ? teacher.name : 'Unknown Teacher';
   };
