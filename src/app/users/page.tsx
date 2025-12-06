@@ -309,7 +309,7 @@ export default function UsersPage() {
       return <p className="text-destructive">Error loading users: {usersError.message}</p>;
     }
 
-    return <UsersTable users={usersToDisplay} isAdmin={isAdmin} onEditUser={handleEditUser} onDeleteUser={handleDeleteUser} subjects={allSubjects || []} />;
+    return <UsersTable users={usersToDIsplay} isAdmin={isAdmin} onEditUser={handleEditUser} onDeleteUser={handleDeleteUser} subjects={allSubjects || []} />;
   };
 
   const pageTitle = isAdmin ? "Teacher Management" : "Student Management";
@@ -322,6 +322,23 @@ export default function UsersPage() {
     : "A list of all students assigned to your subjects.";
     
   const assignableSubjects = isAdmin ? allSubjects : teacherSubjects;
+  
+  const usersToDIsplay = useMemo(() => {
+    if (isLoading || !allUsers) return [];
+    
+    if (isAdmin) {
+      // Admins see teachers and other admins
+      return allUsers.filter(u => u.role === 'Teacher' || u.role === 'Admin');
+    }
+    
+    // Teachers see only students in their subjects
+    return allUsers.filter(u => 
+      u.role === 'Student' &&
+      Array.isArray(u.subjects) &&
+      u.subjects.some(subId => teacherSubjectIds.includes(subId))
+    );
+  }, [allUsers, teacherSubjectIds, isAdmin, isLoading]);
+
 
   return (
     <div className="flex flex-col gap-8">

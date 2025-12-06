@@ -26,17 +26,19 @@ export default function SubjectsPage() {
   const { data: allUsers, isLoading: isLoadingUsers } = useCollection<User>('users');
 
   const subjectsQuery = useCallback((ref: any) => {
-    if (!currentUser?.uid) return query(ref, where('teacherId', '==', '')); // Empty query
+    if (!currentUser) return query(ref, where('teacherId', '==', '')); // Empty query if no user
     if (currentUser.role === 'Admin') return ref; // Admins see all
+    if (!currentUser.uid) return query(ref, where('teacherId', '==', '')); // Empty query if no uid
     return query(ref, where('teacherId', '==', currentUser.uid)); // Teachers see their own
-  }, [currentUser?.uid, currentUser?.role]);
+  }, [currentUser]);
+
 
   const {
     data: allSubjects,
     isLoading: isLoadingSubjects,
     error,
   } = useCollection<Subject>(
-    currentUser?.uid ? 'subjects' : null,
+    currentUser ? 'subjects' : null,
     { buildQuery: subjectsQuery }
   );
 
