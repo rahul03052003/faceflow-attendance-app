@@ -101,7 +101,7 @@ This project requires two separate development servers to be running at the same
     ```bash
     npm run dev
     ```
-    This will start the web application, typically on `http://localhost:9002`.
+    This will start the web application, typically on `http://localhost:9003`.
 
 2.  **Run the Genkit Dev Server:**
     Open a **second terminal** and run:
