@@ -15,7 +15,7 @@ import { useCollection, useUser } from '@/firebase';
 import type { AttendanceRecord, Subject, User } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCallback, useMemo, useState } from 'react';
-import { query, where } from 'firebase/firestore';
+import { query, where, writeBatch, collection, getDocs } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { BellPlus, Loader2, RefreshCw } from 'lucide-react';
 import {
@@ -30,11 +30,14 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { notifyAbsentees } from '@/ai/flows/notify-absent-students';
+import { useFirestore } from '@/firebase';
 
 export default function ReportsPage() {
   const { user: currentUser, isLoading: isLoadingUser } = useUser();
+  const firestore = useFirestore();
   const [isNotifying, setIsNotifying] = useState(false);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
+  const [isRefreshAlertOpen, setIsRefreshAlertOpen] = useState(false);
   const { toast } = useToast();
 
   const { data: allUsers, isLoading: isLoadingUsers, setData: setAllUsers } = useCollection<User>('users');
@@ -70,10 +73,12 @@ export default function ReportsPage() {
     { buildQuery: attendanceQuery }
   );
   
-  const handleRefresh = () => {
-    // The useCollection hook automatically updates on changes, but we can force a re-render
-    // by "setting" the data to its current value. In a real app with more complex
-    // caching, you might have a dedicated re-fetch function.
+  const handleRefresh = (clearData = false) => {
+    setIsRefreshAlertOpen(false);
+    if (clearData) {
+      handleClearAllRecords();
+      return;
+    }
     if (allAttendance) setAllAttendance([...allAttendance]);
     if (allUsers) setAllUsers([...allUsers]);
     toast({
@@ -81,6 +86,32 @@ export default function ReportsPage() {
       description: 'The latest attendance data has been loaded.',
     });
   };
+
+  const handleClearAllRecords = async () => {
+    toast({
+        title: 'Clearing Data...',
+        description: 'Permanently deleting all attendance records.',
+    });
+    try {
+        const attendanceRef = collection(firestore, 'attendance');
+        const querySnapshot = await getDocs(attendanceRef);
+        const batch = writeBatch(firestore);
+        querySnapshot.forEach((doc) => {
+            batch.delete(doc.ref);
+        });
+        await batch.commit();
+        toast({
+            title: 'All Records Deleted',
+            description: 'The attendance log has been cleared.',
+        });
+    } catch (e: any) {
+        toast({
+            variant: 'destructive',
+            title: 'Error Deleting Records',
+            description: e.message || 'Could not delete attendance records.',
+        });
+    }
+  }
 
   const isLoading = isLoadingUser || isLoadingRecords || isLoadingUsers || (currentUser?.role === 'Teacher' && isLoadingSubjects);
   
@@ -162,7 +193,7 @@ export default function ReportsPage() {
                     Notify Today's Absentees ({todaysAbsentees.length})
                 </Button>
             )}
-             <Button variant="outline" onClick={handleRefresh}>
+             <Button variant="outline" onClick={() => setIsRefreshAlertOpen(true)}>
                 <RefreshCw className="mr-2 h-4 w-4" />
                 Refresh Data
             </Button>
@@ -229,6 +260,28 @@ export default function ReportsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={isRefreshAlertOpen} onOpenChange={setIsRefreshAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Refresh or Clear Data?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You can either reload the latest data or permanently delete all existing attendance records. This is useful for clearing test data. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => handleRefresh(false)}>
+              Just Refresh
+            </AlertDialogAction>
+            <AlertDialogAction onClick={() => handleRefresh(true)} className="bg-destructive hover:bg-destructive/90">
+              Clear All Data
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
+
+    
