@@ -36,26 +36,30 @@ export function useUser() {
         return;
     };
 
-    // Special handling for the hardcoded admin user
+    // Special handling for the hardcoded admin user. We can identify them by email
+    // without needing a Firestore document lookup.
     if (authUser.email === 'admin@gmail.com') {
-        setAppUser({
+        const adminUser: AppUser = {
             id: authUser.uid,
             email: authUser.email,
             name: 'Admin',
             role: 'Admin',
             registerNo: 'N/A',
             avatar: '',
-        });
+        };
+        setAppUser(adminUser);
         setIsLoading(false);
         return;
     }
 
+    // For all other users, fetch their profile from Firestore.
     const userDocRef = doc(firestore, 'users', authUser.uid);
     const unsubscribeFirestore = onSnapshot(userDocRef, (doc) => {
       if (doc.exists()) {
         const firestoreData = doc.data() as Omit<AppUser, 'id'>;
         setAppUser({ id: doc.id, ...firestoreData });
       } else {
+        // If a user is authenticated but has no document, they are likely a new user.
         setAppUser(null);
       }
       setIsLoading(false);
@@ -76,18 +80,19 @@ export function useUser() {
         return {
             ...authUser,
             ...appUser,
-            id: authUser.uid,
+            id: authUser.uid, // Ensure ID from auth is canonical
             role: appUser.role, // Prioritize role from our app data
         } as EnrichedUser;
     }
 
-    // Fallback for auth user that exists but has no Firestore doc yet
+    // Fallback for an authenticated user that exists but doesn't have a Firestore doc yet.
+    // This could happen during sign-up before the user document is created.
     return {
         ...authUser,
         id: authUser.uid,
         name: authUser.displayName || 'New User',
         email: authUser.email || '',
-        role: 'Teacher', // Default role for users without a doc
+        role: 'Teacher', // Default role for users without a profile document
         registerNo: '',
         avatar: authUser.photoURL || '',
     } as EnrichedUser;
