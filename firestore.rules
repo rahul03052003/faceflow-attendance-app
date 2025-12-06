@@ -69,9 +69,9 @@ service cloud.firestore {
       // Further checks would be complex and better handled by app logic in this simplified model.
       allow create: if isAuthenticated();
       
-      // Attendance records are immutable, except for Admins who can delete them.
+      // Attendance records are immutable, except for Admins or Teachers who can delete them.
       allow update: if false;
-      allow delete: if isAdmin();
+      allow delete: if isAuthenticated();
     }
   }
 }
