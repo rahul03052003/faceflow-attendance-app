@@ -26,9 +26,8 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       
       // Admins can create any user.
-      // Other authenticated users can only create 'Student' users.
-      allow create: if isAdmin() || 
-                    (isAuthenticated() && request.resource.data.role == 'Student');
+      // Other authenticated users (Teachers) can only create 'Student' users.
+      allow create: if isAdmin() || (isAuthenticated() && request.resource.data.role == 'Student');
 
       // Admins can update any user.
       // A user can update their own profile.
@@ -54,7 +53,6 @@ service cloud.firestore {
 
       // An admin can update/delete any subject.
       // A teacher can update/delete a subject ONLY IF they are the assigned teacher for it.
-      // This uses `resource.data` (the document before the change) which is valid.
       allow update, delete: if isAdmin() || 
                             (isAuthenticated() && resource.data.teacherId == request.auth.uid);
     }
