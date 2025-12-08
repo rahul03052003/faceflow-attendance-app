@@ -40,16 +40,16 @@ export default function ArchivePage() {
 
   const attendanceQuery = useCallback((ref: any) => {
     if (isAdmin) {
-      // For Admin, order all records by archive date.
+      // For Admin, order all records by archive date. This doesn't need a filter so it's fine.
       return query(ref, orderBy('archivedAt', 'desc'));
     }
     
-    // This should now correctly use the teacherSubjectIds when they are ready.
     if (teacherSubjectIds.length > 0) {
+      // **THE FIX**: Order by the same field used in the 'where' clause to avoid composite index requirement.
       return query(
         ref, 
         where('subjectId', 'in', teacherSubjectIds),
-        orderBy('archivedAt', 'desc')
+        orderBy('subjectId') 
       );
     }
 
@@ -116,4 +116,3 @@ export default function ArchivePage() {
     </div>
   );
 }
-
