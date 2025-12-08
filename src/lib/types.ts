@@ -33,6 +33,11 @@ export type AttendanceRecord = {
   timestamp: Timestamp | FieldValue;
 };
 
+export type ArchivedAttendanceRecord = AttendanceRecord & {
+  archivedAt: Timestamp | FieldValue;
+};
+
+
 export type NavItem = {
   href: string;
   label: string;
@@ -40,3 +45,4 @@ export type NavItem = {
   active?: boolean;
   roles: Array<'Admin' | 'Teacher'>;
 };
+

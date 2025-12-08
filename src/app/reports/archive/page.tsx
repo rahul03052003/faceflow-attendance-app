@@ -10,13 +10,24 @@ import {
 } from '@/components/ui/card';
 import { AttendanceTable } from '@/components/reports/attendance-table';
 import { useCollection, useUser } from '@/firebase';
-import type { AttendanceRecord, Subject } from '@/lib/types';
+import type { ArchivedAttendanceRecord } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCallback, useMemo } from 'react';
-import { query, where, orderBy } from 'firebase/firestore';
+import { query, where, orderBy, Timestamp } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Inbox } from 'lucide-react';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
+import { format } from 'date-fns';
+
+type GroupedArchives = {
+  [key: string]: ArchivedAttendanceRecord[];
+};
 
 export default function ArchivePage() {
   const { user: currentUser, isLoading: isLoadingUser } = useUser();
@@ -28,7 +39,7 @@ export default function ArchivePage() {
     return query(ref, where('teacherId', '==', currentUser.uid));
   }, [currentUser?.uid]);
 
-  const { data: teacherSubjects, isLoading: isLoadingSubjects } = useCollection<Subject>(
+  const { data: teacherSubjects, isLoading: isLoadingSubjects } = useCollection<any>(
     !isAdmin && currentUser ? 'subjects' : null,
     { buildQuery: subjectsQuery }
   );
@@ -40,40 +51,107 @@ export default function ArchivePage() {
 
   const attendanceQuery = useCallback((ref: any) => {
     if (isAdmin) {
-      // For Admin, order all records by archive date. This doesn't need a filter so it's fine.
       return query(ref, orderBy('archivedAt', 'desc'));
     }
     
     if (teacherSubjectIds.length > 0) {
-      // **THE FIX**: Order by the same field used in the 'where' clause to avoid composite index requirement.
       return query(
         ref, 
         where('subjectId', 'in', teacherSubjectIds),
-        orderBy('subjectId') 
+        orderBy('subjectId'), 
+        orderBy('archivedAt', 'desc')
       );
     }
 
-    // For a teacher with no subjects, return a query that finds nothing.
     return query(ref, where('subjectId', '==', '__NEVER_MATCH__'));
   }, [isAdmin, teacherSubjectIds]);
 
 
-  // This flag determines if we should even attempt to fetch from the archive.
-  // For a teacher, it waits until the subjects are loaded.
   const shouldFetchArchive = useMemo(() => {
-    if (!currentUser) return false; // Don't fetch if no user
-    if (isAdmin) return true; // Admin can always fetch
-    if (isLoadingSubjects) return false; // Don't fetch if subjects are still loading for a teacher
-    return true; // Teacher can fetch now (even if they have no subjects, the query will handle it)
+    if (!currentUser) return false;
+    if (isAdmin) return true;
+    if (isLoadingSubjects) return false;
+    return true;
   }, [currentUser, isAdmin, isLoadingSubjects]);
   
 
-  const { data: archivedAttendance, isLoading: isLoadingRecords } = useCollection<AttendanceRecord>(
+  const { data: archivedAttendance, isLoading: isLoadingRecords } = useCollection<ArchivedAttendanceRecord>(
     shouldFetchArchive ? 'attendance_archive' : null,
     { buildQuery: attendanceQuery }
   );
+  
+  const groupedArchives = useMemo(() => {
+    if (!archivedAttendance) return {};
+    
+    return archivedAttendance.reduce((acc, record) => {
+      // All records archived in one session will have the exact same timestamp object.
+      // We can use its millisecond representation as a unique key.
+      const timestampKey = record.archivedAt instanceof Timestamp ? record.archivedAt.toMillis().toString() : 'unknown';
+
+      if (!acc[timestampKey]) {
+        acc[timestampKey] = [];
+      }
+      acc[timestampKey].push(record);
+      return acc;
+    }, {} as GroupedArchives);
+  }, [archivedAttendance]);
+
+  const sortedGroupKeys = useMemo(() => {
+    return Object.keys(groupedArchives).sort((a, b) => Number(b) - Number(a));
+  }, [groupedArchives]);
+
 
   const isLoading = isLoadingUser || isLoadingRecords || (!isAdmin && isLoadingSubjects);
+  
+  const renderContent = () => {
+    if (isLoading) {
+      return (
+        <div className="space-y-2">
+          <Skeleton className="h-20 w-full" />
+          <Skeleton className="h-20 w-full" />
+          <Skeleton className="h-20 w-full" />
+        </div>
+      );
+    }
+
+    if (sortedGroupKeys.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center gap-4 text-center text-muted-foreground p-8">
+          <Inbox className="h-16 w-16" />
+          <h3 className="text-xl font-semibold">No Archived Records</h3>
+          <p>When you clear the live attendance log, the records will be moved here for historical reference.</p>
+        </div>
+      );
+    }
+    
+    return (
+      <Accordion type="single" collapsible className="w-full">
+        {sortedGroupKeys.map((key) => {
+          const records = groupedArchives[key];
+          const archiveDate = records[0]?.archivedAt?.toDate();
+          if (!archiveDate) return null;
+          
+          return (
+            <AccordionItem value={key} key={key}>
+              <AccordionTrigger>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4 text-left">
+                   <h3 className="font-semibold text-base">
+                      Session Archived on: {format(archiveDate, 'PPP p')}
+                   </h3>
+                   <span className="text-sm text-muted-foreground">
+                      ({records.length} records)
+                   </span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent>
+                <AttendanceTable attendanceRecords={records} />
+              </AccordionContent>
+            </AccordionItem>
+          );
+        })}
+      </Accordion>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-8">
@@ -83,7 +161,7 @@ export default function ArchivePage() {
             Archived Reports
           </h1>
           <p className="text-muted-foreground">
-            A read-only log of all previously cleared attendance records.
+            A read-only log of all previously cleared attendance sessions.
           </p>
         </div>
         <Button variant="outline" asChild>
@@ -96,23 +174,16 @@ export default function ArchivePage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Archived Attendance Log</CardTitle>
+          <CardTitle>Archived Sessions</CardTitle>
           <CardDescription>
-            This data is preserved for historical reference and cannot be modified.
+            Each item below represents a session that was cleared from the live reports.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {isLoading ? (
-            <div className="space-y-2">
-              <Skeleton className="h-12 w-full" />
-              <Skeleton className="h-12 w-full" />
-              <Skeleton className="h-12 w-full" />
-            </div>
-          ) : (
-            <AttendanceTable attendanceRecords={archivedAttendance || []} />
-          )}
+          {renderContent()}
         </CardContent>
       </Card>
     </div>
   );
 }
+
