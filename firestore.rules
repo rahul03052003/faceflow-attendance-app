@@ -83,7 +83,10 @@ service cloud.firestore {
         allow create: if isAuthenticated();
         
         // Archived records are read-only for data integrity.
+        // This rule allows both 'get' (single doc) and 'list' (collection) reads.
         allow read: if isAuthenticated();
+        
+        // Archived records cannot be modified.
         allow update, delete: if false;
     }
   }
