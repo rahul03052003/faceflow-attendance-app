@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -50,7 +51,16 @@ const summarizeAttendanceReportFlow = ai.defineFlow(
     outputSchema: SummarizeAttendanceReportOutputSchema,
   },
   async input => {
+
+    // SIMULATION: To avoid API quota issues, we return a static summary.
+    return {
+      summary: "This is a simulated AI summary. Based on the latest data for the CSE subject, attendance is high. Most listed students, including Rahul, Jeff, and Vishwas, were successfully marked as 'Present'. One student, Elon Musk, was marked 'Absent'. Emotion analysis indicates a generally positive classroom atmosphere."
+    };
+
+    /*
+    // REAL API CALL (currently disabled due to quota limits)
     const {output} = await prompt(input);
     return output!;
+    */
   }
 );

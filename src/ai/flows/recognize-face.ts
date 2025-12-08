@@ -48,6 +48,22 @@ export async function recognizeFace(
   return recognizeFaceFlow(input);
 }
 
+
+// SIMULATION HELPER: Calculate cosine similarity between two vectors
+function cosineSimilarity(vecA: number[], vecB: number[]): number {
+  if (!vecA || !vecB || vecA.length !== vecB.length) {
+    return 0;
+  }
+  const dotProduct = vecA.reduce((sum, a, i) => sum + a * vecB[i], 0);
+  const magnitudeA = Math.sqrt(vecA.reduce((sum, a) => sum + a * a, 0));
+  const magnitudeB = Math.sqrt(vecB.reduce((sum, b) => sum + b * b, 0));
+  if (magnitudeA === 0 || magnitudeB === 0) {
+    return 0;
+  }
+  return dotProduct / (magnitudeA * magnitudeB);
+}
+
+
 const recognizeFaceFlow = ai.defineFlow(
   {
     name: 'recognizeFaceFlow',
@@ -59,7 +75,47 @@ const recognizeFaceFlow = ai.defineFlow(
     if (!users || users.length === 0) {
         throw new Error("No users provided to compare against.");
     }
+
+    // SIMULATION: To avoid API quota issues, we perform a local comparison.
+    // 1. We simulate a "live" scan by just using the facial features of the FIRST user in the list.
+    //    This makes the simulation deterministic and predictable for testing.
+    const scannedVector = users[0].facialFeatures;
+    if (!scannedVector) {
+        throw new Error(`Simulation failed: The first user (${users[0].name}) does not have facial feature data.`);
+    }
+
+    // 2. We compare the "scanned" vector against all registered users' vectors.
+    let bestMatch: User | undefined = undefined;
+    let highestSimilarity = -1;
+
+    users.forEach(user => {
+        const similarity = cosineSimilarity(scannedVector, user.facialFeatures);
+        if (similarity > highestSimilarity) {
+            highestSimilarity = similarity;
+            bestMatch = user;
+        }
+    });
     
+    // 3. We simulate a random emotion.
+    const emotions = ['Happy', 'Sad', 'Neutral', 'Surprised'];
+    const randomEmotion = emotions[Math.floor(Math.random() * emotions.length)];
+
+    // We set a threshold for a successful match. Since we're using a user's own data,
+    // this should always be very high (close to 1.0).
+    const SIMILARITY_THRESHOLD = 0.9;
+
+    if (highestSimilarity < SIMILARITY_THRESHOLD) {
+      bestMatch = undefined; // If no one is a close enough match, consider it a failed recognition
+    }
+
+    return {
+      user: bestMatch,
+      emotion: randomEmotion,
+    };
+
+
+    /*
+    // REAL API CALL (currently disabled due to quota limits)
     const result = await ai.generate({
         prompt: `You are an expert facial recognition system. Your task is to identify a person in an image and determine their emotion.
         
@@ -95,6 +151,6 @@ const recognizeFaceFlow = ai.defineFlow(
       user: matchedUser,
       emotion: output.emotion || 'Neutral',
     };
+    */
   }
 );
-
