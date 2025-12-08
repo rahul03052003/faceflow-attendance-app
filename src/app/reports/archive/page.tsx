@@ -35,9 +35,9 @@ export default function ArchivePage() {
   const isAdmin = useMemo(() => !isLoadingUser && currentUser?.role === 'Admin', [currentUser, isLoadingUser]);
 
   const subjectsQuery = useCallback((ref: any) => {
-    if (!currentUser?.uid) return query(ref, where('teacherId', '==', ''));
+    if (isAdmin || !currentUser?.uid) return query(ref, where('teacherId', '==', ''));
     return query(ref, where('teacherId', '==', currentUser.uid));
-  }, [currentUser?.uid]);
+  }, [currentUser?.uid, isAdmin]);
 
   const { data: teacherSubjects, isLoading: isLoadingSubjects } = useCollection<Subject>(
     !isAdmin && currentUser ? 'subjects' : null,
@@ -50,10 +50,10 @@ export default function ArchivePage() {
   }, [teacherSubjects]);
 
   const shouldFetchArchive = useMemo(() => {
-    if (!currentUser) return false; // Don't fetch if no user
-    if (isAdmin) return true; // Admin can always fetch
-    if (isLoadingSubjects) return false; // Teacher must wait for subjects to load
-    return teacherSubjectIds.length > 0; // Teacher with subjects can fetch
+    if (!currentUser) return false;
+    if (isAdmin) return true;
+    if (isLoadingSubjects) return false;
+    return teacherSubjectIds.length > 0;
   }, [currentUser, isAdmin, isLoadingSubjects, teacherSubjectIds]);
 
 
@@ -87,7 +87,6 @@ export default function ArchivePage() {
   }, [archivedAttendance]);
 
   const sortedGroupKeys = useMemo(() => {
-    // Sort by the sessionId, which is a timestamp string, so newest first
     return Object.keys(groupedArchives).sort((a, b) => Number(b) - Number(a));
   }, [groupedArchives]);
 
@@ -176,3 +175,4 @@ export default function ArchivePage() {
     </div>
   );
 }
+
