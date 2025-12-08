@@ -15,7 +15,7 @@ import { useCollection, useUser } from '@/firebase';
 import type { AttendanceRecord, Subject, User } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCallback, useMemo, useState } from 'react';
-import { query, where, writeBatch, collection, getDocs } from 'firebase/firestore';
+import { query, where, writeBatch, collection, getDocs, serverTimestamp, doc } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { BellPlus, Loader2, RefreshCw } from 'lucide-react';
 import {
@@ -76,7 +76,7 @@ export default function ReportsPage() {
   const handleRefresh = (clearData = false) => {
     setIsRefreshAlertOpen(false);
     if (clearData) {
-      handleClearAllRecords();
+      handleArchiveAndClearAllRecords();
       return;
     }
     if (allAttendance) setAllAttendance([...allAttendance]);
@@ -87,28 +87,55 @@ export default function ReportsPage() {
     });
   };
 
-  const handleClearAllRecords = async () => {
+  const handleArchiveAndClearAllRecords = async () => {
     toast({
-        title: 'Clearing Data...',
-        description: 'Permanently deleting all attendance records.',
+        title: 'Archiving & Clearing Data...',
+        description: 'Archiving records before clearing the log.',
     });
     try {
         const attendanceRef = collection(firestore, 'attendance');
         const querySnapshot = await getDocs(attendanceRef);
-        const batch = writeBatch(firestore);
-        querySnapshot.forEach((doc) => {
-            batch.delete(doc.ref);
+        
+        if (querySnapshot.empty) {
+            toast({
+                title: 'No Records to Archive',
+                description: 'The attendance log is already empty.',
+            });
+            return;
+        }
+
+        const archiveBatch = writeBatch(firestore);
+        const deleteBatch = writeBatch(firestore);
+        const archiveTimestamp = serverTimestamp();
+
+        querySnapshot.forEach((docSnapshot) => {
+            // 1. Archive the record
+            const recordData = docSnapshot.data();
+            const archiveRef = doc(collection(firestore, 'attendance_archive'));
+            archiveBatch.set(archiveRef, { 
+                ...recordData, 
+                archivedAt: archiveTimestamp 
+            });
+            
+            // 2. Add the original record to the delete batch
+            deleteBatch.delete(docSnapshot.ref);
         });
-        await batch.commit();
+
+        // First, commit the archive batch to ensure data is saved
+        await archiveBatch.commit();
+        
+        // Then, commit the delete batch
+        await deleteBatch.commit();
+
         toast({
-            title: 'All Records Deleted',
-            description: 'The attendance log has been cleared.',
+            title: 'Archive & Clear Complete',
+            description: `${querySnapshot.size} records have been archived and the log has been cleared.`,
         });
     } catch (e: any) {
         toast({
             variant: 'destructive',
-            title: 'Error Deleting Records',
-            description: e.message || 'Could not delete attendance records.',
+            title: 'Error During Operation',
+            description: e.message || 'Could not archive and clear attendance records.',
         });
     }
   }
@@ -264,9 +291,9 @@ export default function ReportsPage() {
       <AlertDialog open={isRefreshAlertOpen} onOpenChange={setIsRefreshAlertOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Refresh or Clear Data?</AlertDialogTitle>
+            <AlertDialogTitle>Refresh or Archive Data?</AlertDialogTitle>
             <AlertDialogDescription>
-              You can either reload the latest data or permanently delete all existing attendance records. This is useful for clearing test data. This action cannot be undone.
+              You can reload the latest data, or archive all current attendance records and clear the log. This is useful for clearing data at the end of a term while keeping a historical copy.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -275,7 +302,7 @@ export default function ReportsPage() {
               Just Refresh
             </AlertDialogAction>
             <AlertDialogAction onClick={() => handleRefresh(true)} className="bg-destructive hover:bg-destructive/90">
-              Clear All Data
+              Archive and Clear Log
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -283,5 +310,3 @@ export default function ReportsPage() {
     </div>
   );
 }
-
-    

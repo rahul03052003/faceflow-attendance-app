@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "User": {
@@ -45,6 +46,25 @@
         "timestamp": { "type": "string", "format": "date-time", "description": "The server timestamp of when the record was created." }
       },
       "required": ["userId", "subjectId", "date", "status"]
+    },
+    "ArchivedAttendanceRecord": {
+      "title": "Archived Attendance Record",
+      "description": "An archived record of a user's attendance.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "userAvatar": { "type": "string", "format": "uri" },
+        "subjectId": { "type": "string" },
+        "subjectName": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "status": { "type": "string", "enum": ["Present", "Absent", "Late"] },
+        "emotion": { "type": "string", "enum": ["Happy", "Sad", "Neutral", "Surprised", "N/A"] },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "archivedAt": { "type": "string", "format": "date-time", "description": "The server timestamp of when the record was archived." }
+      },
+      "required": ["userId", "subjectId", "date", "status", "archivedAt"]
     }
   },
   "auth": {
@@ -62,6 +82,10 @@
     "/attendance/{attendanceId}": {
       "schema": { "$ref": "#/entities/AttendanceRecord" },
       "description": "Stores all attendance records for all users."
+    },
+    "/attendance_archive/{archiveId}": {
+      "schema": { "$ref": "#/entities/ArchivedAttendanceRecord" },
+      "description": "Stores archived attendance records after they are cleared from the main log."
     }
   }
 }

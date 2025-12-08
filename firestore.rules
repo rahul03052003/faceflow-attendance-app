@@ -1,3 +1,4 @@
+
 rules_version = '2';
 
 service cloud.firestore {
@@ -72,6 +73,18 @@ service cloud.firestore {
       // Attendance records are immutable, except for Admins or Teachers who can delete them.
       allow update: if false;
       allow delete: if isAuthenticated();
+    }
+    
+    // =================================
+    // Attendance Archive Rules
+    // =================================
+    match /attendance_archive/{archiveId} {
+        // Only Admins and Teachers can write to the archive.
+        allow create: if isAuthenticated();
+        
+        // Archived records are read-only for data integrity.
+        allow read: if isAuthenticated();
+        allow update, delete: if false;
     }
   }
 }
