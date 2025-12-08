@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/card';
 import { AttendanceTable } from '@/components/reports/attendance-table';
 import { useCollection, useUser } from '@/firebase';
-import type { ArchivedAttendanceRecord } from '@/lib/types';
+import type { ArchivedAttendanceRecord, Subject } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCallback, useMemo } from 'react';
 import { query, where, orderBy, Timestamp } from 'firebase/firestore';
@@ -39,7 +39,7 @@ export default function ArchivePage() {
     return query(ref, where('teacherId', '==', currentUser.uid));
   }, [currentUser?.uid]);
 
-  const { data: teacherSubjects, isLoading: isLoadingSubjects } = useCollection<any>(
+  const { data: teacherSubjects, isLoading: isLoadingSubjects } = useCollection<Subject>(
     !isAdmin && currentUser ? 'subjects' : null,
     { buildQuery: subjectsQuery }
   );
@@ -49,31 +49,25 @@ export default function ArchivePage() {
     return teacherSubjects.map(s => s.id);
   }, [teacherSubjects]);
 
+  const shouldFetchArchive = useMemo(() => {
+    if (!currentUser) return false; // Don't fetch if no user
+    if (isAdmin) return true; // Admin can always fetch
+    if (isLoadingSubjects) return false; // Teacher must wait for subjects to load
+    return teacherSubjectIds.length > 0; // Teacher with subjects can fetch
+  }, [currentUser, isAdmin, isLoadingSubjects, teacherSubjectIds]);
+
+
   const attendanceQuery = useCallback((ref: any) => {
     if (isAdmin) {
       return query(ref, orderBy('archivedAt', 'desc'));
     }
-    
-    if (teacherSubjectIds.length > 0) {
-      return query(
-        ref, 
-        where('subjectId', 'in', teacherSubjectIds),
-        orderBy('subjectId'), 
-        orderBy('archivedAt', 'desc')
-      );
-    }
-
-    return query(ref, where('subjectId', '==', '__NEVER_MATCH__'));
+    // This query now only runs when shouldFetchArchive is true, so teacherSubjectIds is ready.
+    return query(
+      ref, 
+      where('subjectId', 'in', teacherSubjectIds),
+      orderBy('archivedAt', 'desc')
+    );
   }, [isAdmin, teacherSubjectIds]);
-
-
-  const shouldFetchArchive = useMemo(() => {
-    if (!currentUser) return false;
-    if (isAdmin) return true;
-    if (isLoadingSubjects) return false;
-    return true;
-  }, [currentUser, isAdmin, isLoadingSubjects]);
-  
 
   const { data: archivedAttendance, isLoading: isLoadingRecords } = useCollection<ArchivedAttendanceRecord>(
     shouldFetchArchive ? 'attendance_archive' : null,
@@ -84,9 +78,10 @@ export default function ArchivePage() {
     if (!archivedAttendance) return {};
     
     return archivedAttendance.reduce((acc, record) => {
-      // All records archived in one session will have the exact same timestamp object.
-      // We can use its millisecond representation as a unique key.
-      const timestampKey = record.archivedAt instanceof Timestamp ? record.archivedAt.toMillis().toString() : 'unknown';
+      const timestamp = record.archivedAt;
+      if (!timestamp || typeof timestamp.toMillis !== 'function') return acc;
+      
+      const timestampKey = timestamp.toMillis().toString();
 
       if (!acc[timestampKey]) {
         acc[timestampKey] = [];
@@ -128,7 +123,7 @@ export default function ArchivePage() {
       <Accordion type="single" collapsible className="w-full">
         {sortedGroupKeys.map((key) => {
           const records = groupedArchives[key];
-          const archiveDate = records[0]?.archivedAt?.toDate();
+          const archiveDate = records[0]?.archivedAt instanceof Timestamp ? records[0].archivedAt.toDate() : null;
           if (!archiveDate) return null;
           
           return (
@@ -186,4 +181,3 @@ export default function ArchivePage() {
     </div>
   );
 }
-
