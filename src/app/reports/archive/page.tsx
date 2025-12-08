@@ -50,26 +50,30 @@ export default function ArchivePage() {
   }, [teacherSubjects]);
 
   const shouldFetchArchive = useMemo(() => {
-    if (!currentUser) return false; // Don't fetch if no user
-    if (isAdmin) return true; // Admin can always fetch
-    if (isLoadingSubjects) return false; // Don't fetch if subjects are loading for teacher
-    return teacherSubjectIds.length > 0; // Fetch only if teacher has subjects
+    if (!currentUser) return false; 
+    if (isAdmin) return true; 
+    if (isLoadingSubjects) return false; 
+    return teacherSubjectIds.length > 0;
   }, [currentUser, isAdmin, isLoadingSubjects, teacherSubjectIds]);
 
 
   const attendanceQuery = useCallback((ref: any) => {
-    let q = query(ref, orderBy('archivedAt', 'desc'));
-    // IMPORTANT: This condition is now aligned with `shouldFetchArchive`.
-    // It ensures that `teacherSubjectIds` has at least one item before adding the 'in' clause.
-    if (!isAdmin && teacherSubjectIds.length > 0) {
-      q = query(q, where('subjectId', 'in', teacherSubjectIds));
+    if (isAdmin) {
+      // Admins see all, sorted by archive time
+      return query(ref, orderBy('archivedAt', 'desc'));
     }
-    return q;
+    if (teacherSubjectIds.length > 0) {
+      // Teachers filter by their subjects. Ordering by a different field requires a composite index.
+      // We will perform sorting on the client after fetching.
+      return query(ref, where('subjectId', 'in', teacherSubjectIds));
+    }
+    // This query will intentionally find nothing if a teacher has no subjects.
+    return query(ref, where('subjectId', '==', ''));
   }, [isAdmin, teacherSubjectIds]);
 
 
   const { data: archivedAttendance, isLoading: isLoadingRecords } = useCollection<ArchivedAttendanceRecord>(
-    shouldFetchArchive ? 'attendance_archive' : null, // The key to fixing the race condition
+    shouldFetchArchive ? 'attendance_archive' : null,
     { buildQuery: attendanceQuery }
   );
   
