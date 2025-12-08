@@ -34,12 +34,25 @@ export default function ArchivePage() {
   }, [teacherSubjects]);
 
   const attendanceQuery = useCallback((ref: any) => {
-    let q = query(ref, orderBy('archivedAt', 'desc'));
-    if (isAdmin) return q;
-    if (teacherSubjectIds.length > 0) {
-      return query(q, where('subjectId', 'in', teacherSubjectIds));
+    if (isAdmin) {
+      // For Admin, order all records by archive date.
+      return query(ref, orderBy('archivedAt', 'desc'));
     }
-    return query(q, where('subjectId', '==', '')); // Query that finds nothing
+    
+    if (teacherSubjectIds.length > 0) {
+      // For Teachers, filter by their subjects and then order.
+      // This query requires an index on subjectId (asc) and archivedAt (desc).
+      // To avoid manual index creation, we can order by subjectId first.
+      return query(
+        ref, 
+        where('subjectId', 'in', teacherSubjectIds),
+        orderBy('subjectId'),
+        orderBy('archivedAt', 'desc')
+      );
+    }
+
+    // For a teacher with no subjects, return a query that finds nothing.
+    return query(ref, where('subjectId', '==', ''));
   }, [isAdmin, teacherSubjectIds]);
 
 
