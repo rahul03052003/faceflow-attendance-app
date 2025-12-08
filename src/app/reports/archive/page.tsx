@@ -50,15 +50,17 @@ export default function ArchivePage() {
   }, [teacherSubjects]);
 
   const shouldFetchArchive = useMemo(() => {
-    if (!currentUser) return false;
-    if (isAdmin) return true;
-    if (isLoadingSubjects) return false;
-    return teacherSubjectIds.length > 0;
+    if (!currentUser) return false; // Don't fetch if no user
+    if (isAdmin) return true; // Admin can always fetch
+    if (isLoadingSubjects) return false; // Don't fetch if subjects are loading for teacher
+    return teacherSubjectIds.length > 0; // Fetch only if teacher has subjects
   }, [currentUser, isAdmin, isLoadingSubjects, teacherSubjectIds]);
 
 
   const attendanceQuery = useCallback((ref: any) => {
     let q = query(ref, orderBy('archivedAt', 'desc'));
+    // IMPORTANT: This condition is now aligned with `shouldFetchArchive`.
+    // It ensures that `teacherSubjectIds` has at least one item before adding the 'in' clause.
     if (!isAdmin && teacherSubjectIds.length > 0) {
       q = query(q, where('subjectId', 'in', teacherSubjectIds));
     }
@@ -67,7 +69,7 @@ export default function ArchivePage() {
 
 
   const { data: archivedAttendance, isLoading: isLoadingRecords } = useCollection<ArchivedAttendanceRecord>(
-    shouldFetchArchive ? 'attendance_archive' : null,
+    shouldFetchArchive ? 'attendance_archive' : null, // The key to fixing the race condition
     { buildQuery: attendanceQuery }
   );
   
@@ -87,7 +89,12 @@ export default function ArchivePage() {
   }, [archivedAttendance]);
 
   const sortedGroupKeys = useMemo(() => {
-    return Object.keys(groupedArchives).sort((a, b) => Number(b) - Number(a));
+    // Sort groups by the sessionId (which is a timestamp) in descending order
+    return Object.keys(groupedArchives).sort((a, b) => {
+        const timeA = groupedArchives[a]?.[0]?.archivedAt instanceof Timestamp ? groupedArchives[a][0].archivedAt.toMillis() : Number(a);
+        const timeB = groupedArchives[b]?.[0]?.archivedAt instanceof Timestamp ? groupedArchives[b][0].archivedAt.toMillis() : Number(b);
+        return timeB - timeA;
+    });
   }, [groupedArchives]);
 
 
@@ -118,6 +125,7 @@ export default function ArchivePage() {
       <Accordion type="single" collapsible className="w-full">
         {sortedGroupKeys.map((key) => {
           const records = groupedArchives[key];
+          // Use the actual timestamp from the first record in the group for more accurate display
           const archiveDate = records[0]?.archivedAt instanceof Timestamp ? records[0].archivedAt.toDate() : new Date(Number(key));
           
           return (
