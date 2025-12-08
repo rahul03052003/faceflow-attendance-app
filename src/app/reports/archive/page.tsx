@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/card';
 import { AttendanceTable } from '@/components/reports/attendance-table';
 import { useCollection, useUser } from '@/firebase';
-import type { AttendanceRecord } from '@/lib/types';
+import type { AttendanceRecord, Subject } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCallback, useMemo } from 'react';
 import { query, where, orderBy } from 'firebase/firestore';
@@ -23,7 +23,7 @@ export default function ArchivePage() {
 
   const isAdmin = useMemo(() => !isLoadingUser && currentUser?.role === 'Admin', [currentUser, isLoadingUser]);
 
-  const { data: teacherSubjects, isLoading: isLoadingSubjects } = useCollection(
+  const { data: teacherSubjects, isLoading: isLoadingSubjects } = useCollection<Subject>(
     !isAdmin && currentUser ? 'subjects' : null,
     { buildQuery: (ref: any) => query(ref, where('teacherId', '==', currentUser?.uid)) }
   );
@@ -39,25 +39,30 @@ export default function ArchivePage() {
       return query(ref, orderBy('archivedAt', 'desc'));
     }
     
+    // For Teachers, this query now correctly waits for teacherSubjectIds
     if (teacherSubjectIds.length > 0) {
-      // For Teachers, filter by their subjects and then order.
-      // This query requires an index on subjectId (asc) and archivedAt (desc).
-      // To avoid manual index creation, we can order by subjectId first.
       return query(
         ref, 
         where('subjectId', 'in', teacherSubjectIds),
-        orderBy('subjectId'),
         orderBy('archivedAt', 'desc')
       );
     }
 
     // For a teacher with no subjects, return a query that finds nothing.
-    return query(ref, where('subjectId', '==', ''));
+    return query(ref, where('subjectId', '==', '__NEVER_MATCH__'));
   }, [isAdmin, teacherSubjectIds]);
 
 
+  // Determine if the collection hook should run
+  const shouldFetchArchive = useMemo(() => {
+    if (!currentUser) return false; // Don't fetch if no user
+    if (isAdmin) return true; // Admin can always fetch
+    return teacherSubjectIds.length > 0; // Teacher fetches only if they have subjects
+  }, [currentUser, isAdmin, teacherSubjectIds]);
+  
+
   const { data: archivedAttendance, isLoading: isLoadingRecords } = useCollection<AttendanceRecord>(
-    currentUser ? 'attendance_archive' : null,
+    shouldFetchArchive ? 'attendance_archive' : null,
     { buildQuery: attendanceQuery }
   );
 
