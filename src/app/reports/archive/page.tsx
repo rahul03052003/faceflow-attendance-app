@@ -23,9 +23,14 @@ export default function ArchivePage() {
 
   const isAdmin = useMemo(() => !isLoadingUser && currentUser?.role === 'Admin', [currentUser, isLoadingUser]);
 
+  const subjectsQuery = useCallback((ref: any) => {
+    if (!currentUser?.uid) return query(ref, where('teacherId', '==', ''));
+    return query(ref, where('teacherId', '==', currentUser.uid));
+  }, [currentUser?.uid]);
+
   const { data: teacherSubjects, isLoading: isLoadingSubjects } = useCollection<Subject>(
     !isAdmin && currentUser ? 'subjects' : null,
-    { buildQuery: (ref: any) => query(ref, where('teacherId', '==', currentUser?.uid)) }
+    { buildQuery: subjectsQuery }
   );
 
   const teacherSubjectIds = useMemo(() => {
@@ -39,7 +44,7 @@ export default function ArchivePage() {
       return query(ref, orderBy('archivedAt', 'desc'));
     }
     
-    // For Teachers, this query now correctly waits for teacherSubjectIds
+    // This should now correctly use the teacherSubjectIds when they are ready.
     if (teacherSubjectIds.length > 0) {
       return query(
         ref, 
@@ -53,12 +58,14 @@ export default function ArchivePage() {
   }, [isAdmin, teacherSubjectIds]);
 
 
-  // Determine if the collection hook should run
+  // This flag determines if we should even attempt to fetch from the archive.
+  // For a teacher, it waits until the subjects are loaded.
   const shouldFetchArchive = useMemo(() => {
     if (!currentUser) return false; // Don't fetch if no user
     if (isAdmin) return true; // Admin can always fetch
-    return teacherSubjectIds.length > 0; // Teacher fetches only if they have subjects
-  }, [currentUser, isAdmin, teacherSubjectIds]);
+    if (isLoadingSubjects) return false; // Don't fetch if subjects are still loading for a teacher
+    return true; // Teacher can fetch now (even if they have no subjects, the query will handle it)
+  }, [currentUser, isAdmin, isLoadingSubjects]);
   
 
   const { data: archivedAttendance, isLoading: isLoadingRecords } = useCollection<AttendanceRecord>(
@@ -109,3 +116,4 @@ export default function ArchivePage() {
     </div>
   );
 }
+
