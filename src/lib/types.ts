@@ -35,6 +35,7 @@ export type AttendanceRecord = {
 
 export type ArchivedAttendanceRecord = AttendanceRecord & {
   archivedAt: Timestamp | FieldValue;
+  sessionId: string;
 };
 
 
@@ -45,4 +46,5 @@ export type NavItem = {
   active?: boolean;
   roles: Array<'Admin' | 'Teacher'>;
 };
+
 

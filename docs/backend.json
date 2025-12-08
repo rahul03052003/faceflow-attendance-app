@@ -62,9 +62,10 @@
         "status": { "type": "string", "enum": ["Present", "Absent", "Late"] },
         "emotion": { "type": "string", "enum": ["Happy", "Sad", "Neutral", "Surprised", "N/A"] },
         "timestamp": { "type": "string", "format": "date-time" },
-        "archivedAt": { "type": "string", "format": "date-time", "description": "The server timestamp of when the record was archived." }
+        "archivedAt": { "type": "string", "format": "date-time", "description": "The server timestamp of when the record was archived." },
+        "sessionId": { "type": "string", "description": "A unique ID for the entire archive session." }
       },
-      "required": ["userId", "subjectId", "date", "status", "archivedAt"]
+      "required": ["userId", "subjectId", "date", "status", "archivedAt", "sessionId"]
     }
   },
   "auth": {

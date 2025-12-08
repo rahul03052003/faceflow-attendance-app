@@ -58,16 +58,13 @@ export default function ArchivePage() {
 
 
   const attendanceQuery = useCallback((ref: any) => {
-    if (isAdmin) {
-      return query(ref, orderBy('archivedAt', 'desc'));
+    let q = query(ref, orderBy('archivedAt', 'desc'));
+    if (!isAdmin && teacherSubjectIds.length > 0) {
+      q = query(q, where('subjectId', 'in', teacherSubjectIds));
     }
-    // This query now only runs when shouldFetchArchive is true, so teacherSubjectIds is ready.
-    return query(
-      ref, 
-      where('subjectId', 'in', teacherSubjectIds),
-      orderBy('archivedAt', 'desc')
-    );
+    return q;
   }, [isAdmin, teacherSubjectIds]);
+
 
   const { data: archivedAttendance, isLoading: isLoadingRecords } = useCollection<ArchivedAttendanceRecord>(
     shouldFetchArchive ? 'attendance_archive' : null,
@@ -78,20 +75,19 @@ export default function ArchivePage() {
     if (!archivedAttendance) return {};
     
     return archivedAttendance.reduce((acc, record) => {
-      const timestamp = record.archivedAt;
-      if (!timestamp || typeof timestamp.toMillis !== 'function') return acc;
-      
-      const timestampKey = timestamp.toMillis().toString();
+      const sessionId = record.sessionId;
+      if (!sessionId) return acc;
 
-      if (!acc[timestampKey]) {
-        acc[timestampKey] = [];
+      if (!acc[sessionId]) {
+        acc[sessionId] = [];
       }
-      acc[timestampKey].push(record);
+      acc[sessionId].push(record);
       return acc;
     }, {} as GroupedArchives);
   }, [archivedAttendance]);
 
   const sortedGroupKeys = useMemo(() => {
+    // Sort by the sessionId, which is a timestamp string, so newest first
     return Object.keys(groupedArchives).sort((a, b) => Number(b) - Number(a));
   }, [groupedArchives]);
 
@@ -123,8 +119,7 @@ export default function ArchivePage() {
       <Accordion type="single" collapsible className="w-full">
         {sortedGroupKeys.map((key) => {
           const records = groupedArchives[key];
-          const archiveDate = records[0]?.archivedAt instanceof Timestamp ? records[0].archivedAt.toDate() : null;
-          if (!archiveDate) return null;
+          const archiveDate = records[0]?.archivedAt instanceof Timestamp ? records[0].archivedAt.toDate() : new Date(Number(key));
           
           return (
             <AccordionItem value={key} key={key}>

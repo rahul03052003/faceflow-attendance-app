@@ -108,6 +108,7 @@ export default function ReportsPage() {
         const archiveBatch = writeBatch(firestore);
         const deleteBatch = writeBatch(firestore);
         const archiveTimestamp = serverTimestamp();
+        const sessionId = Date.now().toString(); // Create a unique session ID for this batch
 
         querySnapshot.forEach((docSnapshot) => {
             // 1. Archive the record
@@ -115,7 +116,8 @@ export default function ReportsPage() {
             const archiveRef = doc(collection(firestore, 'attendance_archive'));
             archiveBatch.set(archiveRef, { 
                 ...recordData, 
-                archivedAt: archiveTimestamp 
+                archivedAt: archiveTimestamp,
+                sessionId: sessionId,
             });
             
             // 2. Add the original record to the delete batch
