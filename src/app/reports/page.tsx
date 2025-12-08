@@ -17,7 +17,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useCallback, useMemo, useState } from 'react';
 import { query, where, writeBatch, collection, getDocs, serverTimestamp, doc } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
-import { BellPlus, Loader2, RefreshCw } from 'lucide-react';
+import { BellPlus, Loader2, RefreshCw, Archive } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,6 +31,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { notifyAbsentees } from '@/ai/flows/notify-absent-students';
 import { useFirestore } from '@/firebase';
+import Link from 'next/link';
 
 export default function ReportsPage() {
   const { user: currentUser, isLoading: isLoadingUser } = useUser();
@@ -223,6 +224,12 @@ export default function ReportsPage() {
              <Button variant="outline" onClick={() => setIsRefreshAlertOpen(true)}>
                 <RefreshCw className="mr-2 h-4 w-4" />
                 Refresh Data
+            </Button>
+            <Button variant="outline" asChild>
+                <Link href="/reports/archive">
+                    <Archive className="mr-2 h-4 w-4" />
+                    View Archives
+                </Link>
             </Button>
         </div>
       </div>

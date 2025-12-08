@@ -29,8 +29,14 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     }
     
     if (user && pathname !== '/login') {
-      // Check if user is allowed to access the current page
       const userRole = user.role || 'Teacher';
+      
+      // Allow access to the archive page for both roles
+      if (pathname === '/reports/archive') {
+          return;
+      }
+      
+      // Check if user is allowed to access the current page
       const allowedNavItems = ALL_NAV_ITEMS.filter(item => item.roles.includes(userRole));
       const isAllowed = allowedNavItems.some(item => item.href === pathname);
       
