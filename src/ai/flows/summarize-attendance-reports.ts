@@ -59,31 +59,41 @@ const summarizeAttendanceReportFlow = ai.defineFlow(
         return { summary: "There is no attendance data to summarize for this session." };
       }
 
-      const presentStudents = records.filter(r => r.status === 'Present').map(r => r.userName);
+      const presentCount = records.filter(r => r.status === 'Present').length;
       const absentStudents = records.filter(r => r.status === 'Absent').map(r => r.userName);
+      
       const emotions = records.filter(r => r.emotion && r.emotion !== 'N/A').map(r => r.emotion);
+      const emotionCounts = emotions.reduce((acc, emotion) => {
+          acc[emotion] = (acc[emotion] || 0) + 1;
+          return acc;
+      }, {} as Record<string, number>);
+      
+      const mostCommonEmotion = Object.keys(emotionCounts).length > 0
+        ? Object.keys(emotionCounts).reduce((a, b) => emotionCounts[a] > emotionCounts[b] ? a : b)
+        : null;
 
-      let summaryText = `This is a simulated AI summary. For this session, ${presentStudents.length} student(s) were marked 'Present' and ${absentStudents.length} student(s) were marked 'Absent'.`;
+      let summaryPoints: string[] = [];
+      
+      summaryPoints.push(`- ${presentCount} student(s) marked as 'Present'.`);
+      summaryPoints.push(`- ${absentStudents.length} student(s) marked as 'Absent'.`);
 
-      if (presentStudents.length > 0) {
-        summaryText += ` Present students include: ${presentStudents.join(', ')}.`;
-      }
       if (absentStudents.length > 0) {
-        summaryText += ` Absent students include: ${absentStudents.join(', ')}.`;
+        summaryPoints.push(`  - Absent: ${absentStudents.join(', ')}.`);
+      }
+
+      if (mostCommonEmotion) {
+        summaryPoints.push(`- The dominant emotion was '${mostCommonEmotion}'.`);
+      } else {
+        summaryPoints.push(`- No significant emotion data was recorded.`);
       }
       
-      if (emotions.length > 0) {
-        const emotionCounts = emotions.reduce((acc, emotion) => {
-            acc[emotion] = (acc[emotion] || 0) + 1;
-            return acc;
-        }, {} as Record<string, number>);
-        
-        const mostCommonEmotion = Object.keys(emotionCounts).reduce((a, b) => emotionCounts[a] > emotionCounts[b] ? a : b);
-        summaryText += ` The overall mood appears to be ${mostCommonEmotion.toLowerCase()}.`;
-      } else {
-        summaryText += " No emotion data was recorded for this session."
+      // Add a more dynamic insight
+      const sadStudents = records.filter(r => r.emotion === 'Sad').length;
+      if (sadStudents > 1) {
+          summaryPoints.push(`- NOTE: ${sadStudents} students were detected as 'Sad', which might be worth looking into.`);
       }
 
+      const summaryText = "AI Summary:\n" + summaryPoints.join('\n');
 
       return { summary: summaryText };
     } catch (e) {
