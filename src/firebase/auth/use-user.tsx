@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useEffect, useMemo } from 'react';
 import { onAuthStateChanged, type User as AuthUser } from 'firebase/auth';
@@ -41,6 +42,8 @@ export function useUser() {
         const firestoreData = doc.data() as Omit<AppUser, 'id'>;
         setAppUser({ id: doc.id, ...firestoreData });
       } else {
+        // If the user document doesn't exist in Firestore, we still proceed
+        // but with appUser as null. The useMemo below will handle this case.
         setAppUser(null);
       }
       setIsLoading(false);
@@ -58,25 +61,23 @@ export function useUser() {
 
     const isAdminByEmail = authUser.email === 'admin@gmail.com';
     
-    // This is the combined user object we will return
+    // This is the combined user object we will return.
+    // It starts with the core authentication data.
     const mergedUser: EnrichedUser = {
       ...authUser,
-      // Spread appUser (from Firestore) first, so its properties can be overridden
+      // We spread the Firestore data. If appUser is null, this does nothing.
       ...(appUser || {}), 
+      // Ensure the ID from Auth is always the source of truth.
       id: authUser.uid,
-      // Explicitly set the role: if it's the admin email, role is 'Admin'.
-      // Otherwise, use the role from Firestore, or default to 'Teacher' if no doc exists.
+      // This is the crucial part. Determine the role.
       role: isAdminByEmail ? 'Admin' : (appUser?.role || 'Teacher'),
-      // Ensure email from auth is authoritative
+      // Ensure email from auth is authoritative.
       email: authUser.email!,
+      // Provide fallback defaults for users who might only exist in Auth.
+      name: appUser?.name || authUser.displayName || authUser.email?.split('@')[0] || 'User',
+      avatar: appUser?.avatar || authUser.photoURL || '',
+      registerNo: appUser?.registerNo || 'N/A',
     };
-
-    // If it's the admin and there's no firestore doc, fill in some defaults
-    if (isAdminByEmail && !appUser) {
-        mergedUser.name = mergedUser.name || 'Admin';
-        mergedUser.registerNo = mergedUser.registerNo || 'N/A';
-        mergedUser.avatar = mergedUser.avatar || '';
-    }
 
     return mergedUser;
 

@@ -78,28 +78,29 @@ export default function UsersPage() {
   const teacherSubjectIds = useMemo(() => teacherSubjects.map(s => s.id), [teacherSubjects]);
 
   const usersToDisplay = useMemo(() => {
-    if (isLoading || !allUsers) return [];
+    if (isLoading || !allUsers || !currentUser) return [];
     
     if (isAdmin) {
-      // Admins see teachers and other admins.
-      const filteredUsers = allUsers.filter(u => u.role === 'Teacher' || u.role === 'Admin');
+        // Admins see all users with the role 'Teacher' or 'Admin' from Firestore.
+        const firestoreUsers = allUsers.filter(u => u.role === 'Teacher' || u.role === 'Admin');
 
-      // Manually add the current admin to the list if they aren't already in it
-      // from the 'users' collection (which is common for the hardcoded admin).
-      if (currentUser && currentUser.role === 'Admin' && !filteredUsers.some(u => u.id === currentUser.id)) {
-        // We create a user object that matches the table's expectations.
-        const adminUser: User = {
-          id: currentUser.id,
-          name: currentUser.name || 'Admin',
-          email: currentUser.email,
-          role: 'Admin',
-          registerNo: 'N/A',
-          avatar: currentUser.avatar || '',
-          subjects: [], // Admins aren't assigned to subjects
-        };
-        return [adminUser, ...filteredUsers];
-      }
-      return filteredUsers;
+        // This ensures the current admin user is always in the list, even if they
+        // don't have a document in the 'users' collection (e.g., the hardcoded admin).
+        if (!firestoreUsers.some(u => u.id === currentUser.id)) {
+            // Create a user object from the authenticated user context
+             const adminUser: User = {
+                id: currentUser.id,
+                name: currentUser.name || 'Admin',
+                email: currentUser.email,
+                role: 'Admin',
+                registerNo: 'N/A',
+                avatar: currentUser.avatar || '',
+                subjects: [],
+            };
+            return [adminUser, ...firestoreUsers];
+        }
+        
+        return firestoreUsers;
     }
     
     // Teachers see only students in their subjects
@@ -366,7 +367,7 @@ export default function UsersPage() {
           <CardDescription>
             {cardDescription}
           </CardDescription>
-        </CardHeader>
+        </Header>
         <CardContent>{renderContent()}</CardContent>
       </Card>
     </div>
