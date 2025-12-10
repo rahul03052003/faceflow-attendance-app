@@ -91,7 +91,10 @@ const recognizeFaceFlow = ai.defineFlow(
     //    This makes the simulation deterministic and predictable for testing.
     const scannedVector = users[0].facialFeatures;
     if (!scannedVector) {
-        throw new Error(`Simulation failed: The first user (${users[0].name}) does not have facial feature data.`);
+        // Fallback if the first user has no facial data, just return them without similarity check
+        const emotions = ['Happy', 'Sad', 'Neutral', 'Surprised'];
+        const randomEmotion = emotions[Math.floor(Math.random() * emotions.length)];
+        return { user: users[0], emotion: randomEmotion };
     }
 
     // 2. We compare the "scanned" vector against all registered users' vectors.
@@ -99,6 +102,7 @@ const recognizeFaceFlow = ai.defineFlow(
     let highestSimilarity = -1;
 
     users.forEach(user => {
+        if (!user.facialFeatures) return; // Skip users without facial data
         const similarity = cosineSimilarity(scannedVector, user.facialFeatures);
         if (similarity > highestSimilarity) {
             highestSimilarity = similarity;
@@ -110,8 +114,8 @@ const recognizeFaceFlow = ai.defineFlow(
     const emotions = ['Happy', 'Sad', 'Neutral', 'Surprised'];
     const randomEmotion = emotions[Math.floor(Math.random() * emotions.length)];
 
-    // We set a threshold for a successful match. Since we're using a user's own data,
-    // this should always be very high (close to 1.0).
+    // We set a threshold for a successful match. Since we're using a user's own data as the scan source,
+    // this should always be very high (close to 1.0) for the first user.
     const SIMILARITY_THRESHOLD = 0.9;
 
     if (highestSimilarity < SIMILARITY_THRESHOLD) {

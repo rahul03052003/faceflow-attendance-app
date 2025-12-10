@@ -193,14 +193,23 @@ export default function CapturePage() {
   }, [result?.greetingAudio, playGreeting]);
 
   const scan = async () => {
-    if (!videoRef.current?.srcObject || !firestore || studentsInSelectedSubject.length === 0) {
+    if (!videoRef.current?.srcObject || !firestore || !allUsers) {
        toast({
           variant: "destructive",
           title: "System Not Ready",
-          description: "Camera is not ready or no students are available for recognition.",
+          description: "Camera is not ready or users are not loaded.",
        });
        return;
     }
+
+    if (studentsInSelectedSubject.length === 0) {
+      toast({
+         variant: "destructive",
+         title: "No Students",
+         description: "There are no students enrolled in this subject to recognize.",
+      });
+      return;
+   }
     
     setIsScanning(true);
     setResult(null);
@@ -215,6 +224,7 @@ export default function CapturePage() {
     const photoDataUri = canvas.toDataURL('image/jpeg');
 
     try {
+      // The simulation will recognize the first student from the list for predictability.
       const { user: matchedUser, emotion } = await recognizeFace({ photoDataUri, users: studentsInSelectedSubject });
       
       setIsScanning(false);
@@ -228,17 +238,18 @@ export default function CapturePage() {
         return;
       }
       
+      // CRITICAL CHECK: Verify the recognized user is registered for the selected subject.
+      const selectedSubject = teacherSubjects.find(s => s.id === selectedSubjectId);
       if (!matchedUser.subjects?.includes(selectedSubjectId!)) {
         toast({
           variant: "destructive",
-          title: "Not Registered",
-          description: `${matchedUser.name} is not registered for this subject.`,
+          title: "Not Registered for Subject",
+          description: `${matchedUser.name} is not registered for ${selectedSubject?.title || 'this subject'}.`,
         });
         return;
       }
 
       const today = new Date().toISOString().split('T')[0];
-      const selectedSubject = teacherSubjects.find(s => s.id === selectedSubjectId);
       const isAlreadyPresent = todaysAttendance?.some(
         record => record.userId === matchedUser.id && record.subjectId === selectedSubjectId
       );
@@ -550,5 +561,3 @@ export default function CapturePage() {
     </>
   );
 }
-
-    
