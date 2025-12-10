@@ -81,8 +81,25 @@ export default function UsersPage() {
     if (isLoading || !allUsers) return [];
     
     if (isAdmin) {
-      // Admins see teachers and other admins
-      return allUsers.filter(u => u.role === 'Teacher' || u.role === 'Admin');
+      // Admins see teachers and other admins.
+      const filteredUsers = allUsers.filter(u => u.role === 'Teacher' || u.role === 'Admin');
+
+      // Manually add the current admin to the list if they aren't already in it
+      // from the 'users' collection (which is common for the hardcoded admin).
+      if (currentUser && currentUser.role === 'Admin' && !filteredUsers.some(u => u.id === currentUser.id)) {
+        // We create a user object that matches the table's expectations.
+        const adminUser: User = {
+          id: currentUser.id,
+          name: currentUser.name || 'Admin',
+          email: currentUser.email,
+          role: 'Admin',
+          registerNo: 'N/A',
+          avatar: currentUser.avatar || '',
+          subjects: [], // Admins aren't assigned to subjects
+        };
+        return [adminUser, ...filteredUsers];
+      }
+      return filteredUsers;
     }
     
     // Teachers see only students in their subjects
@@ -91,7 +108,7 @@ export default function UsersPage() {
       Array.isArray(u.subjects) &&
       u.subjects.some(subId => teacherSubjectIds.includes(subId))
     );
-  }, [allUsers, teacherSubjectIds, isAdmin, isLoading]);
+  }, [allUsers, teacherSubjectIds, isAdmin, isLoading, currentUser]);
 
 
   const handleAddUser = async (
@@ -355,5 +372,3 @@ export default function UsersPage() {
     </div>
   );
 }
-
-    

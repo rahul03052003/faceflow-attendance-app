@@ -1,4 +1,3 @@
-
 'use client';
 import { useState, useEffect, useMemo } from 'react';
 import { onAuthStateChanged, type User as AuthUser } from 'firebase/auth';
@@ -36,16 +35,12 @@ export function useUser() {
       return;
     }
     
-    // For all users (including admin), fetch their profile from Firestore.
-    // The role will be determined in the final useMemo.
     const userDocRef = doc(firestore, 'users', authUser.uid);
     const unsubscribeFirestore = onSnapshot(userDocRef, (doc) => {
       if (doc.exists()) {
         const firestoreData = doc.data() as Omit<AppUser, 'id'>;
         setAppUser({ id: doc.id, ...firestoreData });
       } else {
-        // This handles users in Auth but not Firestore, like the admin on first login
-        // or a user mid-signup. `appUser` remains null.
         setAppUser(null);
       }
       setIsLoading(false);
@@ -61,43 +56,29 @@ export function useUser() {
   const user = useMemo(() => {
     if (!authUser) return null;
 
-    // Special case: Determine if the user is the hardcoded admin by email.
     const isAdminByEmail = authUser.email === 'admin@gmail.com';
     
-    // Start with the base authenticated user.
-    const baseUser = { ...authUser, id: authUser.uid };
+    // This is the combined user object we will return
+    const mergedUser: EnrichedUser = {
+      ...authUser,
+      // Spread appUser (from Firestore) first, so its properties can be overridden
+      ...(appUser || {}), 
+      id: authUser.uid,
+      // Explicitly set the role: if it's the admin email, role is 'Admin'.
+      // Otherwise, use the role from Firestore, or default to 'Teacher' if no doc exists.
+      role: isAdminByEmail ? 'Admin' : (appUser?.role || 'Teacher'),
+      // Ensure email from auth is authoritative
+      email: authUser.email!,
+    };
 
-    if (isAdminByEmail) {
-      // If it's the admin, create the complete user object immediately.
-      // This bypasses the need for a Firestore document for the admin's role.
-      return {
-        ...baseUser,
-        ...appUser, // Merge any existing firestore data (like name if set)
-        role: 'Admin' as const,
-        name: appUser?.name || 'Admin',
-        email: authUser.email,
-        registerNo: appUser?.registerNo || 'N/A',
-        avatar: appUser?.avatar || '',
-      } as EnrichedUser;
+    // If it's the admin and there's no firestore doc, fill in some defaults
+    if (isAdminByEmail && !appUser) {
+        mergedUser.name = mergedUser.name || 'Admin';
+        mergedUser.registerNo = mergedUser.registerNo || 'N/A';
+        mergedUser.avatar = mergedUser.avatar || '';
     }
 
-    if (appUser) {
-        // For regular, non-admin users with a Firestore document.
-        return {
-            ...baseUser,
-            ...appUser,
-        } as EnrichedUser;
-    }
-    
-    // Fallback for a regular user who is authenticated but doesn't have a Firestore doc yet.
-    return {
-        ...baseUser,
-        name: authUser.displayName || 'New User',
-        email: authUser.email || '',
-        role: 'Teacher' as const, // Default role
-        registerNo: '',
-        avatar: authUser.photoURL || '',
-    } as EnrichedUser;
+    return mergedUser;
 
   }, [authUser, appUser]);
 
