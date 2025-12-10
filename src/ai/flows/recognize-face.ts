@@ -75,6 +75,16 @@ const recognizeFaceFlow = ai.defineFlow(
     if (!users || users.length === 0) {
         throw new Error("No users provided to compare against.");
     }
+    
+    // SIMULATION: Simulate a "no face detected" scenario.
+    // There's a 10% chance the "model" won't find a face in the image.
+    if (Math.random() < 0.1) {
+        return {
+            user: undefined,
+            emotion: 'N/A',
+        };
+    }
+
 
     // SIMULATION: To avoid API quota issues, we perform a local comparison.
     // 1. We simulate a "live" scan by just using the facial features of the FIRST user in the list.
