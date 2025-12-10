@@ -56,7 +56,7 @@ export function AiSummary({ attendanceRecords, isLoading: isLoadingRecords }: Ai
     }
   };
   
-  // Clear summary if records change
+  // Clear summary if records change to prompt user to regenerate it
   useEffect(() => {
     setSummary('');
   }, [attendanceRecords]);
