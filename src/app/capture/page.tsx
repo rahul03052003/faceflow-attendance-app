@@ -224,7 +224,7 @@ export default function CapturePage() {
     const photoDataUri = canvas.toDataURL('image/jpeg');
 
     try {
-      // The simulation will recognize the first student from the list for predictability.
+      // The simulation will recognize a random student from the list for predictability.
       const { user: matchedUser, emotion } = await recognizeFace({ photoDataUri, users: studentsInSelectedSubject });
       
       setIsScanning(false);
@@ -499,6 +499,9 @@ export default function CapturePage() {
             <video ref={videoRef} className={`w-full h-full object-cover ${!hasCameraPermission ? 'hidden' : ''}`} autoPlay muted playsInline />
             {!hasCameraPermission && renderVideoContent()}
           </div>
+          <p className="text-sm text-muted-foreground text-center -mt-4">
+            Note: For best results, ensure the student's face is clearly visible before starting the scan.
+          </p>
 
           {isLoadingSubjects ? <Skeleton className="h-10 w-full" /> : (
             <Select onValueChange={setSelectedSubjectId} value={selectedSubjectId || ''}>
@@ -561,3 +564,5 @@ export default function CapturePage() {
     </>
   );
 }
+
+    
