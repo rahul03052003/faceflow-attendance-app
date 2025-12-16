@@ -23,7 +23,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     if (user && pathname === '/login') {
       // Redirect logged-in users away from the login page
       const userRole = user.role || 'Teacher';
-      const homePage = userRole === 'Admin' ? '/reports' : '/';
+      const homePage = '/'; // Both roles now have a dashboard
       router.push(homePage);
       return;
     }
@@ -42,7 +42,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       
       if (!isAllowed) {
         // If not allowed, redirect to their default home page
-        const homePage = userRole === 'Admin' ? '/reports' : '/';
+        const homePage = '/';
         router.push(homePage);
       }
     }

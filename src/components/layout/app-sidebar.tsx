@@ -26,9 +26,9 @@ import type { NavItem } from '@/lib/types';
 import { useUser } from '@/firebase';
 
 export const ALL_NAV_ITEMS: NavItem[] = [
-  { href: '/', label: 'Dashboard', icon: LayoutDashboard, roles: ['Teacher'] },
+  { href: '/', label: 'Dashboard', icon: LayoutDashboard, roles: ['Teacher', 'Admin'] },
   { href: '/capture', label: 'Capture Attendance', icon: ScanFace, roles: ['Teacher'] },
-  { href: '/reports', label: 'Attendance Reports', icon: BarChart3, roles: ['Teacher', 'Admin'] },
+  { href: '/reports', label: 'Attendance Reports', icon: BarChart3, roles: ['Teacher'] },
   { href: '/users', label: 'Student Management', icon: Users, roles: ['Teacher'] },
   { href: '/users', label: 'Teacher Management', icon: Users, roles: ['Admin'] },
   { href: '/subjects', label: 'Subjects', icon: Book, roles: ['Teacher', 'Admin'] },

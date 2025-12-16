@@ -7,13 +7,15 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { BarChart3, Frown, Meh, Smile, Users } from 'lucide-react';
+import { BarChart3, Frown, Meh, Smile, Users, Archive } from 'lucide-react';
 import { EmotionChart } from '@/components/reports/emotion-chart';
 import { useCollection, useUser } from '@/firebase';
 import type { AttendanceRecord, User, Subject } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCallback, useMemo } from 'react';
 import { query, where } from 'firebase/firestore';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
 
 function EmotionIcon({ emotion }: { emotion: string }) {
   switch (emotion) {
@@ -128,61 +130,90 @@ export default function Home() {
       </CardContent>
     </Card>
   );
+  
+  const isRole = (role: 'Admin' | 'Teacher') => !isLoadingUser && currentUser?.role === role;
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-        <div className="text-muted-foreground">
-          {isLoading ? (
-            <Skeleton className="h-5 w-96" />
-          ) : (
-            <p>Welcome back! Here&apos;s a quick overview of your students and subjects.</p>
-          )}
-        </div>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+         <div>
+            <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+            <div className="text-muted-foreground">
+              {isLoading ? (
+                <Skeleton className="h-5 w-96" />
+              ) : (
+                <p>
+                  {isRole('Admin') 
+                    ? "A high-level overview of the entire system."
+                    : "Welcome back! Here's a quick overview of your students and subjects."
+                  }
+                </p>
+              )}
+            </div>
+         </div>
+         {isRole('Admin') && (
+            <Button variant="outline" asChild>
+                <Link href="/reports/archive">
+                    <Archive className="mr-2 h-4 w-4" />
+                    View Archives
+                </Link>
+            </Button>
+         )}
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {renderStatCard("Total Students", totalStudents, "Students in your subjects", <Users className="h-4 w-4 text-muted-foreground" />, isLoading)}
-        {renderStatCard("Present Today", presentToday, "Unique students marked present today", <BarChart3 className="h-4 w-4 text-muted-foreground" />, isLoading)}
+        {renderStatCard(
+            "Total Students", 
+            totalStudents, 
+            isRole('Admin') ? "Total students in the system" : "Students in your subjects", 
+            <Users className="h-4 w-4 text-muted-foreground" />, 
+            isLoading
+        )}
+        
+        {isRole('Teacher') && renderStatCard("Present Today", presentToday, "Unique students marked present today", <BarChart3 className="h-4 w-4 text-muted-foreground" />, isLoading)}
 
-        <Card>
-           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Recent Emotions</CardTitle>
-            <Smile className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {isLoading ? <Skeleton className="h-8 w-full" /> : (
-              <div className="flex -space-x-2 overflow-hidden">
-                  {(recentRecords.length > 0) ? recentRecords.map((record, index) => (
-                      <div key={record.id || index} className="inline-block h-8 w-8 rounded-full ring-2 ring-white flex items-center justify-center bg-background">
-                          <EmotionIcon emotion={record.emotion} />
-                      </div>
-                  )) : (
-                    <p className="text-xs text-muted-foreground">No recent activity.</p>
-                  )}
-              </div>
-            )}
-             <p className="text-xs text-muted-foreground mt-2">
-              Last 5 detected emotions in your classes
-            </p>
-          </CardContent>
-        </Card>
+        {isRole('Teacher') && (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Recent Emotions</CardTitle>
+                <Smile className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                {isLoading ? <Skeleton className="h-8 w-full" /> : (
+                  <div className="flex -space-x-2 overflow-hidden">
+                      {(recentRecords.length > 0) ? recentRecords.map((record, index) => (
+                          <div key={record.id || index} className="inline-block h-8 w-8 rounded-full ring-2 ring-white flex items-center justify-center bg-background">
+                              <EmotionIcon emotion={record.emotion} />
+                          </div>
+                      )) : (
+                        <p className="text-xs text-muted-foreground">No recent activity.</p>
+                      )}
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground mt-2">
+                  Last 5 detected emotions in your classes
+                </p>
+              </CardContent>
+            </Card>
+        )}
       </div>
-      <Card>
-        <CardHeader>
-          <CardTitle>Emotion Distribution</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="h-64 w-full flex items-center justify-center">
-              <Skeleton className="h-full w-full" />
-            </div>
-          ) : (
-            <EmotionChart attendanceRecords={teacherAttendance || []} />
-          )}
-        </CardContent>
-      </Card>
+      
+      {isRole('Teacher') && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Emotion Distribution</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="h-64 w-full flex items-center justify-center">
+                  <Skeleton className="h-full w-full" />
+                </div>
+              ) : (
+                <EmotionChart attendanceRecords={teacherAttendance || []} />
+              )}
+            </CardContent>
+          </Card>
+      )}
     </div>
   );
 }
