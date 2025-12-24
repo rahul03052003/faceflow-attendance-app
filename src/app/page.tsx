@@ -13,7 +13,7 @@ import { EmotionChart } from '@/components/reports/emotion-chart';
 import { useCollection, useUser } from '@/firebase';
 import type { AttendanceRecord, User, Subject } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useState, useMemo } from 'react';
 import { query, where } from 'firebase/firestore';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -32,8 +32,29 @@ function EmotionIcon({ emotion }: { emotion: string }) {
   }
 }
 
+// Helper to safely get and parse session storage
+function getSessionAccuracy() {
+  if (typeof window === 'undefined') {
+    return { successful: 0, failed: 0 };
+  }
+  const stored = sessionStorage.getItem('scanAccuracy');
+  if (stored) {
+    try {
+      const data = JSON.parse(stored);
+      if (typeof data.successful === 'number' && typeof data.failed === 'number') {
+        return data;
+      }
+    } catch (e) {
+      console.error('Failed to parse session accuracy:', e);
+    }
+  }
+  return { successful: 0, failed: 0 };
+}
+
+
 export default function Home() {
   const { user: currentUser, isLoading: isLoadingUser } = useUser();
+  const [accuracyStats, setAccuracyStats] = useState(getSessionAccuracy());
   
   const { data: allUsers, isLoading: isLoadingUsers } = useCollection<User>(
     'users'
@@ -68,6 +89,33 @@ export default function Home() {
     currentUser ? 'attendance' : null,
     { buildQuery: attendanceQuery }
   );
+
+  useEffect(() => {
+    const handleStorageChange = () => {
+      setAccuracyStats(getSessionAccuracy());
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    // Also listen for a custom event for immediate updates within the same tab
+    window.addEventListener('accuracyUpdated', handleStorageChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('accuracyUpdated', handleStorageChange);
+    };
+  }, []);
+
+  const modelAccuracy = useMemo(() => {
+    const { successful, failed } = accuracyStats;
+    const total = successful + failed;
+    if (total === 0) {
+      // Show a baseline until a scan is made
+      return '99.2%'; 
+    }
+    const rate = (successful / total) * 100;
+    return `${rate.toFixed(1)}%`;
+  }, [accuracyStats]);
+
 
   const isLoading = isLoadingUser || isLoadingUsers || isLoadingRecords || isLoadingSubjects;
 
@@ -188,8 +236,8 @@ export default function Home() {
         
         {renderStatCard(
           "Model Accuracy",
-          "99.2%",
-          "Facial recognition accuracy",
+          modelAccuracy,
+          "Session-based recognition success rate",
           <Target className="h-4 w-4 text-muted-foreground" />,
           false
         )}

@@ -66,6 +66,32 @@ type ScanResult = {
   status: 'Present' | 'Already Marked Present';
 };
 
+// Helper function to update and dispatch accuracy stats
+const updateAccuracy = (isSuccess: boolean) => {
+  if (typeof window === 'undefined') return;
+
+  const stored = sessionStorage.getItem('scanAccuracy');
+  let stats = { successful: 0, failed: 0 };
+  if (stored) {
+    try {
+      stats = JSON.parse(stored);
+    } catch (e) {
+      console.error('Could not parse accuracy stats', e);
+    }
+  }
+
+  if (isSuccess) {
+    stats.successful += 1;
+  } else {
+    stats.failed += 1;
+  }
+
+  sessionStorage.setItem('scanAccuracy', JSON.stringify(stats));
+  // Dispatch a custom event to notify other components (like the dashboard) in the same tab
+  window.dispatchEvent(new CustomEvent('accuracyUpdated'));
+};
+
+
 export default function CapturePage() {
   const [isScanning, setIsScanning] = useState(false);
   const [isEndingSession, setIsEndingSession] = useState(false);
@@ -230,6 +256,7 @@ export default function CapturePage() {
       setIsScanning(false);
 
       if (!matchedUser) {
+        updateAccuracy(false); // Update accuracy on failure
         toast({
           variant: "destructive",
           title: "Recognition Failed",
@@ -241,6 +268,7 @@ export default function CapturePage() {
       // CRITICAL CHECK: Verify the recognized user is registered for the selected subject.
       const selectedSubject = teacherSubjects.find(s => s.id === selectedSubjectId);
       if (!matchedUser.subjects?.includes(selectedSubjectId!)) {
+        updateAccuracy(false); // Update accuracy on failure (wrong subject is a failure)
         toast({
           variant: "destructive",
           title: "Not Registered for Subject",
@@ -248,6 +276,8 @@ export default function CapturePage() {
         });
         return;
       }
+      
+      updateAccuracy(true); // Update accuracy on success
 
       const today = new Date().toISOString().split('T')[0];
       const isAlreadyPresent = todaysAttendance?.some(
@@ -298,6 +328,7 @@ export default function CapturePage() {
     } catch (error: any) {
       console.error('Face recognition flow failed.', error);
       setIsScanning(false);
+      updateAccuracy(false); // Update accuracy on system/AI error
       toast({
         variant: "destructive",
         title: "AI Scan Failed",
@@ -412,9 +443,13 @@ export default function CapturePage() {
   const handleRefresh = () => {
     setResult(null);
     setSelectedSubjectId(null);
+    if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('scanAccuracy');
+        window.dispatchEvent(new CustomEvent('accuracyUpdated'));
+    }
     toast({
       title: 'Session Refreshed',
-      description: 'You can now start a new attendance session.',
+      description: 'Accuracy tracking has been reset. You can start a new session.',
     });
   };
 
