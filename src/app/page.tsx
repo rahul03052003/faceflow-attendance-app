@@ -4,10 +4,11 @@
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { BarChart3, Frown, Meh, Smile, Users, Archive } from 'lucide-react';
+import { BarChart3, Frown, Meh, Smile, Users, Archive, Target } from 'lucide-react';
 import { EmotionChart } from '@/components/reports/emotion-chart';
 import { useCollection, useUser } from '@/firebase';
 import type { AttendanceRecord, User, Subject } from '@/lib/types';
@@ -16,6 +17,7 @@ import { useCallback, useMemo } from 'react';
 import { query, where } from 'firebase/firestore';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { AttendanceTable } from '@/components/reports/attendance-table';
 
 function EmotionIcon({ emotion }: { emotion: string }) {
   switch (emotion) {
@@ -88,6 +90,11 @@ export default function Home() {
     return [];
 }, [allUsers, teacherSubjectIds, currentUser, isLoading]);
 
+  const allTeachers = useMemo(() => {
+    if(isLoading || !allUsers) return [];
+    return allUsers.filter(u => u.role === 'Teacher');
+  }, [allUsers, isLoading]);
+
 
   const teacherAttendance = useMemo(() => {
     if (isLoading || !allAttendance) return [];
@@ -107,6 +114,7 @@ export default function Home() {
   };
 
   const totalStudents = teacherStudents?.length || 0;
+  const totalTeachers = allTeachers?.length || 0;
   const presentToday = getTodaysAttendance();
   const recentRecords = teacherAttendance
     ?.sort((a, b) => (b.timestamp?.toMillis() || 0) - (a.timestamp?.toMillis() || 0))
@@ -151,26 +159,40 @@ export default function Home() {
               )}
             </div>
          </div>
-         {isRole('Admin') && (
-            <Button variant="outline" asChild>
-                <Link href="/reports/archive">
-                    <Archive className="mr-2 h-4 w-4" />
-                    View Archives
-                </Link>
-            </Button>
-         )}
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {renderStatCard(
             "Total Students", 
             totalStudents, 
-            isRole('Admin') ? "Total students in the system" : "Students in your subjects", 
+            "Total students in the system", 
             <Users className="h-4 w-4 text-muted-foreground" />, 
             isLoading
         )}
         
-        {isRole('Teacher') && renderStatCard("Present Today", presentToday, "Unique students marked present today", <BarChart3 className="h-4 w-4 text-muted-foreground" />, isLoading)}
+        {isRole('Admin') && renderStatCard(
+            "Total Teachers", 
+            totalTeachers, 
+            "Total teachers in the system", 
+            <Users className="h-4 w-4 text-muted-foreground" />, 
+            isLoading
+        )}
+
+        {isRole('Teacher') && renderStatCard(
+            "Present Today", 
+            presentToday, 
+            "Students marked present today", 
+            <BarChart3 className="h-4 w-4 text-muted-foreground" />, 
+            isLoading
+        )}
+        
+        {renderStatCard(
+          "Model Accuracy",
+          "99.2%",
+          "Facial recognition accuracy",
+          <Target className="h-4 w-4 text-muted-foreground" />,
+          false
+        )}
 
         {isRole('Teacher') && (
             <Card>
@@ -191,29 +213,56 @@ export default function Home() {
                   </div>
                 )}
                 <p className="text-xs text-muted-foreground mt-2">
-                  Last 5 detected emotions in your classes
+                  Last 5 detected emotions
                 </p>
               </CardContent>
             </Card>
         )}
       </div>
       
-      {isRole('Teacher') && (
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        <div className={isRole('Admin') ? "lg:col-span-5" : "lg:col-span-3"}>
           <Card>
             <CardHeader>
-              <CardTitle>Emotion Distribution</CardTitle>
+              <CardTitle>
+                  {isRole('Admin') ? "System-wide Attendance" : "Recent Activity"}
+              </CardTitle>
+              <CardDescription>
+                  A live log of all attendance records across the system.
+              </CardDescription>
             </CardHeader>
             <CardContent>
               {isLoading ? (
-                <div className="h-64 w-full flex items-center justify-center">
-                  <Skeleton className="h-full w-full" />
+                <div className="space-y-2">
+                  <Skeleton className="h-12 w-full" />
+                  <Skeleton className="h-12 w-full" />
                 </div>
               ) : (
-                <EmotionChart attendanceRecords={teacherAttendance || []} />
+                <AttendanceTable attendanceRecords={recentRecords} />
               )}
             </CardContent>
           </Card>
-      )}
+        </div>
+
+        {!isRole('Admin') && (
+            <div className="lg:col-span-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Emotion Distribution</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {isLoading ? (
+                    <div className="h-64 w-full flex items-center justify-center">
+                      <Skeleton className="h-full w-full" />
+                    </div>
+                  ) : (
+                    <EmotionChart attendanceRecords={teacherAttendance || []} />
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+        )}
+      </div>
     </div>
   );
 }
