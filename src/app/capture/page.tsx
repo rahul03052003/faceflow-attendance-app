@@ -86,6 +86,18 @@ const updateAccuracy = (isSuccess: boolean) => {
     stats.failed += 1;
   }
 
+  const total = stats.successful + stats.failed;
+  const percentage = total > 0 ? ((stats.successful / total) * 100).toFixed(1) : '0.0';
+
+  console.log('---------------------------------');
+  console.log('Scan Accuracy Update:');
+  console.log(`- Status: ${isSuccess ? 'SUCCESS' : 'FAILURE'}`);
+  console.log(`- Successful Scans: ${stats.successful}`);
+  console.log(`- Failed Scans: ${stats.failed}`);
+  console.log(`- Total Scans: ${total}`);
+  console.log(`- Current Session Accuracy: ${percentage}%`);
+  console.log('---------------------------------');
+
   sessionStorage.setItem('scanAccuracy', JSON.stringify(stats));
   // Dispatch a custom event to notify other components (like the dashboard) in the same tab
   window.dispatchEvent(new CustomEvent('accuracyUpdated'));
@@ -228,11 +240,21 @@ export default function CapturePage() {
        return;
     }
 
+    const selectedSubject = teacherSubjects.find(s => s.id === selectedSubjectId);
+    if (!selectedSubject) {
+        toast({
+            variant: "destructive",
+            title: "No Subject Selected",
+            description: "Please select a subject before scanning.",
+        });
+        return;
+    }
+
     if (studentsInSelectedSubject.length === 0) {
       toast({
          variant: "destructive",
          title: "No Students",
-         description: "There are no students enrolled in this subject to recognize.",
+         description: `There are no students enrolled in ${selectedSubject.title}.`,
       });
       return;
    }
@@ -250,7 +272,6 @@ export default function CapturePage() {
     const photoDataUri = canvas.toDataURL('image/jpeg');
 
     try {
-      // The simulation will recognize a random student from the list for predictability.
       const { user: matchedUser, emotion } = await recognizeFace({ photoDataUri, users: studentsInSelectedSubject });
       
       setIsScanning(false);
@@ -265,19 +286,17 @@ export default function CapturePage() {
         return;
       }
       
-      // CRITICAL CHECK: Verify the recognized user is registered for the selected subject.
-      const selectedSubject = teacherSubjects.find(s => s.id === selectedSubjectId);
       if (!matchedUser.subjects?.includes(selectedSubjectId!)) {
-        updateAccuracy(false); // Update accuracy on failure (wrong subject is a failure)
+        updateAccuracy(false);
         toast({
           variant: "destructive",
           title: "Not Registered for Subject",
-          description: `${matchedUser.name} is not registered for ${selectedSubject?.title || 'this subject'}.`,
+          description: `${matchedUser.name} is not registered for ${selectedSubject.title}.`,
         });
         return;
       }
       
-      updateAccuracy(true); // Update accuracy on success
+      updateAccuracy(true);
 
       const today = new Date().toISOString().split('T')[0];
       const isAlreadyPresent = todaysAttendance?.some(
@@ -300,7 +319,7 @@ export default function CapturePage() {
         userName: matchedUser.name,
         userAvatar: matchedUser.avatar,
         subjectId: selectedSubjectId!,
-        subjectName: selectedSubject?.title || 'Unknown Subject',
+        subjectName: selectedSubject.title || 'Unknown Subject',
         date: today,
         status: 'Present',
         emotion: emotion as any,
@@ -328,7 +347,7 @@ export default function CapturePage() {
     } catch (error: any) {
       console.error('Face recognition flow failed.', error);
       setIsScanning(false);
-      updateAccuracy(false); // Update accuracy on system/AI error
+      updateAccuracy(false);
       toast({
         variant: "destructive",
         title: "AI Scan Failed",
