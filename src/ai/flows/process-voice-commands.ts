@@ -1,3 +1,4 @@
+
 // This is an auto-generated file from Firebase Studio.
 
 'use server';
@@ -23,7 +24,7 @@ const ProcessVoiceCommandOutputSchema = z.object({
   parameters: z.union([
     z.object({ page: z.string().describe("The page to navigate to (e.g., '/', '/reports', '/settings').") }),
     z.object({ name: z.string().describe("The user's full name."), email: z.string().email().optional().describe("The user's email address.") }),
-    z.object({ name: z.string().describe("The name of the user to mark as present.") }),
+    z.object({ name: z.string().optional().describe("The name of the user to mark as present.") }),
     z.object({ date: z.string().describe("The date for the report (e.g., 'today').") }),
     z.string(),
   ]).optional().describe('Parameters for the action, if any. For navigation, include a "page" parameter. For adding a user, include "name" and "email". For logout, no parameters are needed.'),
@@ -45,6 +46,7 @@ const prompt = ai.definePrompt({
 
   Here are some example voice commands and their corresponding actions and parameters:
 
+  - "Mark as present" or "Start scan": { "action": "markPresent" }
   - "Mark John as present": { "action": "markPresent", "parameters": { "name": "John" } }
   - "Mark user Rahul as present": { "action": "markPresent", "parameters": { "name": "Rahul" } }
   - "Show attendance report for today": { "action": "showReport", "parameters": { "date": "today" } }

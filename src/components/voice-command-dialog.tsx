@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
@@ -117,11 +118,11 @@ export function VoiceCommandDialog({ children, open, onOpenChange }: VoiceComman
         });
         break;
        case 'markPresent':
-         // This is a more complex action that requires finding a user first.
-         // For a demo, we can just show a toast.
+         // Dispatch a custom event that the capture page can listen for
+         window.dispatchEvent(new CustomEvent('trigger-voice-scan'));
          toast({
            title: 'Action Received',
-           description: `Attempting to mark ${params.name} as present.`
+           description: `Attempting to start scan...`
          });
          break;
        case 'showReport':
@@ -144,11 +145,15 @@ export function VoiceCommandDialog({ children, open, onOpenChange }: VoiceComman
     setIsLoading(true);
     try {
       const result = await processVoiceCommand({ command: text });
-      if (result.action && result.parameters) {
-        handleAction(result.action, result.parameters);
-      } else if (result.action) {
-        handleAction(result.action, {});
+      
+      const parametersObject = typeof result.parameters === 'object' && result.parameters !== null 
+        ? result.parameters 
+        : {};
+
+      if (result.action) {
+        handleAction(result.action, parametersObject);
       }
+      
       onOpenChange(false);
       setCommand('');
     } catch (error) {

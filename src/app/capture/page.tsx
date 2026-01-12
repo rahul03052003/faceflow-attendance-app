@@ -194,43 +194,7 @@ export default function CapturePage() {
     }
   }, [toast]);
   
-  useEffect(() => {
-    startCamera();
-    return () => stopCamera();
-  }, [startCamera, stopCamera]);
-  
-  const handleScanClick = () => {
-      if (!hasCameraPermission) {
-          startCamera();
-          return;
-      }
-      if (result) {
-        setResult(null);
-      }
-      scan();
-  }
-  
-  const playGreeting = useCallback(() => {
-      if (result?.greetingAudio && audioRef.current) {
-        audioRef.current.src = result.greetingAudio;
-        audioRef.current.play().catch(e => {
-            console.error("Audio playback failed", e);
-            toast({
-                variant: 'destructive',
-                title: 'Audio Playback Error',
-                description: 'Could not play audio. Please check your browser permissions.'
-            })
-        });
-      }
-  }, [result, toast]);
-
-  useEffect(() => {
-    if (result?.greetingAudio && audioRef.current) {
-      playGreeting();
-    }
-  }, [result?.greetingAudio, playGreeting]);
-
-  const scan = async () => {
+  const scan = useCallback(async () => {
     if (!videoRef.current?.srcObject || !firestore || !allUsers) {
        toast({
           variant: "destructive",
@@ -274,24 +238,13 @@ export default function CapturePage() {
     try {
       const { user: matchedUser, emotion } = await recognizeFace({ photoDataUri, users: studentsInSelectedSubject });
       
-      setIsScanning(false);
-
       if (!matchedUser) {
+        setIsScanning(false);
         updateAccuracy(false); // Update accuracy on failure
         toast({
           variant: "destructive",
           title: "Recognition Failed",
           description: "Could not identify a registered student in the photo. Please try again.",
-        });
-        return;
-      }
-      
-      if (!matchedUser.subjects?.includes(selectedSubjectId!)) {
-        updateAccuracy(false);
-        toast({
-          variant: "destructive",
-          title: "Not Registered for Subject",
-          description: `${matchedUser.name} is not registered for ${selectedSubject.title}.`,
         });
         return;
       }
@@ -304,6 +257,7 @@ export default function CapturePage() {
       );
 
       if (isAlreadyPresent) {
+        setIsScanning(false);
         toast({
           title: "Already Marked Present",
           description: `${matchedUser.name}, you are already marked as present for this subject today.`,
@@ -311,8 +265,21 @@ export default function CapturePage() {
         setResult({ user: matchedUser, emotion, greetingAudio: null, status: 'Already Marked Present' });
         return;
       }
-      
-      setResult({ user: matchedUser, emotion, greetingAudio: null, status: 'Present' });
+
+      // Generate audio first
+      let greetingAudio: string | null = null;
+      try {
+        const { audio } = await generateGreetingAudio({ name: matchedUser.name });
+        if (audio) {
+          greetingAudio = audio;
+        }
+      } catch (e) {
+        console.error("Audio generation failed:", e);
+      }
+
+      // Now set the final result state with the audio
+      setResult({ user: matchedUser, emotion, greetingAudio, status: 'Present' });
+      setIsScanning(false);
 
       const attendanceRecord: NewAttendanceRecord = {
         userId: matchedUser.id,
@@ -335,15 +302,6 @@ export default function CapturePage() {
         errorEmitter.emit('permission-error', permissionError);
       });
 
-      try {
-        const { audio } = await generateGreetingAudio({ name: matchedUser.name });
-        if (audio) {
-          setResult(prev => prev ? { ...prev, greetingAudio: audio } : null);
-        }
-      } catch (e) {
-        console.error("Audio generation failed:", e);
-      }
-
     } catch (error: any) {
       console.error('Face recognition flow failed.', error);
       setIsScanning(false);
@@ -354,7 +312,56 @@ export default function CapturePage() {
         description: error.message || "The AI could not process the image. Please try again.",
       });
     }
-  };
+  }, [firestore, allUsers, teacherSubjects, selectedSubjectId, studentsInSelectedSubject, todaysAttendance, toast]);
+  
+  useEffect(() => {
+    startCamera();
+
+    const handleVoiceScan = () => {
+      // Check if we are on the capture page and ready to scan
+      if (document.visibilityState === 'visible') {
+        handleScanClick();
+      }
+    };
+    
+    window.addEventListener('trigger-voice-scan', handleVoiceScan);
+    
+    return () => {
+      stopCamera();
+      window.removeEventListener('trigger-voice-scan', handleVoiceScan);
+    };
+  }, [startCamera, stopCamera]);
+  
+  const handleScanClick = () => {
+      if (!hasCameraPermission) {
+          startCamera();
+          return;
+      }
+      if (result) {
+        setResult(null);
+      }
+      scan();
+  }
+  
+  const playGreeting = useCallback(() => {
+      if (result?.greetingAudio && audioRef.current) {
+        audioRef.current.src = result.greetingAudio;
+        audioRef.current.play().catch(e => {
+            console.error("Audio playback failed", e);
+            toast({
+                variant: 'destructive',
+                title: 'Audio Playback Error',
+                description: 'Could not play audio. Please check your browser permissions.'
+            })
+        });
+      }
+  }, [result, toast]);
+
+  useEffect(() => {
+    if (result?.status === 'Present' && result.greetingAudio) {
+      playGreeting();
+    }
+  }, [result, playGreeting]);
 
   const handleEndSession = async () => {
     setIsAlertOpen(false);
@@ -618,5 +625,3 @@ export default function CapturePage() {
     </>
   );
 }
-
-    
