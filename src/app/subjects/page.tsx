@@ -26,11 +26,10 @@ export default function SubjectsPage() {
   const { data: allUsers, isLoading: isLoadingUsers } = useCollection<User>('users');
 
   const subjectsQuery = useCallback((ref: any) => {
-    if (!currentUser) return query(ref, where('teacherId', '==', '')); // Empty query if no user
+    if (!currentUser?.uid) return query(ref, where('teacherId', '==', '')); // Empty query if no user
     if (currentUser.role === 'Admin') return ref; // Admins see all
-    if (!currentUser.uid) return query(ref, where('teacherId', '==', '')); // Empty query if no uid
     return query(ref, where('teacherId', '==', currentUser.uid)); // Teachers see their own
-  }, [currentUser]);
+  }, [currentUser?.uid, currentUser?.role]);
 
 
   const {
@@ -38,7 +37,7 @@ export default function SubjectsPage() {
     isLoading: isLoadingSubjects,
     error,
   } = useCollection<Subject>(
-    currentUser ? 'subjects' : null,
+    currentUser?.uid ? 'subjects' : null,
     { buildQuery: subjectsQuery }
   );
 
@@ -54,13 +53,10 @@ export default function SubjectsPage() {
   const usersForTable = useMemo(() => {
     if (!allUsers || !currentUser) return [];
     
-    // Create a new list to avoid mutating the original `allUsers` state.
     let userList = [...allUsers];
     
-    // Ensure the current user (especially an admin without a user doc) is always in the list.
-    // This is crucial for looking up their name if subjects are assigned to them.
+    // Ensure the current user (especially an admin without a user doc) is always in the list
     if (!userList.some(u => u.id === currentUser.id)) {
-        // We cast the currentUser to User because the useUser hook enriches it to match the type.
         userList.push(currentUser as User);
     }
     
