@@ -250,22 +250,7 @@ export default function CapturePage() {
       }
       
       updateAccuracy(true);
-
-      const today = new Date().toISOString().split('T')[0];
-      const isAlreadyPresent = todaysAttendance?.some(
-        record => record.userId === matchedUser.id && record.subjectId === selectedSubjectId
-      );
-
-      if (isAlreadyPresent) {
-        setIsScanning(false);
-        toast({
-          title: "Already Marked Present",
-          description: `${matchedUser.name}, you are already marked as present for this subject today.`,
-        });
-        setResult({ user: matchedUser, emotion, greetingAudio: null, status: 'Already Marked Present' });
-        return;
-      }
-
+      
       // Generate audio first
       let greetingAudio: string | null = null;
       try {
@@ -277,7 +262,22 @@ export default function CapturePage() {
         console.error("Audio generation failed:", e);
       }
 
-      // Now set the final result state with the audio
+      const today = new Date().toISOString().split('T')[0];
+      const isAlreadyPresent = todaysAttendance?.some(
+        record => record.userId === matchedUser.id && record.subjectId === selectedSubjectId
+      );
+
+      if (isAlreadyPresent) {
+        setResult({ user: matchedUser, emotion, greetingAudio, status: 'Already Marked Present' });
+        toast({
+          title: "Already Marked Present",
+          description: `${matchedUser.name}, you are already marked as present for this subject today.`,
+        });
+        setIsScanning(false);
+        return;
+      }
+
+      // Set the final result state with the audio
       setResult({ user: matchedUser, emotion, greetingAudio, status: 'Present' });
       setIsScanning(false);
 
@@ -358,7 +358,7 @@ export default function CapturePage() {
   }, [result, toast]);
 
   useEffect(() => {
-    if (result?.status === 'Present' && result.greetingAudio) {
+    if (result && result.greetingAudio) {
       playGreeting();
     }
   }, [result, playGreeting]);
@@ -625,3 +625,5 @@ export default function CapturePage() {
     </>
   );
 }
+
+    
