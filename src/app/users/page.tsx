@@ -78,34 +78,24 @@ export default function UsersPage() {
   const teacherSubjectIds = useMemo(() => teacherSubjects.map(s => s.id), [teacherSubjects]);
 
   const usersToDisplay = useMemo(() => {
-    if (isLoading || !allUsers || !currentUser) return [];
-    
-    if (isAdmin) {
-      // Admins see all users who are explicitly 'Teacher' or 'Admin' in Firestore.
-      const firestoreUsers = allUsers.filter(u => u.role === 'Teacher' || u.role === 'Admin');
+    if (isLoading || !currentUser) return [];
 
-      // This ensures the current admin user is always in the list, even if they
-      // don't have a document in the 'users' collection (like the hardcoded default admin).
-      if (!firestoreUsers.some(u => u.id === currentUser.id)) {
-          // Create a user object from the authenticated user context
-           const adminUser: User = {
-              id: currentUser.id,
-              name: currentUser.name || 'Admin',
-              email: currentUser.email!,
-              role: 'Admin',
-              registerNo: 'N/A',
-              avatar: currentUser.avatar || '',
-              subjects: [],
-          };
-          // Return a new array with the derived admin user and the others
-          return [adminUser, ...firestoreUsers];
-      }
-      
-      // Otherwise, just return the users found in Firestore
-      return firestoreUsers;
+    if (isAdmin) {
+        // Admins should see all teachers.
+        const teachersFromDb = allUsers ? allUsers.filter(u => u.role === 'Teacher') : [];
+        
+        // This is the crucial fix: ensure the current admin user (who might not
+        // be in the 'users' collection) is always included in the list passed to the table.
+        // This allows the subjects table to correctly look up the admin's name.
+        if (!teachersFromDb.some(u => u.id === currentUser.id) && currentUser.role === 'Admin') {
+            return [currentUser as User, ...teachersFromDb];
+        }
+        
+        return teachersFromDb;
     }
     
-    // Teachers see only students in their subjects
+    // Teachers see only students assigned to their subjects.
+    if (!allUsers) return [];
     return allUsers.filter(u => 
       u.role === 'Student' &&
       Array.isArray(u.subjects) &&
@@ -334,11 +324,11 @@ export default function UsersPage() {
 
   const pageTitle = isAdmin ? "Teacher Management" : "Student Management";
   const pageDescription = isAdmin
-    ? "Add and manage all teachers and admins in the system."
-    : "View and manage all students in the system.";
-  const cardTitle = isAdmin ? "User List" : "Student List";
+    ? "Add and manage all teachers in the system."
+    : "View and manage all students assigned to your subjects.";
+  const cardTitle = isAdmin ? "Teacher List" : "Student List";
   const cardDescription = isAdmin
-    ? "A list of all teachers and admins in the system."
+    ? "A list of all teachers in the system."
     : "A list of all students assigned to your subjects.";
     
   const assignableSubjects = isAdmin ? allSubjects : teacherSubjects;

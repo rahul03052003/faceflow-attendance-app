@@ -51,17 +51,20 @@ export default function SubjectsPage() {
   }, [allSubjects, isLoading]);
 
   const usersForTable = useMemo(() => {
-    if (!allUsers || !currentUser) return [];
+    if (isLoading || !currentUser) return [];
+
+    // Start with the list of users from the database
+    const userList = allUsers ? [...allUsers] : [];
     
-    let userList = [...allUsers];
-    
-    // Ensure the current user (especially an admin without a user doc) is always in the list
+    // Crucially, check if the current user (especially the admin) is already in the list.
+    // The default admin won't be, so we add them manually.
     if (!userList.some(u => u.id === currentUser.id)) {
+        // This ensures the current user's details (like the admin's name) are available.
         userList.push(currentUser as User);
     }
     
     return userList;
-  }, [allUsers, currentUser]);
+  }, [allUsers, currentUser, isLoading]);
 
 
   const handleAddSubject = (
