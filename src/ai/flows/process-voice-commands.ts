@@ -46,6 +46,7 @@ const prompt = ai.definePrompt({
   Here are some example voice commands and their corresponding actions and parameters:
 
   - "Mark John as present": { "action": "markPresent", "parameters": { "name": "John" } }
+  - "Mark user Rahul as present": { "action": "markPresent", "parameters": { "name": "Rahul" } }
   - "Show attendance report for today": { "action": "showReport", "parameters": { "date": "today" } }
   - "Go to the dashboard": { "action": "navigate", "parameters": { "page": "/" } }
   - "Open the user management page": { "action": "navigate", "parameters": { "page": "/users" } }
