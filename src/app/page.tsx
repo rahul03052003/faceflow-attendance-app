@@ -218,14 +218,6 @@ export default function Home() {
             isLoading
         )}
         
-        {isRole('Admin') && renderStatCard(
-            "Total Teachers", 
-            totalTeachers, 
-            "Total teachers in the system", 
-            <Users className="h-4 w-4 text-muted-foreground" />, 
-            isLoading
-        )}
-
         {isRole('Teacher') && renderStatCard(
             "Present Today", 
             presentToday, 
