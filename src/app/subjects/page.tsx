@@ -51,6 +51,15 @@ export default function SubjectsPage() {
     return allSubjects;
   }, [allSubjects, isLoading]);
 
+  const usersForTable = useMemo(() => {
+    if (!allUsers || !currentUser) return [];
+    // Ensure the current user is in the list, especially for admins who might not have a doc
+    if (!allUsers.some(u => u.id === currentUser.id)) {
+      return [...allUsers, currentUser as User];
+    }
+    return allUsers;
+  }, [allUsers, currentUser]);
+
 
   const handleAddSubject = (
     newSubject: Omit<Subject, 'id'>
@@ -110,7 +119,7 @@ export default function SubjectsPage() {
       return <p className="text-destructive">Error loading subjects: {error.message}</p>;
     }
 
-    return <SubjectsTable subjects={subjectsToDisplay} users={allUsers || []} isAdmin={isAdmin} onEditSubject={handleEditSubject} onDeleteSubject={handleDeleteSubject} />;
+    return <SubjectsTable subjects={subjectsToDisplay} users={usersForTable || []} isAdmin={isAdmin} onEditSubject={handleEditSubject} onDeleteSubject={handleDeleteSubject} />;
   };
 
   return (
