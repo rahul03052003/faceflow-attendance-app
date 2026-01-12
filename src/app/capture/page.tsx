@@ -251,7 +251,7 @@ export default function CapturePage() {
       
       updateAccuracy(true);
       
-      // Generate audio first
+      // Generate audio first, so it's ready for the result state.
       let greetingAudio: string | null = null;
       try {
         const { audio } = await generateGreetingAudio({ name: matchedUser.name });
@@ -277,10 +277,9 @@ export default function CapturePage() {
         return;
       }
 
-      // Set the final result state with the audio
+      // Set the final result state with the audio, triggering the useEffect for playback.
       setResult({ user: matchedUser, emotion, greetingAudio, status: 'Present' });
-      setIsScanning(false);
-
+      
       const attendanceRecord: NewAttendanceRecord = {
         userId: matchedUser.id,
         userName: matchedUser.name,
@@ -304,13 +303,14 @@ export default function CapturePage() {
 
     } catch (error: any) {
       console.error('Face recognition flow failed.', error);
-      setIsScanning(false);
       updateAccuracy(false);
       toast({
         variant: "destructive",
         title: "AI Scan Failed",
         description: error.message || "The AI could not process the image. Please try again.",
       });
+    } finally {
+        setIsScanning(false);
     }
   }, [firestore, allUsers, teacherSubjects, selectedSubjectId, studentsInSelectedSubject, todaysAttendance, toast]);
   
@@ -348,18 +348,19 @@ export default function CapturePage() {
         audioRef.current.src = result.greetingAudio;
         audioRef.current.play().catch(e => {
             console.error("Audio playback failed", e);
-            toast({
-                variant: 'destructive',
-                title: 'Audio Playback Error',
-                description: 'Could not play audio. Please check your browser permissions.'
-            })
+            // Don't show a toast for this, as it can be annoying if autoplay is blocked by browser
         });
       }
-  }, [result, toast]);
+  }, [result]);
 
+  // This useEffect hook is the key to reliable automatic playback.
   useEffect(() => {
     if (result && result.greetingAudio) {
-      playGreeting();
+      // A short delay can sometimes help with browser autoplay policies.
+      const timer = setTimeout(() => {
+        playGreeting();
+      }, 100);
+      return () => clearTimeout(timer);
     }
   }, [result, playGreeting]);
 
@@ -626,4 +627,5 @@ export default function CapturePage() {
   );
 }
 
+    
     
