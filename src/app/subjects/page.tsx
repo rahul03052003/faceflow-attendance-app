@@ -53,11 +53,18 @@ export default function SubjectsPage() {
 
   const usersForTable = useMemo(() => {
     if (!allUsers || !currentUser) return [];
-    // Ensure the current user is in the list, especially for admins who might not have a doc
-    if (!allUsers.some(u => u.id === currentUser.id)) {
-      return [...allUsers, currentUser as User];
+    
+    // Create a new list to avoid mutating the original `allUsers` state.
+    let userList = [...allUsers];
+    
+    // Ensure the current user (especially an admin without a user doc) is always in the list.
+    // This is crucial for looking up their name if subjects are assigned to them.
+    if (!userList.some(u => u.id === currentUser.id)) {
+        // We cast the currentUser to User because the useUser hook enriches it to match the type.
+        userList.push(currentUser as User);
     }
-    return allUsers;
+    
+    return userList;
   }, [allUsers, currentUser]);
 
 
@@ -119,7 +126,7 @@ export default function SubjectsPage() {
       return <p className="text-destructive">Error loading subjects: {error.message}</p>;
     }
 
-    return <SubjectsTable subjects={subjectsToDisplay} users={usersForTable || []} isAdmin={isAdmin} onEditSubject={handleEditSubject} onDeleteSubject={handleDeleteSubject} />;
+    return <SubjectsTable subjects={subjectsToDisplay} users={usersForTable} isAdmin={isAdmin} onEditSubject={handleEditSubject} onDeleteSubject={handleDeleteSubject} />;
   };
 
   return (
