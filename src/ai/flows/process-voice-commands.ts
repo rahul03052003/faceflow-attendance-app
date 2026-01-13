@@ -24,7 +24,7 @@ const ProcessVoiceCommandOutputSchema = z.object({
     z.object({ name: z.string().describe("The user's full name."), email: z.string().email().optional().describe("The user's email address.") }),
     z.object({ name: z.string().optional().describe("The name of the user to mark as present.") }),
     z.object({ date: z.string().describe("The date for the report (e.g., 'today').") }),
-    z.string(),
+    z.object({}), // For actions like 'logout' or 'markPresent' with no params
   ]).optional().describe('Parameters for the action, if any. For navigation, include a "page" parameter. For adding a user, include "name" and "email". For logout, no parameters are needed.'),
 });
 export type ProcessVoiceCommandOutput = z.infer<typeof ProcessVoiceCommandOutputSchema>;
@@ -53,16 +53,16 @@ const processVoiceCommandFlow = ai.defineFlow(
     if (lowerCaseCommand.includes('setting')) return { action: 'navigate', parameters: { page: '/settings' } };
 
     // Actions
-    if (lowerCaseCommand.includes('mark') && lowerCaseCommand.includes('present')) return { action: 'markPresent' };
-    if (lowerCaseCommand.includes('start') && lowerCaseCommand.includes('scan')) return { action: 'markPresent' };
-    if (lowerCaseCommand.includes('log out') || lowerCaseCommand.includes('sign out')) return { action: 'logout' };
+    if (lowerCaseCommand.includes('mark') && lowerCaseCommand.includes('present')) return { action: 'markPresent', parameters: {} };
+    if (lowerCaseCommand.includes('start') && lowerCaseCommand.includes('scan')) return { action: 'markPresent', parameters: {} };
+    if (lowerCaseCommand.includes('log out') || lowerCaseCommand.includes('sign out')) return { action: 'logout', parameters: {} };
 
     // Default fallback
     return { action: 'unknown' };
 
     /*
     // REAL API CALL (currently disabled due to quota limits)
-    const {output} = await prompt(input);
+    const {output} = await prompt({ command });
     return output!;
     */
   }
@@ -76,22 +76,23 @@ const prompt = ai.definePrompt({
   prompt: `You are an AI assistant that processes voice commands for an attendance system.
 
   Based on the user's voice command, determine the appropriate action to be performed and any necessary parameters.
-  The available pages are: Dashboard ('/'), Capture Attendance ('/capture'), Attendance Reports ('/reports'), User Management ('/users'), Subjects ('/subjects'), and Settings ('/settings').
+  The available pages for navigation are: Dashboard ('/'), Capture Attendance ('/capture'), Attendance Reports ('/reports'), User Management ('/users'), Subjects ('/subjects'), and Settings ('/settings').
 
-  Here are some example voice commands and their corresponding actions and parameters:
+  Here are some example voice commands and their corresponding JSON outputs:
 
-  - "Mark as present" or "Start scan": { "action": "markPresent" }
+  - "Mark as present" or "Start scan": { "action": "markPresent", "parameters": {} }
   - "Mark John as present": { "action": "markPresent", "parameters": { "name": "John" } }
   - "Mark user Rahul as present": { "action": "markPresent", "parameters": { "name": "Rahul" } }
   - "Show attendance report for today": { "action": "showReport", "parameters": { "date": "today" } }
   - "Go to the dashboard": { "action": "navigate", "parameters": { "page": "/" } }
   - "Open the user management page": { "action": "navigate", "parameters": { "page": "/users" } }
   - "Go to settings": { "action": "navigate", "parameters": { "page": "/settings" } }
+  - "Navigate to subjects": { "action": "navigate", "parameters": { "page": "/subjects" } }
   - "Add new user Jane Doe with email jane.doe@example.com": { "action": "addUser", "parameters": { "name": "Jane Doe", "email": "jane.doe@example.com" } }
   - "Create a new user named Bob": { "action": "addUser", "parameters": { "name": "Bob" } }
-  - "Log out" or "Sign out": { "action": "logout" }
+  - "Log out" or "Sign out": { "action": "logout", "parameters": {} }
 
-  If the command is unclear, use the "unknown" action.
+  If the command is unclear or does not match any known actions, use the "unknown" action.
 
   Voice Command: {{{command}}}
 
