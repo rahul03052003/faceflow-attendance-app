@@ -135,7 +135,7 @@ export function VoiceCommandDialog({ children, open, onOpenChange }: VoiceComman
         toast({
           variant: 'destructive',
           title: 'Unknown Action',
-          description: `The command "${action}" is not recognized.`,
+          description: `The command "${command}" is not recognized.`,
         });
     }
   };
