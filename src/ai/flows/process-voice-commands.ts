@@ -1,6 +1,4 @@
 
-// This is an auto-generated file from Firebase Studio.
-
 'use server';
 
 /**
@@ -35,6 +33,42 @@ export async function processVoiceCommand(input: ProcessVoiceCommandInput): Prom
   return processVoiceCommandFlow(input);
 }
 
+
+const processVoiceCommandFlow = ai.defineFlow(
+  {
+    name: 'processVoiceCommandFlow',
+    inputSchema: ProcessVoiceCommandInputSchema,
+    outputSchema: ProcessVoiceCommandOutputSchema,
+  },
+  async ({ command }) => {
+    // SIMULATION: To avoid API quota issues, we'll use local logic to process commands.
+    const lowerCaseCommand = command.toLowerCase();
+
+    // Navigation
+    if (lowerCaseCommand.includes('dashboard')) return { action: 'navigate', parameters: { page: '/' } };
+    if (lowerCaseCommand.includes('capture') || lowerCaseCommand.includes('attendance')) return { action: 'navigate', parameters: { page: '/capture' } };
+    if (lowerCaseCommand.includes('report')) return { action: 'navigate', parameters: { page: '/reports' } };
+    if (lowerCaseCommand.includes('student') || lowerCaseCommand.includes('teacher') || lowerCaseCommand.includes('user')) return { action: 'navigate', parameters: { page: '/users' } };
+    if (lowerCaseCommand.includes('subject')) return { action: 'navigate', parameters: { page: '/subjects' } };
+    if (lowerCaseCommand.includes('setting')) return { action: 'navigate', parameters: { page: '/settings' } };
+
+    // Actions
+    if (lowerCaseCommand.includes('mark') && lowerCaseCommand.includes('present')) return { action: 'markPresent' };
+    if (lowerCaseCommand.includes('start') && lowerCaseCommand.includes('scan')) return { action: 'markPresent' };
+    if (lowerCaseCommand.includes('log out') || lowerCaseCommand.includes('sign out')) return { action: 'logout' };
+
+    // Default fallback
+    return { action: 'unknown' };
+
+    /*
+    // REAL API CALL (currently disabled due to quota limits)
+    const {output} = await prompt(input);
+    return output!;
+    */
+  }
+);
+
+
 const prompt = ai.definePrompt({
   name: 'processVoiceCommandPrompt',
   input: {schema: ProcessVoiceCommandInputSchema},
@@ -42,7 +76,7 @@ const prompt = ai.definePrompt({
   prompt: `You are an AI assistant that processes voice commands for an attendance system.
 
   Based on the user's voice command, determine the appropriate action to be performed and any necessary parameters.
-  The available pages are: Dashboard ('/'), Capture Attendance ('/capture'), Attendance Reports ('/reports'), User Management ('/users'), and Settings ('/settings').
+  The available pages are: Dashboard ('/'), Capture Attendance ('/capture'), Attendance Reports ('/reports'), User Management ('/users'), Subjects ('/subjects'), and Settings ('/settings').
 
   Here are some example voice commands and their corresponding actions and parameters:
 
@@ -64,15 +98,3 @@ const prompt = ai.definePrompt({
   Output in JSON format:
   `,
 });
-
-const processVoiceCommandFlow = ai.defineFlow(
-  {
-    name: 'processVoiceCommandFlow',
-    inputSchema: ProcessVoiceCommandInputSchema,
-    outputSchema: ProcessVoiceCommandOutputSchema,
-  },
-  async input => {
-    const {output} = await prompt(input);
-    return output!;
-  }
-);
